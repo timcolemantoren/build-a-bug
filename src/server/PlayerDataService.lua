@@ -8,7 +8,23 @@ local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
 
 local DATASTORE_NAME = "BuildABug_PlayerData_v1"
-local store = DataStoreService:GetDataStore(DATASTORE_NAME)
+
+-- In an unpublished local Studio place, DataStoreService:GetDataStore can throw and stop
+-- the whole server from booting. Keep the server playable by falling back to memory-only
+-- data until the place is published and API services are enabled.
+local store = nil
+local dataStoreEnabled = false
+
+local storeSuccess, storeOrError = pcall(function()
+	return DataStoreService:GetDataStore(DATASTORE_NAME)
+end)
+
+if storeSuccess then
+	store = storeOrError
+	dataStoreEnabled = true
+else
+	warn("[Build a Bug] DataStore unavailable; using temporary in-memory player data for this Studio session.", storeOrError)
+end
 
 local PlayerDataService = {}
 local playerDataByUserId = {}
@@ -114,6 +130,13 @@ end
 
 function PlayerDataService.LoadPlayer(player: Player)
 	local defaultData = makeDefaultData()
+
+	if not dataStoreEnabled or not store then
+		playerDataByUserId[player.UserId] = defaultData
+		publish(player)
+		return
+	end
+
 	local success, savedData = pcall(function()
 		return store:GetAsync(getKey(player))
 	end)
@@ -133,6 +156,10 @@ end
 function PlayerDataService.SavePlayer(player: Player)
 	local data = playerDataByUserId[player.UserId]
 	if not data then
+		return
+	end
+
+	if not dataStoreEnabled or not store then
 		return
 	end
 
