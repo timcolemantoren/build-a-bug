@@ -1,0 +1,23 @@
+{
+  "name": "BuildABug",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "BuildABug": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "BuildABugServer": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "BuildABugClient": {
+          "$path": "src/client"
+        }
+      }
+    }
+  }
+}
