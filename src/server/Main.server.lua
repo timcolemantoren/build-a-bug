@@ -8,6 +8,7 @@ local RemoteNames = require(BuildABugShared.Remotes.RemoteNames)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 local RewardService = require(script.Parent.RewardService)
 local HazardService = require(script.Parent.HazardService)
+local ArenaService = require(script.Parent.ArenaService)
 local RoundService = require(script.Parent.RoundService)
 
 local function getOrCreateFolder(parent: Instance, name: string): Folder
@@ -45,9 +46,10 @@ local remotes = {
 	UseAbility = getOrCreateRemoteEvent(remotesFolder, RemoteNames.UseAbility),
 }
 
+ArenaService.BuildArena()
 PlayerDataService.Init(remotes)
 RewardService.Init(PlayerDataService)
 HazardService.Init(remotes)
-RoundService.Init(remotes, PlayerDataService, RewardService, HazardService)
+RoundService.Init(remotes, PlayerDataService, RewardService, HazardService, ArenaService)
 
 print("[Build a Bug] Server initialized")
