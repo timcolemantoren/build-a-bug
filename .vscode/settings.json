@@ -1,0 +1,6 @@
+{
+  "luau-lsp.require.mode": "relativeToFile",
+  "files.associations": {
+    "*.lua": "luau"
+  }
+}
