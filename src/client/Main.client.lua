@@ -16,8 +16,9 @@ local remotes = {
 	UseAbility = remotesFolder:WaitForChild(RemoteNames.UseAbility),
 }
 
-local HUDController = require(script.UI.HUDController)
-local BugSelectController = require(script.UI.BugSelectController)
+local clientRoot = script.Parent
+local HUDController = require(clientRoot.UI.HUDController)
+local BugSelectController = require(clientRoot.UI.BugSelectController)
 
 HUDController.Init(remotes)
 BugSelectController.Init(remotes)
