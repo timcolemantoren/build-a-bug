@@ -1,7 +1,6 @@
 --!nonstrict
 
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
@@ -12,21 +11,10 @@ local remotes = nil
 local PlayerDataService = nil
 local RewardService = nil
 local HazardService = nil
+local ArenaService = nil
 
 local isRoundActive = false
 local roundStartedAt = 0
-
-local function getOrCreateFolder(parent: Instance, name: string): Folder
-	local folder = parent:FindFirstChild(name)
-	if folder and folder:IsA("Folder") then
-		return folder
-	end
-
-	local newFolder = Instance.new("Folder")
-	newFolder.Name = name
-	newFolder.Parent = parent
-	return newFolder
-end
 
 local function setRoundState(state: string, payload)
 	if remotes and remotes.RoundStateChanged then
@@ -35,16 +23,17 @@ local function setRoundState(state: string, payload)
 end
 
 local function spawnCrumb(position: Vector3)
-	local arenaFolder = getOrCreateFolder(Workspace, "BuildABugArena")
-	local crumbsFolder = getOrCreateFolder(arenaFolder, "Crumbs")
+	local crumbsFolder = ArenaService.GetCrumbsFolder()
 
 	local crumb = Instance.new("Part")
 	crumb.Name = "Crumb"
 	crumb.Shape = Enum.PartType.Ball
-	crumb.Size = Vector3.new(1, 1, 1)
+	crumb.Size = Vector3.new(1.3, 1.3, 1.3)
 	crumb.Position = position
 	crumb.Anchored = true
 	crumb.CanCollide = false
+	crumb.Color = Color3.fromRGB(230, 205, 145)
+	crumb.Material = Enum.Material.SmoothPlastic
 	crumb:SetAttribute("Collected", false)
 	crumb.Parent = crumbsFolder
 
@@ -67,9 +56,7 @@ end
 
 local function spawnCrumbWave()
 	for _ = 1, RoundConfig.crumbsPerSpawn do
-		local x = math.random(-45, 45)
-		local z = math.random(-45, 45)
-		spawnCrumb(Vector3.new(x, 4, z))
+		spawnCrumb(ArenaService.GetRandomCrumbPosition())
 	end
 end
 
@@ -134,11 +121,12 @@ function RoundService.EndRound()
 	})
 end
 
-function RoundService.Init(remoteEvents, playerDataService, rewardService, hazardService)
+function RoundService.Init(remoteEvents, playerDataService, rewardService, hazardService, arenaService)
 	remotes = remoteEvents
 	PlayerDataService = playerDataService
 	RewardService = rewardService
 	HazardService = hazardService
+	ArenaService = arenaService
 
 	remotes.StartRoundRequest.OnServerEvent:Connect(function(_player: Player)
 		RoundService.StartRound()
