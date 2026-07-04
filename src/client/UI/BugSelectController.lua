@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
+local BugOrder = require(BuildABugShared.Config.BugOrder)
 
 local BugSelectController = {}
 
@@ -53,12 +54,15 @@ local function ensureGui(remotes)
 	title.Parent = panel
 
 	local y = 56
-	for bugId, bug in pairs(BugArchetypes) do
-		local button = makeButton(panel, bug.displayName, UDim2.fromOffset(20, y))
-		button.MouseButton1Click:Connect(function()
-			remotes.SelectBug:FireServer(bugId)
-		end)
-		y += 52
+	for _, bugId in ipairs(BugOrder) do
+		local bug = BugArchetypes[bugId]
+		if bug then
+			local button = makeButton(panel, bug.displayName, UDim2.fromOffset(20, y))
+			button.MouseButton1Click:Connect(function()
+				remotes.SelectBug:FireServer(bugId)
+			end)
+			y += 52
+		end
 	end
 
 	local startButton = makeButton(panel, "Start Round", UDim2.fromOffset(20, 210))
