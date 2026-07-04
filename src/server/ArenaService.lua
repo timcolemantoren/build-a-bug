@@ -4,8 +4,9 @@ local Workspace = game:GetService("Workspace")
 
 local ArenaService = {}
 
+local ARENA_HALF_SIZE = 62
+
 local arenaFolder = nil
-local crumbZones = {}
 local spawnPosition = Vector3.new(0, 6, 42)
 
 local function createFolder(parent: Instance, name: string): Folder
@@ -43,19 +44,17 @@ local function createMarker(parent: Instance, name: string, size: Vector3, posit
 	return marker
 end
 
-local function addCrumbZone(name: string, center: Vector3, radius: number)
-	table.insert(crumbZones, {
-		name = name,
-		center = center,
-		radius = radius,
-	})
-end
-
 local function removeDefaultBaseplate()
 	local baseplate = Workspace:FindFirstChild("Baseplate")
 	if baseplate and baseplate:IsA("BasePart") then
 		baseplate:Destroy()
 	end
+end
+
+local function randomHorizontalPosition(margin: number): Vector3
+	local min = -ARENA_HALF_SIZE + margin
+	local max = ARENA_HALF_SIZE - margin
+	return Vector3.new(math.random(min, max), 0, math.random(min, max))
 end
 
 function ArenaService.BuildArena()
@@ -67,7 +66,6 @@ function ArenaService.BuildArena()
 	end
 
 	arenaFolder = createFolder(Workspace, "BuildABugArena")
-	crumbZones = {}
 	spawnPosition = Vector3.new(0, 6, 42)
 
 	local ground = createPart(arenaFolder, "DirtFloor", Vector3.new(140, 1, 140), Vector3.new(0, 0, 0), Color3.fromRGB(116, 83, 55), Enum.Material.SmoothPlastic)
@@ -98,12 +96,8 @@ function ArenaService.BuildArena()
 		createPart(grassFolder, "GrassBladeSouth" .. i, Vector3.new(2, 18 + math.random(0, 10), 2), Vector3.new(x, 9, 66), Color3.fromRGB(45, 140, 50), Enum.Material.SmoothPlastic)
 	end
 
-	local crumbsFolder = createFolder(arenaFolder, "Crumbs")
-	crumbsFolder:ClearAllChildren()
-
-	addCrumbZone("Patio", Vector3.new(-36, 4, -28), 16)
-	addCrumbZone("FlowerBed", Vector3.new(36, 4, -30), 14)
-	addCrumbZone("NestEdge", Vector3.new(0, 4, 22), 18)
+	local pickupsFolder = createFolder(arenaFolder, "Pickups")
+	pickupsFolder:ClearAllChildren()
 end
 
 function ArenaService.GetSpawnPosition(): Vector3
@@ -114,23 +108,39 @@ function ArenaService.GetSpawnPosition(): Vector3
 	return spawnPosition
 end
 
-function ArenaService.GetCrumbsFolder(): Folder
+function ArenaService.GetPickupsFolder(): Folder
 	if not arenaFolder then
 		ArenaService.BuildArena()
 	end
 
-	return createFolder(arenaFolder, "Crumbs")
+	return createFolder(arenaFolder, "Pickups")
 end
 
-function ArenaService.GetRandomCrumbPosition(): Vector3
-	if #crumbZones == 0 then
+function ArenaService.GetCrumbsFolder(): Folder
+	return ArenaService.GetPickupsFolder()
+end
+
+function ArenaService.GetRandomGroundPickupPosition(): Vector3
+	if not arenaFolder then
 		ArenaService.BuildArena()
 	end
 
-	local zone = crumbZones[math.random(1, #crumbZones)]
-	local angle = math.random() * math.pi * 2
-	local distance = math.random() * zone.radius
-	return zone.center + Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
+	local horizontal = randomHorizontalPosition(6)
+	return Vector3.new(horizontal.X, 2.2, horizontal.Z)
+end
+
+function ArenaService.GetRandomAirPickupPosition(): Vector3
+	if not arenaFolder then
+		ArenaService.BuildArena()
+	end
+
+	local horizontal = randomHorizontalPosition(10)
+	local height = math.random(8, 24)
+	return Vector3.new(horizontal.X, height, horizontal.Z)
+end
+
+function ArenaService.GetRandomCrumbPosition(): Vector3
+	return ArenaService.GetRandomGroundPickupPosition()
 end
 
 return ArenaService
