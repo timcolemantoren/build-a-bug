@@ -6,9 +6,11 @@ local Workspace = game:GetService("Workspace")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local HazardConfig = require(BuildABugShared.Config.HazardConfig)
+local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
 
 local HazardService = {}
 local remotes = nil
+local PlayerDataService = nil
 
 local hazardIds = {}
 for hazardId, _ in pairs(HazardConfig) do
@@ -37,18 +39,18 @@ end
 local function makeZone(hazardId: string)
 	if hazardId == "SprinklerBurst" then
 		return {
-			center = Vector3.new(math.random(-35, 35), 0.35, math.random(-25, 25)),
-			size = Vector3.new(18, 0.5, 70),
+			center = Vector3.new(math.random(-35, 35), 0.75, math.random(-25, 25)),
+			size = Vector3.new(18, 0.25, 70),
 		}
 	elseif hazardId == "ShoeStomp" then
 		return {
-			center = Vector3.new(math.random(-45, 45), 0.35, math.random(-45, 45)),
-			size = Vector3.new(24, 0.5, 24),
+			center = Vector3.new(math.random(-45, 45), 0.75, math.random(-45, 45)),
+			size = Vector3.new(24, 0.25, 24),
 		}
 	else
 		return {
-			center = Vector3.new(math.random(-45, 45), 0.35, math.random(-45, 45)),
-			size = Vector3.new(34, 0.5, 26),
+			center = Vector3.new(math.random(-45, 45), 0.75, math.random(-45, 45)),
+			size = Vector3.new(34, 0.25, 26),
 		}
 	end
 end
@@ -58,6 +60,8 @@ local function createWarningPart(hazard, zone)
 	part.Name = hazard.id .. "Warning"
 	part.Anchored = true
 	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
 	part.Size = zone.size
 	part.Position = zone.center
 	part.Transparency = 0.45
@@ -73,19 +77,35 @@ local function isInsideZone(rootPart: BasePart, zone): boolean
 	return math.abs(relative.X) <= half.X and math.abs(relative.Z) <= half.Z
 end
 
+local function getDamageForPlayer(player: Player, baseDamage: number): number
+	if not PlayerDataService then
+		return baseDamage
+	end
+
+	local data = PlayerDataService.GetData(player)
+	local bug = data and BugArchetypes[data.selectedBug]
+	if not bug then
+		return baseDamage
+	end
+
+	local reduction = bug.damageReduction or 0
+	return math.max(1, math.floor(baseDamage * (1 - reduction)))
+end
+
 local function damagePlayersInZone(zone, damage: number)
 	for _, player in ipairs(Players:GetPlayers()) do
 		local character = player.Character
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		if rootPart and humanoid and humanoid.Health > 0 and isInsideZone(rootPart, zone) then
-			humanoid:TakeDamage(damage)
+			humanoid:TakeDamage(getDamageForPlayer(player, damage))
 		end
 	end
 end
 
-function HazardService.Init(remoteEvents)
+function HazardService.Init(remoteEvents, playerDataService)
 	remotes = remoteEvents
+	PlayerDataService = playerDataService
 end
 
 function HazardService.GetRandomHazardId(): string?
