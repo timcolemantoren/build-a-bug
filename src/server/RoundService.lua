@@ -22,6 +22,23 @@ local function setRoundState(state: string, payload)
 	end
 end
 
+local function teleportPlayersToNest()
+	local spawnPosition = ArenaService.GetSpawnPosition()
+	for index, player in ipairs(Players:GetPlayers()) do
+		local character = player.Character
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+		if rootPart then
+			local offset = Vector3.new((index - 1) * 3, 0, 0)
+			rootPart.CFrame = CFrame.new(spawnPosition + offset)
+		end
+	end
+end
+
+local function clearCrumbs()
+	local crumbsFolder = ArenaService.GetCrumbsFolder()
+	crumbsFolder:ClearAllChildren()
+end
+
 local function spawnCrumb(position: Vector3)
 	local crumbsFolder = ArenaService.GetCrumbsFolder()
 
@@ -85,6 +102,9 @@ function RoundService.StartRound()
 	if isRoundActive then
 		return
 	end
+
+	clearCrumbs()
+	teleportPlayersToNest()
 
 	isRoundActive = true
 	roundStartedAt = os.clock()
