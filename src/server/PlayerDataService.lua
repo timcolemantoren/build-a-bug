@@ -84,10 +84,19 @@ local function applyCharacterTuning(player: Player)
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
+		local oldMaxHealth = humanoid.MaxHealth
+		local wasFullHealth = humanoid.Health >= oldMaxHealth
+		local newMaxHealth = bug.maxHealth or 100
+
 		humanoid.WalkSpeed = bug.movementSpeed or 16
 		humanoid.JumpPower = bug.jumpPower or 50
-		humanoid.MaxHealth = bug.maxHealth or 100
-		humanoid.Health = math.min(humanoid.Health, humanoid.MaxHealth)
+		humanoid.MaxHealth = newMaxHealth
+
+		if wasFullHealth then
+			humanoid.Health = newMaxHealth
+		else
+			humanoid.Health = math.min(humanoid.Health, newMaxHealth)
+		end
 	end
 end
 
