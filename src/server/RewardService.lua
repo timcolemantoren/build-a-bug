@@ -38,6 +38,14 @@ function RewardService.AwardCrumb(player: Player, amount: number?)
 	PlayerDataService.AddDna(player, RoundConfig.crumbDnaReward * crumbAmount)
 end
 
+function RewardService.AwardDnaPickup(player: Player, amount: number?)
+	if not PlayerDataService then
+		return
+	end
+
+	PlayerDataService.AddDna(player, amount or RoundConfig.dnaPickupReward or 3)
+end
+
 function RewardService.AwardRoundComplete(player: Player, survivedSeconds: number)
 	if not PlayerDataService then
 		return
