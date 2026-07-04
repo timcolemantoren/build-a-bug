@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
+local ProgressionConfig = require(BuildABugShared.Config.ProgressionConfig)
 
 local DATASTORE_NAME = "BuildABug_PlayerData_v1"
 
@@ -65,9 +66,55 @@ local function getKey(player: Player): string
 	return "player_" .. tostring(player.UserId)
 end
 
+local function applyCharacterTuning(player: Player)
+	local data = playerDataByUserId[player.UserId]
+	if not data then
+		return
+	end
+
+	local character = player.Character
+	if not character then
+		return
+	end
+
+	local bug = BugArchetypes[data.selectedBug]
+	if not bug then
+		return
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = bug.movementSpeed or 16
+		humanoid.JumpPower = bug.jumpPower or 50
+		humanoid.MaxHealth = bug.maxHealth or 100
+		humanoid.Health = math.min(humanoid.Health, humanoid.MaxHealth)
+	end
+
+	local dna = data.currency and data.currency.dna or 0
+	local levelInfo = ProgressionConfig.GetLevelForDna(dna)
+	if levelInfo and character.ScaleTo then
+		pcall(function()
+			character:ScaleTo(levelInfo.sizeScale)
+		end)
+	end
+end
+
 local function publish(player: Player)
+	local data = playerDataByUserId[player.UserId]
+	if not data then
+		return
+	end
+
+	local dna = data.currency and data.currency.dna or 0
+	data.progression = {
+		current = ProgressionConfig.GetLevelForDna(dna),
+		next = ProgressionConfig.GetNextLevelForDna(dna),
+	}
+
+	applyCharacterTuning(player)
+
 	if remotes and remotes.PlayerDataChanged then
-		remotes.PlayerDataChanged:FireClient(player, playerDataByUserId[player.UserId])
+		remotes.PlayerDataChanged:FireClient(player, data)
 	end
 end
 
@@ -180,7 +227,14 @@ end
 function PlayerDataService.Init(remoteEvents)
 	remotes = remoteEvents
 
-	Players.PlayerAdded:Connect(PlayerDataService.LoadPlayer)
+	Players.PlayerAdded:Connect(function(player: Player)
+		PlayerDataService.LoadPlayer(player)
+		player.CharacterAdded:Connect(function()
+			task.wait(0.5)
+			applyCharacterTuning(player)
+		end)
+	end)
+
 	Players.PlayerRemoving:Connect(PlayerDataService.UnloadPlayer)
 
 	remotes.SelectBug.OnServerEvent:Connect(function(player: Player, bugId: string)
