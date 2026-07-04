@@ -10,6 +10,7 @@ local statusLabel = nil
 local dataLabel = nil
 local progressLabel = nil
 local hazardLabel = nil
+local countdownToken = 0
 
 local function makeLabel(parent: Instance, name: string, yOffset: number): TextLabel
 	local label = Instance.new("TextLabel")
@@ -49,6 +50,22 @@ local function ensureGui()
 	hazardLabel.Text = ""
 end
 
+local function startCountdown(durationSeconds: number)
+	countdownToken += 1
+	local token = countdownToken
+	local remaining = math.floor(durationSeconds)
+
+	task.spawn(function()
+		while remaining >= 0 and token == countdownToken do
+			if statusLabel then
+				statusLabel.Text = string.format("Round active | Time left: %ss", remaining)
+			end
+			task.wait(1)
+			remaining -= 1
+		end
+	end)
+end
+
 function HUDController.Init(remotes)
 	ensureGui()
 
@@ -71,8 +88,9 @@ function HUDController.Init(remotes)
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, payload)
 		ensureGui()
 		if state == "Started" then
-			statusLabel.Text = string.format("Round started! Survive for %s seconds.", payload.durationSeconds or "?")
+			startCountdown(payload.durationSeconds or 0)
 		elseif state == "Ended" then
+			countdownToken += 1
 			statusLabel.Text = string.format("Round ended. Survived: %s seconds.", payload.survivedSeconds or "?")
 		else
 			statusLabel.Text = "Round state: " .. tostring(state)
