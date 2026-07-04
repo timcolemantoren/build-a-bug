@@ -3,16 +3,16 @@
 local ProgressionConfig = {}
 
 ProgressionConfig.Levels = {
-	{ level = 1, dnaRequired = 0, sizeScale = 1.00, title = "Level 1" },
-	{ level = 2, dnaRequired = 25, sizeScale = 1.04, title = "Level 2" },
-	{ level = 3, dnaRequired = 75, sizeScale = 1.08, title = "Level 3" },
-	{ level = 4, dnaRequired = 175, sizeScale = 1.12, title = "Level 4" },
-	{ level = 5, dnaRequired = 400, sizeScale = 1.16, title = "Level 5" },
-	{ level = 6, dnaRequired = 900, sizeScale = 1.20, title = "Level 6" },
-	{ level = 7, dnaRequired = 1800, sizeScale = 1.24, title = "Level 7" },
-	{ level = 8, dnaRequired = 3500, sizeScale = 1.28, title = "Level 8" },
-	{ level = 9, dnaRequired = 6500, sizeScale = 1.32, title = "Level 9" },
-	{ level = 10, dnaRequired = 10000, sizeScale = 1.36, title = "Level 10" },
+	{ level = 1, dnaRequired = 0, title = "Fresh Hatchling" },
+	{ level = 2, dnaRequired = 25, title = "Tiny Forager" },
+	{ level = 3, dnaRequired = 75, title = "Backyard Explorer" },
+	{ level = 4, dnaRequired = 175, title = "Scrappy Survivor" },
+	{ level = 5, dnaRequired = 400, title = "Garden Veteran" },
+	{ level = 6, dnaRequired = 900, title = "Tough Critter" },
+	{ level = 7, dnaRequired = 1800, title = "Micro Monster" },
+	{ level = 8, dnaRequired = 3500, title = "Yard Champion" },
+	{ level = 9, dnaRequired = 6500, title = "Backyard Beast" },
+	{ level = 10, dnaRequired = 10000, title = "Legendary Bug" },
 }
 
 function ProgressionConfig.GetLevelForDna(dna: number)
