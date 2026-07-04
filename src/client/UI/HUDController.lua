@@ -8,12 +8,13 @@ local player = Players.LocalPlayer
 local gui = nil
 local statusLabel = nil
 local dataLabel = nil
+local progressLabel = nil
 local hazardLabel = nil
 
 local function makeLabel(parent: Instance, name: string, yOffset: number): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Name = name
-	label.Size = UDim2.fromOffset(360, 34)
+	label.Size = UDim2.fromOffset(430, 34)
 	label.Position = UDim2.fromOffset(20, yOffset)
 	label.BackgroundTransparency = 0.25
 	label.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -41,7 +42,10 @@ local function ensureGui()
 	dataLabel = makeLabel(gui, "PlayerData", 60)
 	dataLabel.Text = "DNA: 0 | Crumbs: 0 | Bug: Ant"
 
-	hazardLabel = makeLabel(gui, "HazardWarning", 100)
+	progressLabel = makeLabel(gui, "Progress", 100)
+	progressLabel.Text = "Level 1 | Next: 25 DNA"
+
+	hazardLabel = makeLabel(gui, "HazardWarning", 140)
 	hazardLabel.Text = ""
 end
 
@@ -54,6 +58,14 @@ function HUDController.Init(remotes)
 		local crumbs = data.currency and data.currency.crumbs or 0
 		local selectedBug = data.selectedBug or "Ant"
 		dataLabel.Text = string.format("DNA: %s | Crumbs: %s | Bug: %s", dna, crumbs, selectedBug)
+
+		local current = data.progression and data.progression.current
+		local nextLevel = data.progression and data.progression.next
+		if current and nextLevel then
+			progressLabel.Text = string.format("Level %s | Size %.2fx | Next: %s DNA", current.level, current.sizeScale, nextLevel.dnaRequired)
+		elseif current then
+			progressLabel.Text = string.format("Level %s | Size %.2fx | Max Level", current.level, current.sizeScale)
+		end
 	end)
 
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, payload)
