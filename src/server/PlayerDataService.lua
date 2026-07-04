@@ -89,14 +89,6 @@ local function applyCharacterTuning(player: Player)
 		humanoid.MaxHealth = bug.maxHealth or 100
 		humanoid.Health = math.min(humanoid.Health, humanoid.MaxHealth)
 	end
-
-	local dna = data.currency and data.currency.dna or 0
-	local levelInfo = ProgressionConfig.GetLevelForDna(dna)
-	if levelInfo and character.ScaleTo then
-		pcall(function()
-			character:ScaleTo(levelInfo.sizeScale)
-		end)
-	end
 end
 
 local function publish(player: Player)
