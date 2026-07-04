@@ -89,6 +89,11 @@ local function getDamageForPlayer(player: Player, baseDamage: number): number
 	end
 
 	local reduction = bug.damageReduction or 0
+	local shellBlockUntil = player:GetAttribute("ShellBlockUntil") or 0
+	if shellBlockUntil > os.clock() then
+		reduction = math.max(reduction, 0.75)
+	end
+
 	return math.max(1, math.floor(baseDamage * (1 - reduction)))
 end
 
