@@ -47,6 +47,15 @@ local function createMarker(parent: Instance, name: string, size: Vector3, posit
 	return marker
 end
 
+local function createZone(parent: Instance, name: string, size: Vector3, position: Vector3, color: Color3, slowMultiplier: number?, damagePerSecond: number?): Part
+	local zone = createMarker(parent, name, size, position, color)
+	zone.Transparency = 0.35
+	zone:SetAttribute("IsEnvironmentZone", true)
+	zone:SetAttribute("SlowMultiplier", slowMultiplier or 1)
+	zone:SetAttribute("DamagePerSecond", damagePerSecond or 0)
+	return zone
+end
+
 local function removeDefaultBaseplate()
 	local baseplate = Workspace:FindFirstChild("Baseplate")
 	if baseplate and baseplate:IsA("BasePart") then
@@ -61,11 +70,78 @@ local function randomHorizontalPosition(margin: number): Vector3
 end
 
 local function scatterGrassClumps(parent: Instance)
-	for i = 1, 72 do
+	for i = 1, 130 do
 		local pos = randomHorizontalPosition(22)
-		local height = math.random(12, 34)
-		createPart(parent, "GrassBlade" .. i, Vector3.new(2, height, 2), Vector3.new(pos.X, height / 2, pos.Z), Color3.fromRGB(45, 140, 50), Enum.Material.SmoothPlastic)
+		local height = math.random(10, 36)
+		local blade = createPart(parent, "GrassBlade" .. i, Vector3.new(2, height, 2), Vector3.new(pos.X, height / 2, pos.Z), Color3.fromRGB(45 + math.random(0, 20), 125 + math.random(0, 35), 45), Enum.Material.SmoothPlastic)
+		blade.Orientation = Vector3.new(math.random(-10, 10), math.random(0, 180), math.random(-10, 10))
 	end
+end
+
+local function scatterPebbles(parent: Instance)
+	for i = 1, 65 do
+		local pos = randomHorizontalPosition(18)
+		local size = Vector3.new(math.random(3, 10), math.random(2, 6), math.random(3, 9))
+		local rock = createPart(parent, "Pebble" .. i, size, Vector3.new(pos.X, size.Y / 2 + 0.6, pos.Z), Color3.fromRGB(95 + math.random(0, 35), 90 + math.random(0, 35), 82 + math.random(0, 35)), Enum.Material.SmoothPlastic)
+		rock.Orientation = Vector3.new(math.random(0, 25), math.random(0, 180), math.random(0, 25))
+	end
+end
+
+local function scatterLeaves(parent: Instance)
+	for i = 1, 45 do
+		local pos = randomHorizontalPosition(18)
+		local leaf = createPart(parent, "FallenLeaf" .. i, Vector3.new(math.random(9, 18), 0.35, math.random(4, 9)), Vector3.new(pos.X, 0.85, pos.Z), Color3.fromRGB(95 + math.random(0, 50), 120 + math.random(0, 45), 45), Enum.Material.SmoothPlastic)
+		leaf.CanCollide = false
+		leaf.Orientation = Vector3.new(0, math.random(0, 180), 0)
+	end
+end
+
+local function scatterTwigs(parent: Instance)
+	for i = 1, 38 do
+		local pos = randomHorizontalPosition(20)
+		local twig = createPart(parent, "Twig" .. i, Vector3.new(math.random(12, 28), 1.2, 1.2), Vector3.new(pos.X, 1.2, pos.Z), Color3.fromRGB(95, 60, 35), Enum.Material.SmoothPlastic)
+		twig.Orientation = Vector3.new(math.random(-8, 8), math.random(0, 180), math.random(-8, 8))
+	end
+end
+
+local function createGardenHose(parent: Instance, zonesFolder: Folder)
+	local hoseFolder = createFolder(parent, "GardenHose")
+	local points = {
+		Vector3.new(-180, 1.2, -150),
+		Vector3.new(-135, 1.2, -130),
+		Vector3.new(-95, 1.2, -145),
+		Vector3.new(-55, 1.2, -120),
+		Vector3.new(-25, 1.2, -92),
+	}
+
+	for i = 1, #points - 1 do
+		local a = points[i]
+		local b = points[i + 1]
+		local mid = (a + b) / 2
+		local length = (b - a).Magnitude
+		local hose = createPart(hoseFolder, "HoseSegment" .. i, Vector3.new(length, 2.5, 2.5), mid, Color3.fromRGB(35, 135, 70), Enum.Material.SmoothPlastic)
+		hose.CFrame = CFrame.lookAt(mid, b) * CFrame.Angles(0, math.rad(90), 0)
+	end
+
+	createPart(hoseFolder, "HoseNozzle", Vector3.new(10, 5, 5), Vector3.new(-20, 2.5, -86), Color3.fromRGB(80, 90, 95), Enum.Material.SmoothPlastic)
+	createZone(zonesFolder, "HoseDripSlowZone", Vector3.new(44, 0.12, 36), Vector3.new(-18, 0.72, -68), Color3.fromRGB(70, 170, 255), 0.45, 0)
+end
+
+local function createPuddles(parent: Instance, zonesFolder: Folder)
+	createMarker(parent, "LittlePuddleA", Vector3.new(46, 0.12, 34), Vector3.new(130, 0.7, 130), Color3.fromRGB(70, 145, 210)).Transparency = 0.28
+	createZone(zonesFolder, "PuddleSlowZoneA", Vector3.new(50, 0.12, 38), Vector3.new(130, 0.75, 130), Color3.fromRGB(70, 145, 210), 0.6, 0)
+
+	createMarker(parent, "LittlePuddleB", Vector3.new(34, 0.12, 24), Vector3.new(-138, 0.71, 24), Color3.fromRGB(75, 155, 220)).Transparency = 0.3
+	createZone(zonesFolder, "PuddleSlowZoneB", Vector3.new(38, 0.12, 28), Vector3.new(-138, 0.76, 24), Color3.fromRGB(75, 155, 220), 0.65, 0)
+end
+
+local function createDamageZones(parent: Instance, zonesFolder: Folder)
+	createMarker(parent, "SplinterPatch", Vector3.new(48, 0.12, 30), Vector3.new(30, 0.74, -165), Color3.fromRGB(150, 85, 45)).Transparency = 0.25
+	for i = 1, 11 do
+		local spike = createPart(parent, "Splinter" .. i, Vector3.new(2, math.random(5, 12), 2), Vector3.new(10 + math.random(0, 42), 3.2, -180 + math.random(0, 28)), Color3.fromRGB(115, 70, 38), Enum.Material.SmoothPlastic)
+		spike.Orientation = Vector3.new(math.random(0, 35), math.random(0, 180), math.random(0, 35))
+	end
+	createZone(zonesFolder, "SplinterDamageZone", Vector3.new(52, 0.12, 34), Vector3.new(30, 0.78, -165), Color3.fromRGB(255, 110, 80), 0.85, 4)
 end
 
 function ArenaService.BuildArena()
@@ -97,6 +173,17 @@ function ArenaService.BuildArena()
 	createPart(coverFolder, "ToyBlock", Vector3.new(18, 18, 18), Vector3.new(0, 9, -135), Color3.fromRGB(200, 70, 60), Enum.Material.SmoothPlastic)
 	createPart(coverFolder, "GardenRockA", Vector3.new(26, 9, 22), Vector3.new(145, 4.5, 25), Color3.fromRGB(110, 110, 105), Enum.Material.SmoothPlastic)
 	createPart(coverFolder, "GardenRockB", Vector3.new(20, 7, 28), Vector3.new(-35, 3.5, -150), Color3.fromRGB(115, 115, 110), Enum.Material.SmoothPlastic)
+	createPart(coverFolder, "BrokenPot", Vector3.new(30, 16, 22), Vector3.new(175, 8, -60), Color3.fromRGB(160, 78, 48), Enum.Material.SmoothPlastic)
+
+	local clutterFolder = createFolder(arenaFolder, "Clutter")
+	scatterPebbles(clutterFolder)
+	scatterLeaves(clutterFolder)
+	scatterTwigs(clutterFolder)
+
+	local environmentZones = createFolder(arenaFolder, "EnvironmentZones")
+	createPuddles(clutterFolder, environmentZones)
+	createGardenHose(clutterFolder, environmentZones)
+	createDamageZones(clutterFolder, environmentZones)
 
 	local wallsFolder = createFolder(arenaFolder, "Boundary")
 	createPart(wallsFolder, "NorthFence", Vector3.new(ARENA_SIDE_LENGTH + 12, 22, 2), Vector3.new(0, 11, -ARENA_HALF_SIZE - 4), Color3.fromRGB(130, 90, 55), Enum.Material.SmoothPlastic)
@@ -107,8 +194,7 @@ function ArenaService.BuildArena()
 	local grassFolder = createFolder(arenaFolder, "GrassClumps")
 	scatterGrassClumps(grassFolder)
 
-	local pickupsFolder = createFolder(arenaFolder, "Pickups")
-	pickupsFolder:ClearAllChildren()
+	local pickupsFolder = createFolder(arenaFolder, "Pickups")	pickupsFolder:ClearAllChildren()
 end
 
 function ArenaService.GetSpawnPosition(): Vector3
