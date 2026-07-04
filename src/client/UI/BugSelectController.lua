@@ -11,18 +11,42 @@ local BugSelectController = {}
 
 local player = Players.LocalPlayer
 local gui = nil
+local panel = nil
+local expanded = false
+local details = {}
+local toggleButton = nil
 
 local function makeButton(parent: Instance, text: string, position: UDim2): TextButton
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.fromOffset(180, 44)
+	button.Size = UDim2.fromOffset(180, 40)
 	button.Position = position
 	button.BackgroundTransparency = 0.1
 	button.Text = text
 	button.TextColor3 = Color3.fromRGB(255, 255, 255)
 	button.Font = Enum.Font.GothamBold
-	button.TextSize = 18
+	button.TextSize = 16
 	button.Parent = parent
 	return button
+end
+
+local function applyLayout()
+	if not panel then
+		return
+	end
+
+	if expanded then
+		panel.Size = UDim2.fromOffset(220, 252)
+		panel.Position = UDim2.new(1, -236, 0, 14)
+		toggleButton.Text = "Close"
+	else
+		panel.Size = UDim2.fromOffset(96, 44)
+		panel.Position = UDim2.new(1, -110, 0, 14)
+		toggleButton.Text = "Bugs"
+	end
+
+	for _, item in ipairs(details) do
+		item.Visible = expanded
+	end
 end
 
 local function ensureGui(remotes)
@@ -35,40 +59,54 @@ local function ensureGui(remotes)
 	gui.ResetOnSpawn = false
 	gui.Parent = player:WaitForChild("PlayerGui")
 
-	local panel = Instance.new("Frame")
+	panel = Instance.new("Frame")
 	panel.Name = "Panel"
-	panel.Size = UDim2.fromOffset(220, 260)
-	panel.Position = UDim2.new(1, -240, 0, 20)
 	panel.BackgroundTransparency = 0.2
 	panel.Parent = gui
 
+	toggleButton = makeButton(panel, "Bugs", UDim2.fromOffset(8, 4))
+	toggleButton.Size = UDim2.fromOffset(80, 34)
+	toggleButton.MouseButton1Click:Connect(function()
+		expanded = not expanded
+		applyLayout()
+	end)
+
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
-	title.Size = UDim2.fromOffset(200, 36)
-	title.Position = UDim2.fromOffset(10, 10)
+	title.Size = UDim2.fromOffset(200, 32)
+	title.Position = UDim2.fromOffset(10, 44)
 	title.BackgroundTransparency = 1
 	title.Text = "Choose Your Bug"
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
 	title.Font = Enum.Font.GothamBold
-	title.TextSize = 20
+	title.TextSize = 18
 	title.Parent = panel
+	table.insert(details, title)
 
-	local y = 56
+	local y = 82
 	for _, bugId in ipairs(BugOrder) do
 		local bug = BugArchetypes[bugId]
 		if bug then
 			local button = makeButton(panel, bug.displayName, UDim2.fromOffset(20, y))
 			button.MouseButton1Click:Connect(function()
 				remotes.SelectBug:FireServer(bugId)
+				expanded = false
+				applyLayout()
 			end)
-			y += 52
+			table.insert(details, button)
+			y += 46
 		end
 	end
 
-	local startButton = makeButton(panel, "Start Round", UDim2.fromOffset(20, 210))
+	local startButton = makeButton(panel, "Start Round", UDim2.fromOffset(20, 220))
 	startButton.MouseButton1Click:Connect(function()
 		remotes.StartRoundRequest:FireServer()
+		expanded = false
+		applyLayout()
 	end)
+	table.insert(details, startButton)
+
+	applyLayout()
 end
 
 function BugSelectController.Init(remotes)
