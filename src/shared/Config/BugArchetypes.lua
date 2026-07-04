@@ -1,7 +1,8 @@
 --!strict
 
 -- Base bug types for the MVP.
--- Keep these small and easy to balance until the survival loop is fun.
+-- For now, all bugs use 100 health so Roblox's default health bar stays predictable.
+-- Durability differences should come from hazard damage rules, not max health changes.
 
 local BugArchetypes = {
 	Ant = {
@@ -27,7 +28,7 @@ local BugArchetypes = {
 		description = "A tough armored bug that survives mistakes but moves slower.",
 		movementSpeed = 12,
 		jumpPower = 34,
-		maxHealth = 150,
+		maxHealth = 100,
 		hungerDrainPerSecond = 1.2,
 		damageReduction = 0.25,
 		ability = {
@@ -45,7 +46,7 @@ local BugArchetypes = {
 		description = "A fragile jumper built for quick escapes.",
 		movementSpeed = 19,
 		jumpPower = 72,
-		maxHealth = 80,
+		maxHealth = 100,
 		hungerDrainPerSecond = 1.4,
 		ability = {
 			id = "Leap",
