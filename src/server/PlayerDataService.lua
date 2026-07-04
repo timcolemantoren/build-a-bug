@@ -92,6 +92,10 @@ local function applyCharacterTuning(player: Player)
 		humanoid.JumpPower = bug.jumpPower or 50
 		humanoid.MaxHealth = newMaxHealth
 
+		pcall(function()
+			humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+		end)
+
 		if wasFullHealth then
 			humanoid.Health = newMaxHealth
 		else
