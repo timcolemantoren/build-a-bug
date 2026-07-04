@@ -13,8 +13,10 @@ local player = Players.LocalPlayer
 local gui = nil
 local button = nil
 local cooldownLabel = nil
+local feedbackLabel = nil
 local selectedBug = "Ant"
 local readyAt = 0
+local feedbackToken = 0
 
 local function getAbilityName(): string
 	local bug = BugArchetypes[selectedBug]
@@ -30,6 +32,35 @@ local function getCooldown(): number
 		return bug.ability.cooldownSeconds or 8
 	end
 	return 8
+end
+
+local function getFeedbackText(): string
+	if selectedBug == "Ant" then
+		return "+2 bonus food"
+	elseif selectedBug == "Beetle" then
+		return "Shell Block active"
+	elseif selectedBug == "Grasshopper" then
+		return "Leap!"
+	end
+
+	return "Ability used"
+end
+
+local function showFeedback(text: string)
+	if not feedbackLabel then
+		return
+	end
+
+	feedbackToken += 1
+	local token = feedbackToken
+	feedbackLabel.Text = text
+	feedbackLabel.Visible = true
+
+	task.delay(1.4, function()
+		if token == feedbackToken and feedbackLabel then
+			feedbackLabel.Visible = false
+		end
+	end)
 end
 
 local function refreshButton()
@@ -54,6 +85,7 @@ local function useAbility(remotes)
 
 	readyAt = os.clock() + getCooldown()
 	refreshButton()
+	showFeedback(getFeedbackText())
 	remotes.UseAbility:FireServer()
 end
 
@@ -90,6 +122,18 @@ local function ensureGui(remotes)
 	cooldownLabel.Font = Enum.Font.GothamBold
 	cooldownLabel.TextSize = 14
 	cooldownLabel.Parent = gui
+
+	feedbackLabel = Instance.new("TextLabel")
+	feedbackLabel.Name = "Feedback"
+	feedbackLabel.Size = UDim2.fromOffset(190, 26)
+	feedbackLabel.Position = UDim2.new(1, -190, 1, -132)
+	feedbackLabel.BackgroundTransparency = 1
+	feedbackLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	feedbackLabel.TextStrokeTransparency = 0.4
+	feedbackLabel.Font = Enum.Font.GothamBold
+	feedbackLabel.TextSize = 16
+	feedbackLabel.Visible = false
+	feedbackLabel.Parent = gui
 
 	refreshButton()
 end
