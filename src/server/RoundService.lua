@@ -34,28 +34,42 @@ local function teleportPlayersToNest()
 	end
 end
 
-local function clearCrumbs()
-	local crumbsFolder = ArenaService.GetCrumbsFolder()
-	crumbsFolder:ClearAllChildren()
+local function clearPickups()
+	local pickupsFolder = ArenaService.GetPickupsFolder()
+	pickupsFolder:ClearAllChildren()
 end
 
-local function spawnCrumb(position: Vector3)
-	local crumbsFolder = ArenaService.GetCrumbsFolder()
+local function collectPickup(pickup: BasePart, player: Player)
+	if not isRoundActive then
+		return
+	end
 
-	local crumb = Instance.new("Part")
-	crumb.Name = "Crumb"
-	crumb.Shape = Enum.PartType.Ball
-	crumb.Size = Vector3.new(1.3, 1.3, 1.3)
-	crumb.Position = position
-	crumb.Anchored = true
-	crumb.CanCollide = false
-	crumb.Color = Color3.fromRGB(230, 205, 145)
-	crumb.Material = Enum.Material.SmoothPlastic
-	crumb:SetAttribute("Collected", false)
-	crumb.Parent = crumbsFolder
+	local pickupType = pickup:GetAttribute("PickupType")
+	if pickupType == "DNA" then
+		RewardService.AwardDnaPickup(player, RoundConfig.dnaPickupReward)
+	else
+		RewardService.AwardCrumb(player, 1)
+	end
+end
 
-	crumb.Touched:Connect(function(hit)
-		if crumb:GetAttribute("Collected") then
+local function spawnPickup(pickupType: string, position: Vector3)
+	local pickupsFolder = ArenaService.GetPickupsFolder()
+
+	local pickup = Instance.new("Part")
+	pickup.Name = pickupType == "DNA" and "DnaPickup" or "Crumb"
+	pickup.Shape = Enum.PartType.Ball
+	pickup.Size = pickupType == "DNA" and Vector3.new(1.15, 1.15, 1.15) or Vector3.new(1.25, 1.25, 1.25)
+	pickup.Position = position
+	pickup.Anchored = true
+	pickup.CanCollide = false
+	pickup.Color = pickupType == "DNA" and Color3.fromRGB(105, 175, 255) or Color3.fromRGB(230, 205, 145)
+	pickup.Material = pickupType == "DNA" and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	pickup:SetAttribute("Collected", false)
+	pickup:SetAttribute("PickupType", pickupType)
+	pickup.Parent = pickupsFolder
+
+	pickup.Touched:Connect(function(hit)
+		if pickup:GetAttribute("Collected") then
 			return
 		end
 
@@ -65,15 +79,21 @@ local function spawnCrumb(position: Vector3)
 			return
 		end
 
-		crumb:SetAttribute("Collected", true)
-		RewardService.AwardCrumb(player, 1)
-		crumb:Destroy()
+		pickup:SetAttribute("Collected", true)
+		collectPickup(pickup, player)
+		pickup:Destroy()
 	end)
 end
 
-local function spawnCrumbWave()
+local function spawnPickupWave()
 	for _ = 1, RoundConfig.crumbsPerSpawn do
-		spawnCrumb(ArenaService.GetRandomCrumbPosition())
+		spawnPickup("Crumb", ArenaService.GetRandomGroundPickupPosition())
+	end
+
+	for _ = 1, RoundConfig.dnaPickupsPerSpawn do
+		local useAir = math.random() < 0.6
+		local position = useAir and ArenaService.GetRandomAirPickupPosition() or ArenaService.GetRandomGroundPickupPosition()
+		spawnPickup("DNA", position)
 	end
 end
 
@@ -91,10 +111,10 @@ local function runHazardLoop()
 	end
 end
 
-local function runCrumbLoop()
+local function runPickupLoop()
 	while isRoundActive do
-		spawnCrumbWave()
-		task.wait(RoundConfig.crumbSpawnIntervalSeconds)
+		spawnPickupWave()
+		task.wait(RoundConfig.pickupSpawnIntervalSeconds or RoundConfig.crumbSpawnIntervalSeconds)
 	end
 end
 
@@ -103,7 +123,7 @@ function RoundService.StartRound()
 		return
 	end
 
-	clearCrumbs()
+	clearPickups()
 	teleportPlayersToNest()
 
 	isRoundActive = true
@@ -114,7 +134,7 @@ function RoundService.StartRound()
 		startedAt = roundStartedAt,
 	})
 
-	task.spawn(runCrumbLoop)
+	task.spawn(runPickupLoop)
 	task.spawn(runHazardLoop)
 
 	task.delay(RoundConfig.roundDurationSeconds, function()
@@ -136,6 +156,8 @@ function RoundService.EndRound()
 		RewardService.AwardRoundComplete(player, survivedSeconds)
 	end
 
+	clearPickups()
+
 	setRoundState("Ended", {
 		survivedSeconds = survivedSeconds,
 	})
@@ -148,15 +170,11 @@ function RoundService.Init(remoteEvents, playerDataService, rewardService, hazar
 	HazardService = hazardService
 	ArenaService = arenaService
 
+	clearPickups()
+	setRoundState("Waiting", {})
+
 	remotes.StartRoundRequest.OnServerEvent:Connect(function(_player: Player)
 		RoundService.StartRound()
-	end)
-
-	-- For fast Studio testing, start the first round shortly after the server boots.
-	task.delay(8, function()
-		if #Players:GetPlayers() >= RoundConfig.minimumPlayers then
-			RoundService.StartRound()
-		end
 	end)
 end
 
