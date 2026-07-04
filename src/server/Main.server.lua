@@ -49,7 +49,7 @@ local remotes = {
 ArenaService.BuildArena()
 PlayerDataService.Init(remotes)
 RewardService.Init(PlayerDataService)
-HazardService.Init(remotes)
+HazardService.Init(remotes, PlayerDataService)
 RoundService.Init(remotes, PlayerDataService, RewardService, HazardService, ArenaService)
 
 print("[Build a Bug] Server initialized")
