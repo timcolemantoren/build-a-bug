@@ -19,8 +19,10 @@ local remotes = {
 local clientRoot = script.Parent
 local HUDController = require(clientRoot.UI.HUDController)
 local BugSelectController = require(clientRoot.UI.BugSelectController)
+local RoundEndController = require(clientRoot.UI.RoundEndController)
 
 HUDController.Init(remotes)
 BugSelectController.Init(remotes)
+RoundEndController.Init(remotes)
 
 print("[Build a Bug] Client initialized")
