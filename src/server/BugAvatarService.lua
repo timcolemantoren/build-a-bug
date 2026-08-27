@@ -2,12 +2,11 @@
 
 local Players = game:GetService("Players")
 
--- First-pass bug avatar system.
--- We intentionally keep Roblox's Humanoid/R15 controller underneath for movement,
--- networking, health, jumping, hazards, and abilities. The normal avatar is hidden
--- and a lightweight stylized bug body is welded to HumanoidRootPart.
---
--- This is a gameplay/proportion proxy, not the final animated insect rig.
+-- Articulated bug avatar system.
+-- Roblox's hidden Humanoid/R15 character still owns all movement, collision,
+-- health, networking, and abilities. The visible insect is a lightweight Motor6D
+-- hierarchy attached to HumanoidRootPart so motion can propagate through real
+-- body/hip/knee/antenna chains.
 
 local BugAvatarService = {}
 local PlayerDataService = nil
@@ -34,34 +33,30 @@ local COLORS = {
 }
 
 local function hideRobloxAvatar(character: Model)
+	local visual = character:FindFirstChild(VISUAL_MODEL_NAME)
 	for _, descendant in ipairs(character:GetDescendants()) do
 		if descendant:IsA("BasePart") then
-			if not descendant:IsDescendantOf(character:FindFirstChild(VISUAL_MODEL_NAME)) then
+			if not visual or not descendant:IsDescendantOf(visual) then
 				descendant.Transparency = 1
 			end
 		elseif descendant:IsA("Decal") then
 			descendant.Transparency = 1
 		elseif descendant:IsA("ParticleEmitter") or descendant:IsA("Trail") then
-			-- Accessories occasionally carry effects that would reveal the hidden avatar.
 			descendant.Enabled = false
 		end
 	end
 end
 
-local function weldToRoot(root: BasePart, part: BasePart)
-	local weld = Instance.new("WeldConstraint")
-	weld.Name = "BugVisualWeld"
-	weld.Part0 = root
-	weld.Part1 = part
-	weld.Parent = part
+local function bodyFrame(root: BasePart): CFrame
+	return root.CFrame * CFrame.new(0, BODY_OFFSET_Y, 0)
 end
 
-local function makePart(model: Model, root: BasePart, name: string, shape, size: Vector3, localCFrame: CFrame, color: Color3, material)
+local function createPart(model: Model, name: string, shape, size: Vector3, worldCFrame: CFrame, color: Color3, material)
 	local part = Instance.new("Part")
 	part.Name = name
 	part.Shape = shape or Enum.PartType.Block
 	part.Size = size
-	part.CFrame = root.CFrame * CFrame.new(0, BODY_OFFSET_Y, 0) * localCFrame
+	part.CFrame = worldCFrame
 	part.Anchored = false
 	part.Massless = true
 	part.CanCollide = false
@@ -71,33 +66,50 @@ local function makePart(model: Model, root: BasePart, name: string, shape, size:
 	part.Color = color
 	part.Material = material or Enum.Material.SmoothPlastic
 	part.Parent = model
-	weldToRoot(root, part)
 	return part
 end
 
-local function makeEye(model: Model, root: BasePart, localPosition: Vector3, size: number)
-	return makePart(
-		model,
-		root,
-		"Eye",
-		Enum.PartType.Ball,
-		Vector3.new(size, size, size),
-		CFrame.new(localPosition),
-		Color3.fromRGB(16, 16, 18),
-		Enum.Material.SmoothPlastic
-	)
+local function createMotor(parentPart: BasePart, childPart: BasePart, name: string, pivotWorld: CFrame, role: string?, side: number?, phase: number?)
+	local motor = Instance.new("Motor6D")
+	motor.Name = name
+	motor.Part0 = parentPart
+	motor.Part1 = childPart
+	motor.C0 = parentPart.CFrame:ToObjectSpace(pivotWorld)
+	motor.C1 = childPart.CFrame:ToObjectSpace(pivotWorld)
+	if role then
+		motor:SetAttribute("MotionRole", role)
+	end
+	if side then
+		motor:SetAttribute("MotionSide", side)
+	end
+	if phase then
+		motor:SetAttribute("MotionPhase", phase)
+	end
+	motor.Parent = childPart
+	return motor
 end
 
-local function makeSegment(model: Model, root: BasePart, name: string, localA: Vector3, localB: Vector3, thickness: number, color: Color3)
-	local bodyCFrame = root.CFrame * CFrame.new(0, BODY_OFFSET_Y, 0)
-	local worldA = bodyCFrame:PointToWorldSpace(localA)
-	local worldB = bodyCFrame:PointToWorldSpace(localB)
+local function createStaticWeld(parentPart: BasePart, childPart: BasePart)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = parentPart
+	weld.Part1 = childPart
+	weld.Parent = childPart
+end
+
+local function createBodyPart(model: Model, root: BasePart, parentPart: BasePart?, name: string, shape, size: Vector3, localCFrame: CFrame, color: Color3, material, role: string?)
+	local world = bodyFrame(root) * localCFrame
+	local part = createPart(model, name, shape, size, world, color, material)
+	if parentPart then
+		createMotor(parentPart, part, name .. "Joint", world, role or name, 0, 0)
+	else
+		createMotor(root, part, "BodyRootJoint", world, role or "BodyRoot", 0, 0)
+	end
+	return part
+end
+
+local function segmentFrame(worldA: Vector3, worldB: Vector3): CFrame
 	local direction = worldB - worldA
 	local length = direction.Magnitude
-	if length <= 0.01 then
-		return nil
-	end
-
 	local right = direction.Unit
 	local referenceUp = Vector3.yAxis
 	if math.abs(right:Dot(referenceUp)) > 0.94 then
@@ -106,101 +118,141 @@ local function makeSegment(model: Model, root: BasePart, name: string, localA: V
 	local back = right:Cross(referenceUp).Unit
 	local up = back:Cross(right).Unit
 	local midpoint = (worldA + worldB) / 2
+	return CFrame.fromMatrix(midpoint, right, up, back)
+end
 
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Shape = Enum.PartType.Cylinder
-	part.Size = Vector3.new(length, thickness, thickness)
-	part.CFrame = CFrame.fromMatrix(midpoint, right, up, back)
-	part.Anchored = false
-	part.Massless = true
-	part.CanCollide = false
-	part.CanTouch = false
-	part.CanQuery = false
-	part.CastShadow = true
-	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
-	part.Parent = model
-	weldToRoot(root, part)
+local function createSegment(model: Model, root: BasePart, parentPart: BasePart, name: string, localA: Vector3, localB: Vector3, thickness: number, color: Color3, role: string, side: number, phase: number)
+	local base = bodyFrame(root)
+	local worldA = base:PointToWorldSpace(localA)
+	local worldB = base:PointToWorldSpace(localB)
+	local length = (worldB - worldA).Magnitude
+	local part = createPart(
+		model,
+		name,
+		Enum.PartType.Cylinder,
+		Vector3.new(length, thickness, thickness),
+		segmentFrame(worldA, worldB),
+		color,
+		Enum.Material.SmoothPlastic
+	)
+	local pivot = CFrame.fromMatrix(worldA, base.XVector, base.YVector, base.ZVector)
+	createMotor(parentPart, part, name .. "Joint", pivot, role, side, phase)
 	return part
 end
 
-local function makeLeg(model: Model, root: BasePart, side: number, z: number, reach: number, color: Color3, rear: boolean?)
-	local hip = Vector3.new(side * 0.7, -0.05, z)
-	local knee = Vector3.new(side * reach * 0.62, -0.45, z + (rear and 0.45 or 0))
-	local foot = Vector3.new(side * reach, -0.82, z + (rear and 0.9 or -0.15))
-	makeSegment(model, root, "LegUpper", hip, knee, 0.16, color)
-	makeSegment(model, root, "LegLower", knee, foot, 0.13, color)
+local function createEye(model: Model, root: BasePart, head: BasePart, localPosition: Vector3, size: number)
+	local eye = createPart(
+		model,
+		"Eye",
+		Enum.PartType.Ball,
+		Vector3.new(size, size, size),
+		bodyFrame(root) * CFrame.new(localPosition),
+		Color3.fromRGB(16, 16, 18),
+		Enum.Material.SmoothPlastic
+	)
+	createStaticWeld(head, eye)
+	return eye
 end
 
-local function makeAntenna(model: Model, root: BasePart, side: number, startZ: number, reachZ: number, color: Color3)
-	local base = Vector3.new(side * 0.38, 0.16, startZ)
-	local bend = Vector3.new(side * 0.58, 0.40, startZ - 0.55)
-	local tip = Vector3.new(side * 0.82, 0.55, reachZ)
-	makeSegment(model, root, "Antenna", base, bend, 0.09, color)
-	makeSegment(model, root, "AntennaTip", bend, tip, 0.075, color)
+local function gaitPhase(row: number, side: number): number
+	local rightOffset = side > 0 and 1 or 0
+	return ((row + rightOffset) % 2 == 0) and 0 or math.pi
+end
+
+local function createLeg(model: Model, root: BasePart, thorax: BasePart, side: number, row: number, z: number, reach: number, color: Color3, rearBias: number?)
+	local rear = rearBias or 0
+	local hip = Vector3.new(side * 0.62, -0.03, z)
+	local knee = Vector3.new(side * reach * 0.63, -0.42, z + rear * 0.38)
+	local foot = Vector3.new(side * reach, -0.82, z + rear * 0.78 - 0.10)
+	local phase = gaitPhase(row, side)
+	local upper = createSegment(model, root, thorax, "LegUpper", hip, knee, 0.16, color, "LegUpper", side, phase)
+	createSegment(model, root, upper, "LegLower", knee, foot, 0.13, color, "LegLower", side, phase)
+end
+
+local function createAntenna(model: Model, root: BasePart, head: BasePart, side: number, startZ: number, reachZ: number, color: Color3)
+	local basePoint = Vector3.new(side * 0.34, 0.18, startZ)
+	local bend = Vector3.new(side * 0.62, 0.48, startZ - 0.62)
+	local tip = Vector3.new(side * 0.90, 0.58, reachZ)
+	local phase = side < 0 and 0 or math.pi * 0.65
+	local first = createSegment(model, root, head, "Antenna", basePoint, bend, 0.085, color, "Antenna", side, phase)
+	createSegment(model, root, first, "AntennaTip", bend, tip, 0.07, color, "AntennaTip", side, phase)
 end
 
 local function buildAnt(model: Model, root: BasePart)
 	local c = COLORS.Ant
-	makePart(model, root, "Head", Enum.PartType.Ball, Vector3.new(1.35, 1.05, 1.25), CFrame.new(0, 0, -1.65), c.body)
-	makePart(model, root, "Thorax", Enum.PartType.Ball, Vector3.new(1.35, 1.05, 1.45), CFrame.new(0, 0, -0.35), c.accent)
-	makePart(model, root, "Abdomen", Enum.PartType.Ball, Vector3.new(1.75, 1.35, 2.25), CFrame.new(0, 0.02, 1.25), c.body)
-	makeEye(model, root, Vector3.new(-0.48, 0.14, -2.12), 0.24)
-	makeEye(model, root, Vector3.new(0.48, 0.14, -2.12), 0.24)
+	local thorax = createBodyPart(model, root, nil, "Thorax", Enum.PartType.Ball, Vector3.new(1.30, 1.00, 1.40), CFrame.new(0, 0, -0.30), c.accent, nil, "BodyRoot")
+	local head = createBodyPart(model, root, thorax, "Head", Enum.PartType.Ball, Vector3.new(1.32, 1.02, 1.22), CFrame.new(0, 0.02, -1.62), c.body, nil, "Head")
+	createBodyPart(model, root, thorax, "Abdomen", Enum.PartType.Ball, Vector3.new(1.72, 1.30, 2.20), CFrame.new(0, 0.02, 1.20), c.body, nil, "Abdomen")
+	createEye(model, root, head, Vector3.new(-0.47, 0.14, -2.08), 0.24)
+	createEye(model, root, head, Vector3.new(0.47, 0.14, -2.08), 0.24)
 
-	for _, z in ipairs({ -0.85, 0.0, 0.85 }) do
-		makeLeg(model, root, -1, z, 1.8, c.dark, z > 0.5)
-		makeLeg(model, root, 1, z, 1.8, c.dark, z > 0.5)
+	for row, z in ipairs({ -0.82, 0.0, 0.82 }) do
+		for _, side in ipairs({ -1, 1 }) do
+			createLeg(model, root, thorax, side, row, z, 1.85, c.dark, row == 3 and 1 or 0)
+		end
 	end
-	makeAntenna(model, root, -1, -2.05, -3.0, c.dark)
-	makeAntenna(model, root, 1, -2.05, -3.0, c.dark)
+	createAntenna(model, root, head, -1, -2.02, -3.05, c.dark)
+	createAntenna(model, root, head, 1, -2.02, -3.05, c.dark)
 end
 
 local function buildBeetle(model: Model, root: BasePart)
 	local c = COLORS.Beetle
-	makePart(model, root, "Head", Enum.PartType.Ball, Vector3.new(1.45, 1.05, 1.25), CFrame.new(0, -0.02, -1.75), c.dark)
-	makePart(model, root, "Pronotum", Enum.PartType.Ball, Vector3.new(2.05, 1.20, 1.55), CFrame.new(0, 0.05, -0.65), c.accent)
-	makePart(model, root, "Shell", Enum.PartType.Ball, Vector3.new(2.65, 1.55, 3.15), CFrame.new(0, 0.12, 1.05), c.body, Enum.Material.SmoothPlastic)
-	makePart(model, root, "ShellSeam", Enum.PartType.Block, Vector3.new(0.08, 0.08, 2.65), CFrame.new(0, 0.93, 1.02), c.dark)
-	makeEye(model, root, Vector3.new(-0.48, 0.10, -2.17), 0.22)
-	makeEye(model, root, Vector3.new(0.48, 0.10, -2.17), 0.22)
+	local pronotum = createBodyPart(model, root, nil, "Pronotum", Enum.PartType.Ball, Vector3.new(2.00, 1.16, 1.52), CFrame.new(0, 0.03, -0.58), c.accent, nil, "BodyRoot")
+	local head = createBodyPart(model, root, pronotum, "Head", Enum.PartType.Ball, Vector3.new(1.42, 1.03, 1.23), CFrame.new(0, -0.02, -1.72), c.dark, nil, "Head")
+	local shell = createBodyPart(model, root, pronotum, "Shell", Enum.PartType.Ball, Vector3.new(2.62, 1.52, 3.12), CFrame.new(0, 0.12, 1.02), c.body, nil, "Shell")
+	local seam = createPart(model, "ShellSeam", Enum.PartType.Block, Vector3.new(0.07, 0.07, 2.58), bodyFrame(root) * CFrame.new(0, 0.91, 1.00), c.dark, Enum.Material.SmoothPlastic)
+	createStaticWeld(shell, seam)
+	createEye(model, root, head, Vector3.new(-0.47, 0.10, -2.13), 0.22)
+	createEye(model, root, head, Vector3.new(0.47, 0.10, -2.13), 0.22)
 
-	for _, z in ipairs({ -0.75, 0.15, 1.0 }) do
-		makeLeg(model, root, -1, z, 1.85, c.dark, z > 0.6)
-		makeLeg(model, root, 1, z, 1.85, c.dark, z > 0.6)
+	for row, z in ipairs({ -0.72, 0.14, 0.96 }) do
+		for _, side in ipairs({ -1, 1 }) do
+			createLeg(model, root, pronotum, side, row, z, 1.88, c.dark, row == 3 and 1 or 0)
+		end
 	end
-	makeAntenna(model, root, -1, -2.10, -2.85, c.dark)
-	makeAntenna(model, root, 1, -2.10, -2.85, c.dark)
+	createAntenna(model, root, head, -1, -2.06, -2.88, c.dark)
+	createAntenna(model, root, head, 1, -2.06, -2.88, c.dark)
 end
 
 local function buildGrasshopper(model: Model, root: BasePart)
 	local c = COLORS.Grasshopper
-	makePart(model, root, "Head", Enum.PartType.Ball, Vector3.new(1.35, 1.15, 1.25), CFrame.new(0, 0.05, -1.75), c.accent)
-	makePart(model, root, "Thorax", Enum.PartType.Ball, Vector3.new(1.55, 1.15, 1.65), CFrame.new(0, 0.05, -0.55), c.body)
-	makePart(model, root, "Abdomen", Enum.PartType.Ball, Vector3.new(1.45, 1.05, 2.85), CFrame.new(0, 0.05, 1.25), c.body)
-	makePart(model, root, "WingLeft", Enum.PartType.Block, Vector3.new(0.18, 0.08, 2.45), CFrame.new(-0.45, 0.66, 0.8) * CFrame.Angles(0, math.rad(-8), math.rad(-8)), c.accent)
-	makePart(model, root, "WingRight", Enum.PartType.Block, Vector3.new(0.18, 0.08, 2.45), CFrame.new(0.45, 0.66, 0.8) * CFrame.Angles(0, math.rad(8), math.rad(8)), c.accent)
-	makeEye(model, root, Vector3.new(-0.50, 0.17, -2.18), 0.27)
-	makeEye(model, root, Vector3.new(0.50, 0.17, -2.18), 0.27)
+	local thorax = createBodyPart(model, root, nil, "Thorax", Enum.PartType.Ball, Vector3.new(1.50, 1.12, 1.62), CFrame.new(0, 0.04, -0.50), c.body, nil, "BodyRoot")
+	local head = createBodyPart(model, root, thorax, "Head", Enum.PartType.Ball, Vector3.new(1.34, 1.12, 1.22), CFrame.new(0, 0.08, -1.72), c.accent, nil, "Head")
+	local abdomen = createBodyPart(model, root, thorax, "Abdomen", Enum.PartType.Ball, Vector3.new(1.42, 1.02, 2.80), CFrame.new(0, 0.04, 1.18), c.body, nil, "Abdomen")
+	createEye(model, root, head, Vector3.new(-0.49, 0.18, -2.14), 0.27)
+	createEye(model, root, head, Vector3.new(0.49, 0.18, -2.14), 0.27)
 
-	-- Four smaller walking legs.
-	for _, z in ipairs({ -0.75, 0.15 }) do
-		makeLeg(model, root, -1, z, 1.75, c.dark, false)
-		makeLeg(model, root, 1, z, 1.75, c.dark, false)
-	end
-
-	-- Signature oversized rear jumping legs.
 	for _, side in ipairs({ -1, 1 }) do
-		local hip = Vector3.new(side * 0.62, -0.02, 0.95)
-		local knee = Vector3.new(side * 1.75, 0.15, 1.95)
-		local foot = Vector3.new(side * 2.55, -0.82, 2.75)
-		makeSegment(model, root, "HindLegThigh", hip, knee, 0.28, c.accent)
-		makeSegment(model, root, "HindLegShin", knee, foot, 0.18, c.dark)
+		local wing = createPart(
+			model,
+			side < 0 and "WingLeft" or "WingRight",
+			Enum.PartType.Block,
+			Vector3.new(0.16, 0.07, 2.38),
+			bodyFrame(root) * CFrame.new(side * 0.42, 0.64, 0.76) * CFrame.Angles(0, math.rad(side * 8), math.rad(side * 7)),
+			c.accent,
+			Enum.Material.SmoothPlastic
+		)
+		local pivotWorld = bodyFrame(root) * CFrame.new(side * 0.34, 0.58, -0.12)
+		createMotor(abdomen, wing, "WingJoint", pivotWorld, side < 0 and "WingLeft" or "WingRight", side, 0)
 	end
 
-	makeAntenna(model, root, -1, -2.05, -3.35, c.dark)
-	makeAntenna(model, root, 1, -2.05, -3.35, c.dark)
+	for row, z in ipairs({ -0.72, 0.12 }) do
+		for _, side in ipairs({ -1, 1 }) do
+			createLeg(model, root, thorax, side, row, z, 1.78, c.dark, 0)
+		end
+	end
+
+	for _, side in ipairs({ -1, 1 }) do
+		local hip = Vector3.new(side * 0.62, -0.02, 0.90)
+		local knee = Vector3.new(side * 1.78, 0.18, 1.92)
+		local foot = Vector3.new(side * 2.62, -0.82, 2.72)
+		local phase = gaitPhase(3, side)
+		local thigh = createSegment(model, root, thorax, "HindLegThigh", hip, knee, 0.30, c.accent, "HindLegThigh", side, phase)
+		createSegment(model, root, thigh, "HindLegShin", knee, foot, 0.18, c.dark, "HindLegShin", side, phase)
+	end
+
+	createAntenna(model, root, head, -1, -2.00, -3.40, c.dark)
+	createAntenna(model, root, head, 1, -2.00, -3.40, c.dark)
 end
 
 local function buildVisual(player: Player)
@@ -230,6 +282,7 @@ local function buildVisual(player: Player)
 	local model = Instance.new("Model")
 	model.Name = VISUAL_MODEL_NAME
 	model:SetAttribute("BugId", selectedBug)
+	model:SetAttribute("RigVersion", 2)
 	model.Parent = character
 
 	if selectedBug == "Beetle" then
@@ -241,8 +294,6 @@ local function buildVisual(player: Player)
 	end
 
 	hideRobloxAvatar(character)
-
-	-- Keep the camera/body closer to the ground while retaining Humanoid movement.
 	humanoid.CameraOffset = Vector3.new(0, -1.35, 0)
 	pcall(function()
 		humanoid.NameDisplayDistance = 0
@@ -269,7 +320,6 @@ end
 
 function BugAvatarService.Init(playerDataService)
 	PlayerDataService = playerDataService
-
 	for _, player in ipairs(Players:GetPlayers()) do
 		setupPlayer(player)
 	end
