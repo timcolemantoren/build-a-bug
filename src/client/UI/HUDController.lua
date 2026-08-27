@@ -16,6 +16,7 @@ local countdownToken = 0
 local expanded = false
 local activePlayersRemaining = nil
 local activePlayerCount = nil
+local activePhaseName = nil
 
 local lastStatusText = "Build a Bug"
 local lastDataText = "DNA: 0 | Crumbs: 0 | Bug: Ant"
@@ -50,7 +51,7 @@ local function applyLayout()
 		progressLabel.Visible = true
 		hazardLabel.Visible = true
 	else
-		panel.Size = UDim2.fromOffset(250, 44)
+		panel.Size = UDim2.fromOffset(270, 44)
 		toggleButton.Text = "Info"
 		statusLabel.Text = lastStatusText
 		dataLabel.Visible = false
@@ -76,7 +77,7 @@ local function ensureGui()
 	panel.Parent = gui
 
 	statusLabel = makeLabel(panel, "RoundStatus", 5, 34)
-	statusLabel.Size = UDim2.fromOffset(190, 34)
+	statusLabel.Size = UDim2.fromOffset(210, 34)
 	statusLabel.Text = lastStatusText
 
 	toggleButton = Instance.new("TextButton")
@@ -114,10 +115,11 @@ local function setStatus(text: string)
 end
 
 local function formatRoundStatus(remaining: number): string
+	local phase = activePhaseName or "Play"
 	if activePlayersRemaining and activePlayerCount then
-		return string.format("%ss | Bugs: %s/%s", remaining, activePlayersRemaining, activePlayerCount)
+		return string.format("%ss | %s | %s/%s", remaining, phase, activePlayersRemaining, activePlayerCount)
 	end
-	return string.format("Time: %ss", remaining)
+	return string.format("%ss | %s", remaining, phase)
 end
 
 local function startRoundCountdown(durationSeconds: number)
@@ -163,7 +165,12 @@ function HUDController.Init(remotes)
 		if state == "Started" then
 			activePlayersRemaining = payload.playersRemaining or payload.playerCount
 			activePlayerCount = payload.playerCount
+			activePhaseName = payload.phaseId or "Scavenge"
 			startRoundCountdown(payload.durationSeconds or 0)
+		elseif state == "PhaseChanged" then
+			activePhaseName = payload.phaseId or activePhaseName
+		elseif state == "FinalScramble" then
+			activePhaseName = "FINAL"
 		elseif state == "RosterUpdate" then
 			activePlayersRemaining = payload.playersRemaining or activePlayersRemaining
 			activePlayerCount = payload.playerCount or activePlayerCount
@@ -178,6 +185,7 @@ function HUDController.Init(remotes)
 			countdownToken += 1
 			activePlayersRemaining = nil
 			activePlayerCount = nil
+			activePhaseName = nil
 			setStatus(string.format("%s | Join circle", mapName))
 		elseif state == "MatchInProgress" then
 			countdownToken += 1
@@ -194,9 +202,8 @@ function HUDController.Init(remotes)
 			countdownToken += 1
 			activePlayersRemaining = nil
 			activePlayerCount = nil
+			activePhaseName = nil
 			setStatus("Round complete")
-		else
-			setStatus("State: " .. tostring(state))
 		end
 	end)
 
