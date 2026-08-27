@@ -1,6 +1,10 @@
 --!nonstrict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
+local CosmeticStyles = require(BuildABugShared.Config.CosmeticStyles)
 
 -- Articulated bug avatar system.
 -- Roblox's hidden Humanoid/R15 character still owns all movement, collision,
@@ -32,6 +36,19 @@ local COLORS = {
 		accent = Color3.fromRGB(145, 178, 76),
 	},
 }
+
+local function getPalette(player: Player, bugId: string)
+	local styleId = player:GetAttribute("BodyColor") or "Natural"
+	local style = CosmeticStyles.BodyColors[styleId]
+	if style and not style.useBugPalette then
+		return {
+			body = style.body,
+			dark = style.dark,
+			accent = style.accent,
+		}
+	end
+	return COLORS[bugId] or COLORS.Ant
+end
 
 local function hideRobloxAvatar(character: Model)
 	local visual = character:FindFirstChild(VISUAL_MODEL_NAME)
@@ -170,7 +187,6 @@ local function createLeg(model: Model, root: BasePart, thorax: BasePart, side: n
 end
 
 local function createAntenna(model: Model, root: BasePart, head: BasePart, side: number, startZ: number, reachZ: number, color: Color3)
-	-- Antennae emerge from the upper/inner surface of the head rather than the eyes.
 	local basePoint = Vector3.new(side * 0.24, 0.46, startZ + 0.08)
 	local bend = Vector3.new(side * 0.56, 0.78, startZ - 0.48)
 	local tip = Vector3.new(side * 0.90, 0.76, reachZ)
@@ -179,8 +195,7 @@ local function createAntenna(model: Model, root: BasePart, head: BasePart, side:
 	createSegment(model, root, first, "AntennaTip", bend, tip, 0.07, color, "AntennaTip", side, phase)
 end
 
-local function buildAnt(model: Model, root: BasePart)
-	local c = COLORS.Ant
+local function buildAnt(model: Model, root: BasePart, c)
 	local thorax = createBodyPart(model, root, nil, "Thorax", Enum.PartType.Ball, Vector3.new(1.30, 1.00, 1.40), CFrame.new(0, 0, -0.30), c.accent, nil, "BodyRoot")
 	local head = createBodyPart(model, root, thorax, "Head", Enum.PartType.Ball, Vector3.new(1.32, 1.02, 1.22), CFrame.new(0, 0.02, -1.62), c.body, nil, "Head")
 	createBodyPart(model, root, thorax, "Abdomen", Enum.PartType.Ball, Vector3.new(1.72, 1.30, 2.20), CFrame.new(0, 0.02, 1.20), c.body, nil, "Abdomen")
@@ -196,8 +211,7 @@ local function buildAnt(model: Model, root: BasePart)
 	createAntenna(model, root, head, 1, -2.02, -3.05, c.dark)
 end
 
-local function buildBeetle(model: Model, root: BasePart)
-	local c = COLORS.Beetle
+local function buildBeetle(model: Model, root: BasePart, c)
 	local pronotum = createBodyPart(model, root, nil, "Pronotum", Enum.PartType.Ball, Vector3.new(2.00, 1.16, 1.52), CFrame.new(0, 0.03, -0.58), c.accent, nil, "BodyRoot")
 	local head = createBodyPart(model, root, pronotum, "Head", Enum.PartType.Ball, Vector3.new(1.42, 1.03, 1.23), CFrame.new(0, -0.02, -1.72), c.dark, nil, "Head")
 	local shell = createBodyPart(model, root, pronotum, "Shell", Enum.PartType.Ball, Vector3.new(2.62, 1.52, 3.12), CFrame.new(0, 0.12, 1.02), c.body, nil, "Shell")
@@ -215,8 +229,7 @@ local function buildBeetle(model: Model, root: BasePart)
 	createAntenna(model, root, head, 1, -2.06, -2.88, c.dark)
 end
 
-local function buildGrasshopper(model: Model, root: BasePart)
-	local c = COLORS.Grasshopper
+local function buildGrasshopper(model: Model, root: BasePart, c)
 	local thorax = createBodyPart(model, root, nil, "Thorax", Enum.PartType.Ball, Vector3.new(1.50, 1.12, 1.62), CFrame.new(0, 0.04, -0.50), c.body, nil, "BodyRoot")
 	local head = createBodyPart(model, root, thorax, "Head", Enum.PartType.Ball, Vector3.new(1.34, 1.12, 1.22), CFrame.new(0, 0.08, -1.72), c.accent, nil, "Head")
 	local abdomen = createBodyPart(model, root, thorax, "Abdomen", Enum.PartType.Ball, Vector3.new(1.42, 1.02, 2.80), CFrame.new(0, 0.04, 1.18), c.body, nil, "Abdomen")
@@ -282,21 +295,22 @@ local function makeTagLabel(parent: Instance, name: string, y: number, height: n
 	return label
 end
 
-local function createIdentityTag(player: Player, model: Model)
-	local head = model:FindFirstChild("Head")
-	if not head or not head:IsA("BasePart") then
-		return
+local function createIdentityTag(player: Player, root: BasePart)
+	local existing = root:FindFirstChild("PlayerIdentity")
+	if existing then
+		existing:Destroy()
 	end
 
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "PlayerIdentity"
 	tag.Size = UDim2.fromOffset(280, 70)
-	tag.StudsOffsetWorldSpace = Vector3.new(0, 2.35, 0)
+	-- Root follows actual character movement but does not inherit procedural bug bob.
+	tag.StudsOffsetWorldSpace = Vector3.new(0, 0.55, 0)
 	tag.AlwaysOnTop = true
 	tag.MaxDistance = 75
 	tag.LightInfluence = 0
-	tag.Adornee = head
-	tag.Parent = head
+	tag.Adornee = root
+	tag.Parent = root
 
 	makeTagLabel(tag, "PlayerName", 0, 24, 16, Color3.fromRGB(255, 255, 255))
 	makeTagLabel(tag, "Progress", 23, 22, 13, Color3.fromRGB(255, 225, 125))
@@ -305,12 +319,12 @@ end
 
 local function refreshIdentityTag(player: Player)
 	local character = player.Character
-	local model = character and character:FindFirstChild(VISUAL_MODEL_NAME)
-	if not model or not model:IsA("Model") then
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
 		return
 	end
 
-	local tag = model:FindFirstChild("PlayerIdentity", true)
+	local tag = root:FindFirstChild("PlayerIdentity")
 	if not tag or not tag:IsA("BillboardGui") then
 		return
 	end
@@ -359,6 +373,7 @@ local function buildVisual(player: Player)
 		selectedBug = data and data.selectedBug
 	end
 	selectedBug = selectedBug or "Ant"
+	local palette = getPalette(player, selectedBug)
 
 	local model = Instance.new("Model")
 	model.Name = VISUAL_MODEL_NAME
@@ -367,14 +382,14 @@ local function buildVisual(player: Player)
 	model.Parent = character
 
 	if selectedBug == "Beetle" then
-		buildBeetle(model, root)
+		buildBeetle(model, root, palette)
 	elseif selectedBug == "Grasshopper" then
-		buildGrasshopper(model, root)
+		buildGrasshopper(model, root, palette)
 	else
-		buildAnt(model, root)
+		buildAnt(model, root, palette)
 	end
 
-	createIdentityTag(player, model)
+	createIdentityTag(player, root)
 	refreshIdentityTag(player)
 	hideRobloxAvatar(character)
 	humanoid.CameraOffset = Vector3.new(0, CAMERA_OFFSET_Y, 0)
@@ -385,6 +400,9 @@ end
 
 local function setupPlayer(player: Player)
 	player:GetAttributeChangedSignal("SelectedBug"):Connect(function()
+		task.defer(buildVisual, player)
+	end)
+	player:GetAttributeChangedSignal("BodyColor"):Connect(function()
 		task.defer(buildVisual, player)
 	end)
 
