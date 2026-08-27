@@ -5,7 +5,7 @@ local Workspace = game:GetService("Workspace")
 
 local LobbyService = {}
 
-local QUEUE_CENTER = Vector3.new(0, 0.8, 178)
+local QUEUE_CENTER = Vector3.new(0, 1.05, 178)
 local QUEUE_RADIUS = 18
 local LOBBY_SPAWN = Vector3.new(0, 6, 145)
 
@@ -51,7 +51,7 @@ local function makeQueueCircle(parent: Instance)
 	local circle = Instance.new("Part")
 	circle.Name = "MatchQueueCircle"
 	circle.Shape = Enum.PartType.Cylinder
-	circle.Size = Vector3.new(0.3, QUEUE_RADIUS * 2, QUEUE_RADIUS * 2)
+	circle.Size = Vector3.new(0.18, QUEUE_RADIUS * 2, QUEUE_RADIUS * 2)
 	circle.CFrame = CFrame.new(QUEUE_CENTER) * CFrame.Angles(0, 0, math.rad(90))
 	circle.Anchored = true
 	circle.CanCollide = false
@@ -67,8 +67,8 @@ end
 local function makeNestPad(parent: Instance)
 	local pad = Instance.new("Part")
 	pad.Name = "NestLobbyPad"
-	pad.Size = Vector3.new(72, 0.35, 66)
-	pad.Position = Vector3.new(0, 0.72, 160)
+	pad.Size = Vector3.new(72, 0.28, 66)
+	pad.Position = Vector3.new(0, 0.7, 160)
 	pad.Anchored = true
 	pad.CanCollide = false
 	pad.CanTouch = false
