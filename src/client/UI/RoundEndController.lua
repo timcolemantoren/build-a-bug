@@ -92,9 +92,6 @@ local function ensureGui(remotes)
 	roamButton.TextSize = 17
 	roamButton.Parent = panel
 	roamButton.MouseButton1Click:Connect(function()
-		-- The lobby and arena share the same persistent backyard place. Closing the
-		-- results card leaves the player free to explore, change bugs, or walk into
-		-- the queue circle later.
 		panel.Visible = false
 	end)
 end
@@ -134,20 +131,20 @@ local function showRoundEnd(payload)
 	local mapName = payload.mapName or "Backyard"
 	local roundCrumbs = payload.crumbsCollected or 0
 	local roundDna = payload.dnaEarned or 0
-	local totalDna = payload.totalDna or (latestData and latestData.currency and latestData.currency.dna) or 0
+	local availableDna = payload.totalDna or (latestData and latestData.currency and latestData.currency.dna) or 0
 	local title = payload.title or (latestData and latestData.progression and latestData.progression.current and latestData.progression.current.title) or "Fresh Hatchling"
 	local nextTitleDna = payload.nextTitleDna
 	local resultText = payload.eliminated and "Squished" or "Survived"
-	local nextText = nextTitleDna and ("Next title at " .. tostring(nextTitleDna) .. " DNA") or "Max title reached"
+	local nextText = nextTitleDna and ("Next title at " .. tostring(nextTitleDna) .. " lifetime DNA") or "Max title reached"
 
 	titleLabel.Text = mapName .. " Complete!"
 	summaryLabel.Text = string.format(
-		"%s: %s seconds\nCrumbs this round: %s\nDNA earned this round: %s\nTotal DNA: %s\n%s • %s",
+		"%s: %s seconds\nCrumbs this round: %s\nDNA earned this round: %s\nAvailable DNA: %s\n%s • %s",
 		resultText,
 		tostring(survivedSeconds),
 		tostring(roundCrumbs),
 		tostring(roundDna),
-		tostring(totalDna),
+		tostring(availableDna),
 		tostring(title),
 		nextText
 	)
