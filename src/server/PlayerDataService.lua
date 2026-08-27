@@ -176,6 +176,20 @@ function PlayerDataService.AddCrumbs(player: Player, amount: number)
 	publish(player)
 end
 
+function PlayerDataService.RestoreRoundSnapshot(player: Player, snapshot)
+	local data = PlayerDataService.GetData(player)
+	if not data or not snapshot then
+		return
+	end
+
+	data.currency.dna = math.max(0, snapshot.dna or data.currency.dna or 0)
+	data.currency.crumbs = math.max(0, snapshot.crumbs or data.currency.crumbs or 0)
+	if data.stats then
+		data.stats.foodCollected = math.max(0, snapshot.foodCollected or data.stats.foodCollected or 0)
+	end
+	publish(player)
+end
+
 function PlayerDataService.TrackRoundPlayed(player: Player, survivedSeconds: number)
 	local data = PlayerDataService.GetData(player)
 	if not data then
