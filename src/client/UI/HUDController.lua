@@ -11,6 +11,7 @@ local toggleButton = nil
 local statusLabel = nil
 local dataLabel = nil
 local progressLabel = nil
+local statsLabel = nil
 local hazardLabel = nil
 local countdownToken = 0
 local expanded = false
@@ -20,12 +21,13 @@ local activePhaseName = nil
 
 local lastStatusText = "Build a Bug"
 local lastDataText = "DNA: 0 | Crumbs: 0 | Bug: Ant"
-local lastProgressText = "Fresh Hatchling | Next: 25 DNA"
+local lastProgressText = "Lv 1 Fresh Hatchling | Next: 25 DNA"
+local lastStatsText = "Rounds: 0 | Best: -- | Food: 0"
 
 local function makeLabel(parent: Instance, name: string, yOffset: number, height: number): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Name = name
-	label.Size = UDim2.fromOffset(250, height)
+	label.Size = UDim2.fromOffset(280, height)
 	label.Position = UDim2.fromOffset(10, yOffset)
 	label.BackgroundTransparency = 1
 	label.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -38,17 +40,26 @@ local function makeLabel(parent: Instance, name: string, yOffset: number, height
 	return label
 end
 
+local function formatTime(seconds: number): string
+	seconds = math.max(0, math.floor(seconds or 0))
+	if seconds <= 0 then
+		return "--"
+	end
+	return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
+end
+
 local function applyLayout()
 	if not panel then
 		return
 	end
 
 	if expanded then
-		panel.Size = UDim2.fromOffset(300, 148)
+		panel.Size = UDim2.fromOffset(320, 176)
 		toggleButton.Text = "Hide"
 		statusLabel.Text = lastStatusText
 		dataLabel.Visible = true
 		progressLabel.Visible = true
+		statsLabel.Visible = true
 		hazardLabel.Visible = true
 	else
 		panel.Size = UDim2.fromOffset(270, 44)
@@ -56,6 +67,7 @@ local function applyLayout()
 		statusLabel.Text = lastStatusText
 		dataLabel.Visible = false
 		progressLabel.Visible = false
+		statsLabel.Visible = false
 		hazardLabel.Visible = false
 	end
 end
@@ -100,7 +112,11 @@ local function ensureGui()
 	progressLabel = makeLabel(panel, "Progress", 72, 28)
 	progressLabel.Text = lastProgressText
 
-	hazardLabel = makeLabel(panel, "HazardWarning", 104, 32)
+	statsLabel = makeLabel(panel, "Stats", 100, 28)
+	statsLabel.Text = lastStatsText
+	statsLabel.TextSize = 13
+
+	hazardLabel = makeLabel(panel, "HazardWarning", 132, 32)
 	hazardLabel.Text = ""
 	hazardLabel.TextColor3 = Color3.fromRGB(255, 205, 205)
 
@@ -150,11 +166,20 @@ function HUDController.Init(remotes)
 		local current = data.progression and data.progression.current
 		local nextLevel = data.progression and data.progression.next
 		if current and nextLevel then
-			lastProgressText = string.format("%s | Next: %s DNA", current.title, nextLevel.dnaRequired)
+			lastProgressText = string.format("Lv %s %s | Next: %s DNA", current.level or 1, current.title, nextLevel.dnaRequired)
 		elseif current then
-			lastProgressText = string.format("%s | Max Level", current.title)
+			lastProgressText = string.format("Lv %s %s | Max Level", current.level or 1, current.title)
 		end
 		progressLabel.Text = lastProgressText
+
+		local stats = data.stats or {}
+		lastStatsText = string.format(
+			"Rounds: %s | Best: %s | Food: %s",
+			stats.roundsPlayed or 0,
+			formatTime(stats.longestSurvival or 0),
+			stats.foodCollected or 0
+		)
+		statsLabel.Text = lastStatsText
 	end)
 
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, payload)
