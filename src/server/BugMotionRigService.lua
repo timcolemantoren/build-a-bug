@@ -3,8 +3,8 @@
 local Players = game:GetService("Players")
 
 -- Converts the proxy bug visual's rigid WeldConstraints into Motor6Ds.
--- The underlying Humanoid/R15 character still owns all real movement and collision;
--- these joints exist only so clients can add inexpensive visual motion.
+-- Gameplay still belongs entirely to the hidden Humanoid character. These motors
+-- only give the visible proxy body useful animation pivots.
 
 local BugMotionRigService = {}
 
@@ -51,6 +51,40 @@ local function classifyPart(part: BasePart, root: BasePart)
 	return role, side, phase
 end
 
+local function isSegmentRole(role: string): boolean
+	return role == "LegUpper"
+		or role == "LegLower"
+		or role == "HindLegThigh"
+		or role == "HindLegShin"
+		or role == "Antenna"
+		or role == "AntennaTip"
+end
+
+local function getSegmentPivotWorld(part: BasePart, root: BasePart): CFrame
+	-- Every procedural limb/antenna segment is a Cylinder whose length is local X.
+	-- Choose whichever endpoint is closer to the hidden character root. That yields
+	-- hip/knee/base-style pivots instead of rotating each stick around its center.
+	local halfLength = part.Size.X * 0.5
+	local endA = part.CFrame * CFrame.new(-halfLength, 0, 0)
+	local endB = part.CFrame * CFrame.new(halfLength, 0, 0)
+	local rootPosition = root.Position
+
+	local pivotPosition
+	if (endA.Position - rootPosition).Magnitude <= (endB.Position - rootPosition).Magnitude then
+		pivotPosition = endA.Position
+	else
+		pivotPosition = endB.Position
+	end
+
+	-- Keep animation axes aligned to the character, while C1 preserves the part's
+	-- original rotation around that pivot.
+	return CFrame.fromMatrix(pivotPosition, root.CFrame.XVector, root.CFrame.YVector, root.CFrame.ZVector)
+end
+
+local function getCenterPivotWorld(part: BasePart, root: BasePart): CFrame
+	return CFrame.fromMatrix(part.Position, root.CFrame.XVector, root.CFrame.YVector, root.CFrame.ZVector)
+end
+
 local function convertPart(part: BasePart, root: BasePart)
 	if part:FindFirstChild(MOTOR_NAME) then
 		return
@@ -61,20 +95,15 @@ local function convertPart(part: BasePart, root: BasePart)
 		return
 	end
 
-	local relative = root.CFrame:ToObjectSpace(part.CFrame)
-	local rotationOnly = relative - relative.Position
 	local role, side, phase = classifyPart(part, root)
+	local pivotWorld = isSegmentRole(role) and getSegmentPivotWorld(part, root) or getCenterPivotWorld(part, root)
 
 	local motor = Instance.new("Motor6D")
 	motor.Name = MOTOR_NAME
 	motor.Part0 = root
 	motor.Part1 = part
-
-	-- Put the animation frame at the part center but keep its axes aligned to the
-	-- character root. This lets every client use the same X/Y/Z motion language
-	-- regardless of whether the visual piece is a ball, block, or rotated cylinder.
-	motor.C0 = CFrame.new(relative.Position)
-	motor.C1 = rotationOnly:Inverse()
+	motor.C0 = root.CFrame:ToObjectSpace(pivotWorld)
+	motor.C1 = part.CFrame:ToObjectSpace(pivotWorld)
 	motor:SetAttribute("MotionRole", role)
 	motor:SetAttribute("MotionSide", side)
 	motor:SetAttribute("MotionPhase", phase)
@@ -107,8 +136,7 @@ local function prepareVisual(model: Model)
 				task.defer(convertPart, part, root)
 			end
 		elseif descendant:IsA("BasePart") then
-			-- BugAvatarService parents the part immediately before adding its weld.
-			-- A tiny defer catches either construction order safely.
+			-- BugAvatarService parents each part immediately before adding its weld.
 			task.delay(0.02, convertPart, descendant, root)
 		end
 	end)
