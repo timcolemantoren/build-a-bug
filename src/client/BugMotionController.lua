@@ -23,6 +23,7 @@ local function addMotor(record, instance: Instance)
 			end
 		end
 		table.insert(record.motors, instance)
+		record.baseC0[instance] = instance.C0
 	end
 end
 
@@ -47,6 +48,7 @@ local function trackVisual(model: Model)
 		humanoid = humanoid,
 		root = root,
 		motors = {},
+		baseC0 = {},
 	}
 	tracked[model] = record
 
@@ -209,10 +211,13 @@ local function animateRecord(record, now: number)
 
 	for i = #record.motors, 1, -1 do
 		local motor = record.motors[i]
-		if not motor.Parent or not motor.Part1 then
+		local base = record.baseC0[motor]
+		if not motor.Parent or not motor.Part1 or not base then
+			record.baseC0[motor] = nil
 			table.remove(record.motors, i)
 		else
-			motor.Transform = jointMotion(motor, now, moving, grounded, cycle, bugId, velocity.Y)
+			motor.Transform = CFrame.new()
+			motor.C0 = base * jointMotion(motor, now, moving, grounded, cycle, bugId, velocity.Y)
 		end
 	end
 end
