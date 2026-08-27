@@ -134,7 +134,7 @@ function BugSelectController.Init(remotes)
 		if state == "Started" then
 			inRound = true
 			expanded = false
-		elseif state == "Ended" or state == "Eliminated" or state == "Waiting" or state == "Results" or state == "MatchInProgress" then
+		elseif state == "Ended" or state == "Eliminated" or state == "ExitedRound" or state == "Waiting" or state == "Results" or state == "MatchInProgress" then
 			inRound = false
 		end
 		applyLayout()
