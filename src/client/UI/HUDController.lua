@@ -195,6 +195,12 @@ function HUDController.Init(remotes)
 			activePlayersRemaining = payload.playersRemaining
 			activePlayerCount = payload.playerCount
 			setStatus(string.format("SQUISHED! %ss | %s left", payload.survivedSeconds or 0, payload.playersRemaining or 0))
+		elseif state == "ExitedRound" then
+			countdownToken += 1
+			activePlayersRemaining = nil
+			activePlayerCount = nil
+			activePhaseName = nil
+			setStatus(string.format("%s | Roaming", mapName))
 		elseif state == "Results" then
 			countdownToken += 1
 			setStatus("Round complete | Next soon")
