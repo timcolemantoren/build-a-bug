@@ -641,6 +641,7 @@ local function exitPlayer(player: Player)
 		dna = entry.startDna,
 		crumbs = entry.startCrumbs,
 		foodCollected = entry.startFoodCollected,
+		lifetimeDna = entry.startLifetimeDna,
 	})
 
 	player:SetAttribute("InRound", false)
@@ -838,6 +839,7 @@ function RoundService.StartRound(roster)
 				startDna = currency.dna or 0,
 				startCrumbs = currency.crumbs or 0,
 				startFoodCollected = stats.foodCollected or 0,
+				startLifetimeDna = stats.lifetimeDna or currency.dna or 0,
 			}
 			prepareParticipant(player, index)
 		end
