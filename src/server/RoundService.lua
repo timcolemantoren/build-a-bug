@@ -484,7 +484,6 @@ local function runFinalScramble(myRoundToken: number)
 		mapName = mapPayload.mapName,
 	})
 
-	-- Put rewards where the remaining players can actually see them.
 	for _ = 1, 10 do
 		local target = getRandomAlivePlayer()
 		if target then
@@ -495,7 +494,6 @@ local function runFinalScramble(myRoundToken: number)
 		end
 	end
 
-	-- A visible food shower plus overlapping targeted hazards creates a real finish.
 	task.spawn(runCrumbShower, myRoundToken)
 
 	for barrage = 1, 5 do
@@ -529,7 +527,6 @@ local function runPhaseLoop(myRoundToken: number)
 				mapName = mapPayload.mapName,
 			})
 
-			-- Phase banners now immediately correspond to something physical.
 			if phase.id == "Trouble" then
 				task.delay(1.0, function()
 					if matchState == "Active" and myRoundToken == roundToken then
@@ -616,6 +613,56 @@ local function eliminatePlayer(player: Player)
 		playerCount = countParticipants(),
 		mapId = mapPayload.mapId,
 		mapName = mapPayload.mapName,
+	})
+	broadcastRosterUpdate()
+
+	if remaining == 0 then
+		task.defer(function()
+			RoundService.EndRound()
+		end)
+	end
+end
+
+local function exitPlayer(player: Player)
+	if matchState ~= "Active" then
+		return
+	end
+
+	local entry = participants[player.UserId]
+	if not entry or entry.eliminated then
+		return
+	end
+
+	entry.eliminated = true
+	entry.forfeited = true
+	entry.survivedSeconds = math.max(0, math.floor(os.clock() - roundStartedAt))
+
+	PlayerDataService.RestoreRoundSnapshot(player, {
+		dna = entry.startDna,
+		crumbs = entry.startCrumbs,
+		foodCollected = entry.startFoodCollected,
+	})
+
+	player:SetAttribute("InRound", false)
+	player:SetAttribute("QueuedForMatch", false)
+	disconnectDeath(player)
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.Health = humanoid.MaxHealth
+	end
+	LobbyService.TeleportToLobby(player, 1)
+
+	local remaining = countAliveParticipants()
+	local mapPayload = getMapPayload()
+	fireClient(player, "ExitedRound", {
+		survivedSeconds = entry.survivedSeconds,
+		playersRemaining = remaining,
+		playerCount = countParticipants(),
+		mapId = mapPayload.mapId,
+		mapName = mapPayload.mapName,
+		forfeitedRewards = true,
 	})
 	broadcastRosterUpdate()
 
@@ -782,12 +829,15 @@ function RoundService.StartRound(roster)
 		if player.Parent == Players then
 			local data = PlayerDataService.GetData(player)
 			local currency = data and data.currency or {}
+			local stats = data and data.stats or {}
 			participants[player.UserId] = {
 				player = player,
 				eliminated = false,
+				forfeited = false,
 				survivedSeconds = nil,
 				startDna = currency.dna or 0,
 				startCrumbs = currency.crumbs or 0,
+				startFoodCollected = stats.foodCollected or 0,
 			}
 			prepareParticipant(player, index)
 		end
@@ -847,7 +897,7 @@ function RoundService.EndRound()
 
 	for _, entry in pairs(participants) do
 		local player = entry.player
-		if player and player.Parent == Players then
+		if player and player.Parent == Players and not entry.forfeited then
 			local survivedSeconds = entry.survivedSeconds or survivedToEnd
 			local reward = RewardService.AwardRoundComplete(player, survivedSeconds)
 			local data = PlayerDataService.GetData(player)
@@ -961,6 +1011,10 @@ function RoundService.Init(remoteEvents, playerDataService, rewardService, hazar
 		end
 		LobbyService.MoveIntoQueue(player)
 		player:SetAttribute("QueuedForMatch", true)
+	end)
+
+	remotes.ExitRoundRequest.OnServerEvent:Connect(function(player: Player)
+		exitPlayer(player)
 	end)
 
 	setWaitingState()
