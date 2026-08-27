@@ -38,7 +38,17 @@ local function applyEnvironmentToPlayer(player: Player)
 	local character = player.Character
 	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not zonesFolder or not rootPart or not humanoid or humanoid.Health <= 0 then
+	if not rootPart or not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	if player:GetAttribute("InRound") ~= true then
+		humanoid.WalkSpeed = getBaseSpeed(player)
+		player:SetAttribute("EnvironmentZone", "")
+		return
+	end
+
+	if not zonesFolder then
 		return
 	end
 
