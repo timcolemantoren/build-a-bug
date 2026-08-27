@@ -15,7 +15,7 @@ local panel = nil
 local inRound = false
 local expanded = false
 local currentData = nil
-local selectedBodyColor = "Natural"
+local selectedBodyColor = player:GetAttribute("BodyColor") or "Natural"
 local colorCards = {}
 
 local nameLabel = nil
@@ -90,7 +90,7 @@ local function refreshProfile()
 		currencyLabel.Text = string.format("DNA: %s    Crumbs: %s", tostring(dna), tostring(crumbs))
 	end
 	if statsLabel then
-		statsLabel.Text = string.format("Rounds: %s    Best survival: %s    Food collected: %s", tostring(rounds), formatTime(best), tostring(food))
+		statsLabel.Text = string.format("Rounds: %s    Best: %s    Food: %s", tostring(rounds), formatTime(best), tostring(food))
 	end
 	if bugLabel then
 		bugLabel.Text = "Current bug: " .. tostring(bugId)
@@ -141,21 +141,23 @@ local function ensureGui(remotes)
 
 	panel = Instance.new("Frame")
 	panel.Name = "ProfilePanel"
-	panel.AnchorPoint = Vector2.new(0.5, 0)
-	panel.Size = UDim2.fromOffset(500, 420)
-	panel.Position = UDim2.new(0.5, 0, 0, 58)
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Size = UDim2.new(0.90, 0, 0.86, 0)
+	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(31, 37, 34)
-	panel.BackgroundTransparency = 0.06
+	panel.BackgroundTransparency = 0.04
 	panel.Parent = gui
 
 	local sizeConstraint = Instance.new("UISizeConstraint")
-	sizeConstraint.MaxSize = Vector2.new(500, 420)
-	sizeConstraint.MinSize = Vector2.new(330, 380)
+	sizeConstraint.MaxSize = Vector2.new(500, 430)
+	sizeConstraint.MinSize = Vector2.new(320, 300)
 	sizeConstraint.Parent = panel
+
+	makeText(panel, "Title", "Profile / Customize", UDim2.fromOffset(18, 8), UDim2.new(1, -118, 0, 38), 20, true)
 
 	local closeButton = Instance.new("TextButton")
 	closeButton.Size = UDim2.fromOffset(76, 34)
-	closeButton.Position = UDim2.new(1, -90, 0, 12)
+	closeButton.Position = UDim2.new(1, -90, 0, 10)
 	closeButton.BackgroundColor3 = Color3.fromRGB(78, 82, 79)
 	closeButton.Text = "Close"
 	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -167,31 +169,52 @@ local function ensureGui(remotes)
 		applyVisibility()
 	end)
 
-	makeText(panel, "Title", "Profile / Customize", UDim2.fromOffset(18, 10), UDim2.fromOffset(300, 36), 20, true)
-	nameLabel = makeText(panel, "PlayerName", player.DisplayName, UDim2.fromOffset(22, 52), UDim2.new(1, -44, 0, 30), 18, true)
-	progressLabel = makeText(panel, "Progress", "Level 1 • Fresh Hatchling", UDim2.fromOffset(22, 80), UDim2.new(1, -44, 0, 26), 14, true)
-	currencyLabel = makeText(panel, "Currency", "DNA: 0    Crumbs: 0", UDim2.fromOffset(22, 108), UDim2.new(1, -44, 0, 24), 13, false)
-	statsLabel = makeText(panel, "Stats", "Rounds: 0    Best survival: --    Food collected: 0", UDim2.fromOffset(22, 134), UDim2.new(1, -44, 0, 30), 13, false)
-	bugLabel = makeText(panel, "Bug", "Current bug: Ant", UDim2.fromOffset(22, 164), UDim2.new(1, -44, 0, 28), 14, true)
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "ProfileScroll"
+	scroll.Position = UDim2.fromOffset(0, 50)
+	scroll.Size = UDim2.new(1, 0, 1, -58)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.CanvasSize = UDim2.fromOffset(0, 430)
+	scroll.ScrollBarThickness = 4
+	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+	scroll.Parent = panel
 
-	makeText(panel, "CustomizeTitle", "Body Color", UDim2.fromOffset(22, 204), UDim2.fromOffset(240, 28), 17, true)
-	makeText(panel, "CustomizeNote", "Cosmetics change appearance only. Stats and powers stay the same.", UDim2.fromOffset(22, 230), UDim2.new(1, -44, 0, 28), 12, false)
+	nameLabel = makeText(scroll, "PlayerName", player.DisplayName, UDim2.fromOffset(18, 0), UDim2.new(1, -36, 0, 30), 18, true)
+	progressLabel = makeText(scroll, "Progress", "Level 1 • Fresh Hatchling", UDim2.fromOffset(18, 28), UDim2.new(1, -36, 0, 26), 14, true)
+	currencyLabel = makeText(scroll, "Currency", "DNA: 0    Crumbs: 0", UDim2.fromOffset(18, 56), UDim2.new(1, -36, 0, 24), 13, false)
+	statsLabel = makeText(scroll, "Stats", "Rounds: 0    Best: --    Food: 0", UDim2.fromOffset(18, 82), UDim2.new(1, -36, 0, 28), 13, false)
+	bugLabel = makeText(scroll, "Bug", "Current bug: Ant", UDim2.fromOffset(18, 112), UDim2.new(1, -36, 0, 28), 14, true)
 
-	local cardWidth = 105
-	local gap = 8
-	local startX = 22
+	makeText(scroll, "CustomizeTitle", "Body Color", UDim2.fromOffset(18, 154), UDim2.fromOffset(240, 28), 17, true)
+	makeText(scroll, "CustomizeNote", "Cosmetics change appearance only. Stats and powers stay the same.", UDim2.fromOffset(18, 180), UDim2.new(1, -36, 0, 34), 12, false)
+
+	local colorsFrame = Instance.new("Frame")
+	colorsFrame.Name = "BodyColors"
+	colorsFrame.Position = UDim2.fromOffset(18, 222)
+	colorsFrame.Size = UDim2.new(1, -36, 0, 140)
+	colorsFrame.BackgroundTransparency = 1
+	colorsFrame.Parent = scroll
+
+	local grid = Instance.new("UIGridLayout")
+	grid.CellSize = UDim2.new(0.5, -4, 0, 64)
+	grid.CellPadding = UDim2.fromOffset(8, 8)
+	grid.FillDirectionMaxCells = 2
+	grid.SortOrder = Enum.SortOrder.LayoutOrder
+	grid.Parent = colorsFrame
+
 	for index, styleId in ipairs(CosmeticStyles.BodyColorOrder) do
-		local style = CosmeticStyles.BodyColors[styleId]
+		local currentStyleId = styleId
+		local style = CosmeticStyles.BodyColors[currentStyleId]
 		if style then
 			local button = Instance.new("TextButton")
-			button.Name = styleId .. "Color"
-			button.Size = UDim2.fromOffset(cardWidth, 82)
-			button.Position = UDim2.fromOffset(startX + (index - 1) * (cardWidth + gap), 268)
+			button.Name = currentStyleId .. "Color"
+			button.LayoutOrder = index
 			button.BackgroundColor3 = DEFAULT_CARD
 			button.BackgroundTransparency = 0.02
 			button.Text = ""
 			button.AutoButtonColor = false
-			button.Parent = panel
+			button.Parent = colorsFrame
 
 			local stroke = Instance.new("UIStroke")
 			stroke.Color = Color3.fromRGB(91, 99, 93)
@@ -199,25 +222,24 @@ local function ensureGui(remotes)
 			stroke.Parent = button
 
 			local swatch = Instance.new("Frame")
-			swatch.Size = UDim2.fromOffset(44, 28)
-			swatch.Position = UDim2.new(0.5, -22, 0, 10)
+			swatch.Size = UDim2.fromOffset(38, 32)
+			swatch.Position = UDim2.fromOffset(10, 16)
 			swatch.BackgroundColor3 = style.previewColor
 			swatch.BorderSizePixel = 0
 			swatch.Parent = button
 
-			local label = makeText(button, "Label", style.displayName, UDim2.fromOffset(5, 42), UDim2.new(1, -10, 0, 34), 12, true)
-			label.TextXAlignment = Enum.TextXAlignment.Center
+			local label = makeText(button, "Label", style.displayName, UDim2.fromOffset(56, 6), UDim2.new(1, -64, 1, -12), 12, true)
 
 			button.MouseButton1Click:Connect(function()
 				if inRound then
 					return
 				end
-				selectedBodyColor = styleId
+				selectedBodyColor = currentStyleId
 				refreshColorCards()
-				remotes.SetCosmetic:FireServer("BodyColor", styleId)
+				remotes.SetCosmetic:FireServer("BodyColor", currentStyleId)
 			end)
 
-			colorCards[styleId] = {
+			colorCards[currentStyleId] = {
 				button = button,
 				stroke = stroke,
 				label = label,
@@ -226,7 +248,7 @@ local function ensureGui(remotes)
 		end
 	end
 
-	makeText(panel, "FutureSlots", "Next slots: eyes, patterns, shell or wing details, and trails.", UDim2.fromOffset(22, 362), UDim2.new(1, -44, 0, 38), 12, false)
+	makeText(scroll, "FutureSlots", "Next slots: eyes, patterns, shell or wing details, and trails.", UDim2.fromOffset(18, 374), UDim2.new(1, -36, 0, 40), 12, false)
 
 	refreshProfile()
 	applyVisibility()
