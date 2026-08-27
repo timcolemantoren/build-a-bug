@@ -12,7 +12,7 @@ local BugAvatarService = {}
 local PlayerDataService = nil
 
 local VISUAL_MODEL_NAME = "BuildABugVisual"
-local BODY_OFFSET_Y = -2.15
+local BODY_OFFSET_Y = -1.95
 local CAMERA_OFFSET_Y = -0.75
 
 local COLORS = {
@@ -170,9 +170,7 @@ local function createLeg(model: Model, root: BasePart, thorax: BasePart, side: n
 end
 
 local function createAntenna(model: Model, root: BasePart, head: BasePart, side: number, startZ: number, reachZ: number, color: Color3)
-	-- Antennae now emerge from the upper/inner surface of the head instead of
-	-- visually sharing the eye sockets. This keeps the lively motion while making
-	-- their anatomy read correctly from the normal third-person camera.
+	-- Antennae emerge from the upper/inner surface of the head rather than the eyes.
 	local basePoint = Vector3.new(side * 0.24, 0.46, startZ + 0.08)
 	local bend = Vector3.new(side * 0.56, 0.78, startZ - 0.48)
 	local tip = Vector3.new(side * 0.90, 0.76, reachZ)
@@ -258,6 +256,86 @@ local function buildGrasshopper(model: Model, root: BasePart)
 	createAntenna(model, root, head, 1, -2.00, -3.40, c.dark)
 end
 
+local function formatBestTime(seconds: number): string
+	seconds = math.max(0, math.floor(seconds or 0))
+	if seconds <= 0 then
+		return "--"
+	end
+	local minutes = math.floor(seconds / 60)
+	local remainder = seconds % 60
+	return string.format("%d:%02d", minutes, remainder)
+end
+
+local function makeTagLabel(parent: Instance, name: string, y: number, height: number, textSize: number, color: Color3): TextLabel
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.Size = UDim2.new(1, 0, 0, height)
+	label.Position = UDim2.fromOffset(0, y)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = color
+	label.TextStrokeColor3 = Color3.fromRGB(20, 20, 20)
+	label.TextStrokeTransparency = 0.25
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = textSize
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.Parent = parent
+	return label
+end
+
+local function createIdentityTag(player: Player, model: Model)
+	local head = model:FindFirstChild("Head")
+	if not head or not head:IsA("BasePart") then
+		return
+	end
+
+	local tag = Instance.new("BillboardGui")
+	tag.Name = "PlayerIdentity"
+	tag.Size = UDim2.fromOffset(280, 70)
+	tag.StudsOffsetWorldSpace = Vector3.new(0, 2.35, 0)
+	tag.AlwaysOnTop = true
+	tag.MaxDistance = 75
+	tag.LightInfluence = 0
+	tag.Adornee = head
+	tag.Parent = head
+
+	makeTagLabel(tag, "PlayerName", 0, 24, 16, Color3.fromRGB(255, 255, 255))
+	makeTagLabel(tag, "Progress", 23, 22, 13, Color3.fromRGB(255, 225, 125))
+	makeTagLabel(tag, "Stats", 44, 20, 11, Color3.fromRGB(220, 235, 245))
+end
+
+local function refreshIdentityTag(player: Player)
+	local character = player.Character
+	local model = character and character:FindFirstChild(VISUAL_MODEL_NAME)
+	if not model or not model:IsA("Model") then
+		return
+	end
+
+	local tag = model:FindFirstChild("PlayerIdentity", true)
+	if not tag or not tag:IsA("BillboardGui") then
+		return
+	end
+
+	local nameLabel = tag:FindFirstChild("PlayerName")
+	local progressLabel = tag:FindFirstChild("Progress")
+	local statsLabel = tag:FindFirstChild("Stats")
+	local level = player:GetAttribute("BugLevel") or 1
+	local title = player:GetAttribute("BugTitle") or "Fresh Hatchling"
+	local bugId = player:GetAttribute("SelectedBug") or "Ant"
+	local rounds = player:GetAttribute("RoundsPlayed") or 0
+	local best = player:GetAttribute("BestSurvival") or 0
+	local roundWord = rounds == 1 and "round" or "rounds"
+
+	if nameLabel and nameLabel:IsA("TextLabel") then
+		nameLabel.Text = player.DisplayName
+	end
+	if progressLabel and progressLabel:IsA("TextLabel") then
+		progressLabel.Text = string.format("Lv %s  •  %s", tostring(level), tostring(title))
+	end
+	if statsLabel and statsLabel:IsA("TextLabel") then
+		statsLabel.Text = string.format("%s  •  %s %s  •  Best %s", tostring(bugId), tostring(rounds), roundWord, formatBestTime(best))
+	end
+end
+
 local function buildVisual(player: Player)
 	local character = player.Character
 	if not character then
@@ -296,6 +374,8 @@ local function buildVisual(player: Player)
 		buildAnt(model, root)
 	end
 
+	createIdentityTag(player, model)
+	refreshIdentityTag(player)
 	hideRobloxAvatar(character)
 	humanoid.CameraOffset = Vector3.new(0, CAMERA_OFFSET_Y, 0)
 	pcall(function()
@@ -307,6 +387,12 @@ local function setupPlayer(player: Player)
 	player:GetAttributeChangedSignal("SelectedBug"):Connect(function()
 		task.defer(buildVisual, player)
 	end)
+
+	for _, attributeName in ipairs({ "BugLevel", "BugTitle", "RoundsPlayed", "BestSurvival" }) do
+		player:GetAttributeChangedSignal(attributeName):Connect(function()
+			task.defer(refreshIdentityTag, player)
+		end)
+	end
 
 	player.CharacterAdded:Connect(function()
 		task.wait(0.4)
