@@ -116,6 +116,9 @@ local function publish(player: Player)
 		next = ProgressionConfig.GetNextLevelForDna(dna),
 	}
 
+	-- Replicated attribute gives the visual avatar layer a clean, read-only signal
+	-- whenever the pre-round bug selection changes.
+	player:SetAttribute("SelectedBug", data.selectedBug or "Ant")
 	applyCharacterTuning(player)
 
 	if remotes and remotes.PlayerDataChanged then
