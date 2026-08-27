@@ -16,7 +16,7 @@ local expanded = false
 local details = {}
 local toggleButton = nil
 local inRound = false
-local selectedBug = "Ant"
+local selectedBug = player:GetAttribute("SelectedBug") or "Ant"
 local bugCards = {}
 
 local DEFAULT_CARD = Color3.fromRGB(55, 65, 58)
@@ -148,10 +148,11 @@ local function ensureGui(remotes)
 
 	local y = 78
 	for _, bugId in ipairs(BugOrder) do
-		local bug = BugArchetypes[bugId]
+		local currentBugId = bugId
+		local bug = BugArchetypes[currentBugId]
 		if bug then
 			local button = Instance.new("TextButton")
-			button.Name = bugId .. "Card"
+			button.Name = currentBugId .. "Card"
 			button.Size = UDim2.fromOffset(316, 86)
 			button.Position = UDim2.fromOffset(14, y)
 			button.BackgroundTransparency = 0.04
@@ -183,12 +184,12 @@ local function ensureGui(remotes)
 				if inRound then
 					return
 				end
-				selectedBug = bugId
+				selectedBug = currentBugId
 				refreshBugCards()
-				remotes.SelectBug:FireServer(bugId)
+				remotes.SelectBug:FireServer(currentBugId)
 			end)
 
-			bugCards[bugId] = {
+			bugCards[currentBugId] = {
 				button = button,
 				label = label,
 				stroke = stroke,
@@ -216,6 +217,11 @@ end
 
 function BugSelectController.Init(remotes)
 	ensureGui(remotes)
+
+	player:GetAttributeChangedSignal("SelectedBug"):Connect(function()
+		selectedBug = player:GetAttribute("SelectedBug") or selectedBug
+		refreshBugCards()
+	end)
 
 	remotes.PlayerDataChanged.OnClientEvent:Connect(function(data)
 		selectedBug = data.selectedBug or selectedBug
