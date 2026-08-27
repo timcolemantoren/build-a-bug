@@ -13,6 +13,7 @@ local PlayerDataService = nil
 
 local VISUAL_MODEL_NAME = "BuildABugVisual"
 local BODY_OFFSET_Y = -2.15
+local CAMERA_OFFSET_Y = -0.75
 
 local COLORS = {
 	Ant = {
@@ -109,7 +110,6 @@ end
 
 local function segmentFrame(worldA: Vector3, worldB: Vector3): CFrame
 	local direction = worldB - worldA
-	local length = direction.Magnitude
 	local right = direction.Unit
 	local referenceUp = Vector3.yAxis
 	if math.abs(right:Dot(referenceUp)) > 0.94 then
@@ -170,9 +170,12 @@ local function createLeg(model: Model, root: BasePart, thorax: BasePart, side: n
 end
 
 local function createAntenna(model: Model, root: BasePart, head: BasePart, side: number, startZ: number, reachZ: number, color: Color3)
-	local basePoint = Vector3.new(side * 0.34, 0.18, startZ)
-	local bend = Vector3.new(side * 0.62, 0.48, startZ - 0.62)
-	local tip = Vector3.new(side * 0.90, 0.58, reachZ)
+	-- Antennae now emerge from the upper/inner surface of the head instead of
+	-- visually sharing the eye sockets. This keeps the lively motion while making
+	-- their anatomy read correctly from the normal third-person camera.
+	local basePoint = Vector3.new(side * 0.24, 0.46, startZ + 0.08)
+	local bend = Vector3.new(side * 0.56, 0.78, startZ - 0.48)
+	local tip = Vector3.new(side * 0.90, 0.76, reachZ)
 	local phase = side < 0 and 0 or math.pi * 0.65
 	local first = createSegment(model, root, head, "Antenna", basePoint, bend, 0.085, color, "Antenna", side, phase)
 	createSegment(model, root, first, "AntennaTip", bend, tip, 0.07, color, "AntennaTip", side, phase)
@@ -294,7 +297,7 @@ local function buildVisual(player: Player)
 	end
 
 	hideRobloxAvatar(character)
-	humanoid.CameraOffset = Vector3.new(0, -1.35, 0)
+	humanoid.CameraOffset = Vector3.new(0, CAMERA_OFFSET_Y, 0)
 	pcall(function()
 		humanoid.NameDisplayDistance = 0
 	end)
