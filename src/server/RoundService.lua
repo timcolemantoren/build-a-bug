@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
@@ -53,7 +54,7 @@ end
 local function sendToActiveParticipants(state: string, payload)
 	for _, entry in pairs(participants) do
 		local player = entry.player
-		if not entry.eliminated and player and player.Parent == Players and player:GetAttribute("InRound") == true then
+		if player and player.Parent == Players and not entry.eliminated then
 			fireClient(player, state, payload)
 		end
 	end
@@ -65,6 +66,11 @@ local function clearPickups()
 end
 
 local function clearTemporaryHazards()
+	if HazardService and HazardService.ClearHazards then
+		HazardService.ClearHazards()
+		return
+	end
+
 	local arena = Workspace:FindFirstChild("BuildABugArena")
 	local hazards = arena and arena:FindFirstChild("Hazards")
 	if hazards then
@@ -103,12 +109,69 @@ local function wirePickupHitbox(hitbox: BasePart, destroyTarget: Instance)
 	end)
 end
 
-local function createCrumbPickup(position: Vector3)
+local function clampPickupPosition(position: Vector3, y: number?): Vector3
+	return Vector3.new(
+		math.clamp(position.X, -190, 190),
+		y or position.Y,
+		math.clamp(position.Z, -178, 158)
+	)
+end
+
+local function getAlivePlayers()
+	local result = {}
+	for _, entry in pairs(participants) do
+		local player = entry.player
+		if player and player.Parent == Players and not entry.eliminated then
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if root and humanoid and humanoid.Health > 0 then
+				table.insert(result, player)
+			end
+		end
+	end
+	return result
+end
+
+local function getRandomAlivePlayer(): Player?
+	local alive = getAlivePlayers()
+	if #alive == 0 then
+		return nil
+	end
+	return alive[math.random(1, #alive)]
+end
+
+local function getPositionNearPlayer(player: Player, radius: number, y: number): Vector3?
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return nil
+	end
+
+	local angle = math.random() * math.pi * 2
+	local distance = math.sqrt(math.random()) * radius
+	local position = root.Position + Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
+	return clampPickupPosition(position, y)
+end
+
+local function getPositionNearAnyAlivePlayer(radius: number, y: number): Vector3
+	local target = getRandomAlivePlayer()
+	if target then
+		local position = getPositionNearPlayer(target, radius, y)
+		if position then
+			return position
+		end
+	end
+	return clampPickupPosition(ArenaService.GetRandomGroundPickupPosition(), y)
+end
+
+local function createCrumbPickup(position: Vector3, fallHeight: number?)
 	local pickupsFolder = ArenaService.GetPickupsFolder()
+	local finalPosition = clampPickupPosition(position, 2.0)
 	local crumb = Instance.new("Part")
 	crumb.Name = "Crumb"
 	crumb.Size = Vector3.new(math.random(9, 16) / 10, math.random(5, 10) / 10, math.random(8, 14) / 10)
-	crumb.Position = position
+	crumb.Position = finalPosition
 	crumb.Orientation = Vector3.new(math.random(0, 35), math.random(0, 180), math.random(0, 35))
 	crumb.Anchored = true
 	crumb.CanCollide = false
@@ -122,13 +185,34 @@ local function createCrumbPickup(position: Vector3)
 	crust.Name = "CrustEdge"
 	crust.Size = Vector3.new(crumb.Size.X * 0.7, 0.18, crumb.Size.Z * 0.5)
 	crust.CFrame = crumb.CFrame * CFrame.new(0, crumb.Size.Y / 2 + 0.05, 0)
-	crust.Anchored = true
+	crust.Anchored = false
+	crust.Massless = true
 	crust.CanCollide = false
+	crust.CanTouch = false
 	crust.Color = Color3.fromRGB(145, 90, 42)
 	crust.Material = Enum.Material.SmoothPlastic
 	crust.Parent = crumb
 
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = crumb
+	weld.Part1 = crust
+	weld.Parent = crumb
+
 	wirePickupHitbox(crumb, crumb)
+
+	if fallHeight and fallHeight > 0 then
+		local landingCFrame = crumb.CFrame
+		crumb.CFrame = landingCFrame + Vector3.new(0, fallHeight, 0)
+		local fallTime = math.random(75, 125) / 100
+		local tween = TweenService:Create(
+			crumb,
+			TweenInfo.new(fallTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ CFrame = landingCFrame }
+		)
+		tween:Play()
+	end
+
+	return crumb
 end
 
 local function createDnaPickup(position: Vector3)
@@ -141,7 +225,7 @@ local function createDnaPickup(position: Vector3)
 	hitbox.Name = "Hitbox"
 	hitbox.Shape = Enum.PartType.Ball
 	hitbox.Size = Vector3.new(5, 5, 5)
-	hitbox.Position = position
+	hitbox.Position = clampPickupPosition(position, position.Y)
 	hitbox.Transparency = 1
 	hitbox.Anchored = true
 	hitbox.CanCollide = false
@@ -150,6 +234,7 @@ local function createDnaPickup(position: Vector3)
 	hitbox.Parent = model
 	model.PrimaryPart = hitbox
 
+	local origin = hitbox.Position
 	local strands = 7
 	for i = 1, strands do
 		local t = (i - 1) / (strands - 1)
@@ -161,9 +246,10 @@ local function createDnaPickup(position: Vector3)
 		orbA.Name = "HelixNodeA"
 		orbA.Shape = Enum.PartType.Ball
 		orbA.Size = Vector3.new(0.6, 0.6, 0.6)
-		orbA.Position = position + offsetA
+		orbA.Position = origin + offsetA
 		orbA.Anchored = true
 		orbA.CanCollide = false
+		orbA.CanTouch = false
 		orbA.Color = Color3.fromRGB(60, 220, 255)
 		orbA.Material = Enum.Material.Neon
 		orbA.Parent = model
@@ -172,9 +258,10 @@ local function createDnaPickup(position: Vector3)
 		orbB.Name = "HelixNodeB"
 		orbB.Shape = Enum.PartType.Ball
 		orbB.Size = Vector3.new(0.6, 0.6, 0.6)
-		orbB.Position = position + Vector3.new(-offsetA.X, y, -offsetA.Z)
+		orbB.Position = origin + Vector3.new(-offsetA.X, y, -offsetA.Z)
 		orbB.Anchored = true
 		orbB.CanCollide = false
+		orbB.CanTouch = false
 		orbB.Color = Color3.fromRGB(120, 150, 255)
 		orbB.Material = Enum.Material.Neon
 		orbB.Parent = model
@@ -182,10 +269,11 @@ local function createDnaPickup(position: Vector3)
 		local rung = Instance.new("Part")
 		rung.Name = "HelixRung"
 		rung.Size = Vector3.new(2.2, 0.12, 0.12)
-		rung.Position = position + Vector3.new(0, y, 0)
+		rung.Position = origin + Vector3.new(0, y, 0)
 		rung.CFrame = CFrame.new(rung.Position) * CFrame.Angles(0, -angle, 0)
 		rung.Anchored = true
 		rung.CanCollide = false
+		rung.CanTouch = false
 		rung.Color = Color3.fromRGB(165, 235, 255)
 		rung.Material = Enum.Material.Neon
 		rung.Parent = model
@@ -196,12 +284,24 @@ end
 
 local function spawnPickupWave()
 	for _ = 1, RoundConfig.crumbsPerSpawn do
-		createCrumbPickup(ArenaService.GetRandomGroundPickupPosition())
+		local position
+		if math.random() < 0.55 then
+			position = getPositionNearAnyAlivePlayer(65, 2.0)
+		else
+			position = ArenaService.GetRandomGroundPickupPosition()
+		end
+		createCrumbPickup(position)
 	end
 
 	for _ = 1, RoundConfig.dnaPickupsPerSpawn do
-		local useAir = math.random() < 0.6
-		local position = useAir and ArenaService.GetRandomAirPickupPosition() or ArenaService.GetRandomGroundPickupPosition()
+		local position
+		if math.random() < 0.65 then
+			local height = math.random(3, 20)
+			position = getPositionNearAnyAlivePlayer(55, height)
+		else
+			local useAir = math.random() < 0.6
+			position = useAir and ArenaService.GetRandomAirPickupPosition() or ArenaService.GetRandomGroundPickupPosition()
+		end
 		createDnaPickup(position)
 	end
 end
@@ -210,10 +310,43 @@ local function getElapsedSeconds(): number
 	return math.max(0, os.clock() - roundStartedAt)
 end
 
-local function triggerRandomHazard()
-	local hazardId = HazardService.GetRandomHazardId()
-	if hazardId then
-		HazardService.WarnHazard(hazardId)
+local function triggerHazardForPhase(phase, forceTargeted: boolean?)
+	local targetedChance = 0.6
+	local radius = 14
+	local warningScale = 1
+	local extraChance = 0
+
+	if phase.id == "Trouble" then
+		targetedChance = 0.85
+		radius = 10
+		warningScale = 0.95
+		extraChance = 0.18
+	elseif phase.id == "Chaos" then
+		targetedChance = 1
+		radius = 7
+		warningScale = 0.85
+		extraChance = 0.38
+	end
+
+	if forceTargeted or math.random() < targetedChance then
+		HazardService.WarnRandomHazardNearActivePlayer(radius, {
+			warningScale = warningScale,
+		})
+	else
+		local hazardId = HazardService.GetRandomHazardId()
+		if hazardId then
+			HazardService.WarnHazard(hazardId)
+		end
+	end
+
+	if extraChance > 0 and math.random() < extraChance then
+		task.delay(math.random(7, 14) / 10, function()
+			if matchState == "Active" then
+				HazardService.WarnRandomHazardNearActivePlayer(radius, {
+					warningScale = warningScale,
+				})
+			end
+		end)
 	end
 end
 
@@ -228,6 +361,57 @@ local function announceRoundEvent(event)
 	})
 end
 
+local function runCrumbShower(myRoundToken: number)
+	for wave = 1, 4 do
+		if matchState ~= "Active" or myRoundToken ~= roundToken then
+			return
+		end
+
+		for _ = 1, 5 do
+			local target = getRandomAlivePlayer()
+			if target then
+				local position = getPositionNearPlayer(target, 22, 2.0)
+				if position then
+					createCrumbPickup(position, math.random(22, 38))
+				end
+			end
+		end
+
+		if wave < 4 then
+			task.wait(0.42)
+		end
+	end
+end
+
+local function runDnaBurst()
+	for _ = 1, 14 do
+		local target = getRandomAlivePlayer()
+		if target then
+			local height = math.random(3, 16)
+			local position = getPositionNearPlayer(target, 24, height)
+			if position then
+				createDnaPickup(position)
+			end
+		end
+	end
+end
+
+local function runDoubleTrouble(myRoundToken: number)
+	HazardService.WarnRandomHazardNearActivePlayer(6, {
+		warningScale = 0.9,
+		damageScale = 1.05,
+	})
+
+	task.delay(0.8, function()
+		if matchState == "Active" and myRoundToken == roundToken then
+			HazardService.WarnRandomHazardNearActivePlayer(6, {
+				warningScale = 0.85,
+				damageScale = 1.05,
+			})
+		end
+	end)
+end
+
 local function executeRoundEvent(event, myRoundToken: number)
 	if matchState ~= "Active" or myRoundToken ~= roundToken then
 		return
@@ -236,30 +420,11 @@ local function executeRoundEvent(event, myRoundToken: number)
 	announceRoundEvent(event)
 
 	if event.id == "CrumbShower" then
-		for wave = 1, 3 do
-			if matchState ~= "Active" or myRoundToken ~= roundToken then
-				return
-			end
-			for _ = 1, 7 do
-				createCrumbPickup(ArenaService.GetRandomGroundPickupPosition())
-			end
-			if wave < 3 then
-				task.wait(0.45)
-			end
-		end
+		task.spawn(runCrumbShower, myRoundToken)
 	elseif event.id == "DnaBurst" then
-		for _ = 1, 10 do
-			local useAir = math.random() < 0.65
-			local position = useAir and ArenaService.GetRandomAirPickupPosition() or ArenaService.GetRandomGroundPickupPosition()
-			createDnaPickup(position)
-		end
+		runDnaBurst()
 	elseif event.id == "DoubleTrouble" then
-		triggerRandomHazard()
-		task.delay(1.35, function()
-			if matchState == "Active" and myRoundToken == roundToken then
-				triggerRandomHazard()
-			end
-		end)
+		runDoubleTrouble(myRoundToken)
 	end
 end
 
@@ -273,7 +438,8 @@ local function runHazardLoop(myRoundToken: number)
 			break
 		end
 
-		triggerRandomHazard()
+		phase = RoundEventConfig.GetPhase(getElapsedSeconds())
+		triggerHazardForPhase(phase, false)
 	end
 end
 
@@ -309,6 +475,41 @@ local function runRoundEventLoop(myRoundToken: number)
 	end
 end
 
+local function runFinalScramble(myRoundToken: number)
+	local mapPayload = getMapPayload()
+	sendToActiveParticipants("FinalScramble", {
+		displayName = "FINAL SCRAMBLE!",
+		description = "Everything at once! Grab DNA and keep moving!",
+		mapId = mapPayload.mapId,
+		mapName = mapPayload.mapName,
+	})
+
+	-- Put rewards where the remaining players can actually see them.
+	for _ = 1, 10 do
+		local target = getRandomAlivePlayer()
+		if target then
+			local position = getPositionNearPlayer(target, 18, math.random(3, 12))
+			if position then
+				createDnaPickup(position)
+			end
+		end
+	end
+
+	-- A visible food shower plus overlapping targeted hazards creates a real finish.
+	task.spawn(runCrumbShower, myRoundToken)
+
+	for barrage = 1, 5 do
+		task.delay((barrage - 1) * 1.55, function()
+			if matchState == "Active" and myRoundToken == roundToken then
+				HazardService.WarnRandomHazardNearActivePlayer(5, {
+					warningScale = 0.78,
+					damageScale = 1.1,
+				})
+			end
+		end)
+	end
+end
+
 local function runPhaseLoop(myRoundToken: number)
 	local currentPhaseId = nil
 	local finalScrambleTriggered = false
@@ -327,31 +528,30 @@ local function runPhaseLoop(myRoundToken: number)
 				mapId = mapPayload.mapId,
 				mapName = mapPayload.mapName,
 			})
+
+			-- Phase banners now immediately correspond to something physical.
+			if phase.id == "Trouble" then
+				task.delay(1.0, function()
+					if matchState == "Active" and myRoundToken == roundToken then
+						triggerHazardForPhase(phase, true)
+					end
+				end)
+			elseif phase.id == "Chaos" then
+				task.delay(0.75, function()
+					if matchState == "Active" and myRoundToken == roundToken then
+						runDoubleTrouble(myRoundToken)
+					end
+				end)
+			end
 		end
 
 		local remaining = RoundConfig.roundDurationSeconds - elapsed
 		if not finalScrambleTriggered and remaining <= 10 then
 			finalScrambleTriggered = true
-			local mapPayload = getMapPayload()
-			sendToActiveParticipants("FinalScramble", {
-				displayName = "FINAL SCRAMBLE!",
-				description = "10 seconds! Grab what you can and survive!",
-				mapId = mapPayload.mapId,
-				mapName = mapPayload.mapName,
-			})
-
-			for _ = 1, 4 do
-				createDnaPickup(ArenaService.GetRandomGroundPickupPosition())
-			end
-			triggerRandomHazard()
-			task.delay(1.25, function()
-				if matchState == "Active" and myRoundToken == roundToken then
-					triggerRandomHazard()
-				end
-			end)
+			runFinalScramble(myRoundToken)
 		end
 
-		task.wait(0.5)
+		task.wait(0.35)
 	end
 end
 
@@ -594,7 +794,6 @@ function RoundService.StartRound(roster)
 	end
 
 	local actualCount = countParticipants()
-	local initialPhase = RoundEventConfig.GetPhase(0)
 	for _, entry in pairs(participants) do
 		local player = entry.player
 		fireClient(player, "Started", {
@@ -602,8 +801,6 @@ function RoundService.StartRound(roster)
 			startedAt = roundStartedAt,
 			playerCount = actualCount,
 			playersRemaining = actualCount,
-			phaseId = initialPhase.id,
-			phaseName = initialPhase.displayName,
 			mapId = mapPayload.mapId,
 			mapName = mapPayload.mapName,
 		})
