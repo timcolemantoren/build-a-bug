@@ -49,6 +49,9 @@ local function trackVisual(model: Model)
 		root = root,
 		motors = {},
 		baseC0 = {},
+		airBlend = 0,
+		gaitCycle = 0,
+		lastUpdate = os.clock(),
 	}
 	tracked[model] = record
 
@@ -90,42 +93,43 @@ local function trackPlayer(player: Player)
 	end
 end
 
-local function bodyRootMotion(now: number, moving: boolean, grounded: boolean, cycle: number, bugId: string, verticalVelocity: number): CFrame
-	local bobAmplitude = 0.025
+local function bodyRootMotion(now: number, moving: boolean, grounded: boolean, cycle: number, bugId: string, verticalVelocity: number, airBlend: number): CFrame
+	local bobAmplitude = 0.018
 	if moving and grounded then
 		if bugId == "Beetle" then
-			bobAmplitude = 0.045
+			bobAmplitude = 0.035
 		elseif bugId == "Grasshopper" then
-			bobAmplitude = 0.085
+			bobAmplitude = 0.060
 		else
-			bobAmplitude = 0.07
+			bobAmplitude = 0.052
 		end
 	end
 
-	local bob = moving and grounded and math.sin(cycle * 2) * bobAmplitude or math.sin(now * 2.2) * 0.018
+	local bob = moving and grounded and math.sin(cycle * 2) * bobAmplitude or math.sin(now * 2.2) * 0.014
 	local pitch = 0
-	if not grounded then
-		if verticalVelocity > 2 then
-			pitch = bugId == "Grasshopper" and -11 or -5
-		elseif verticalVelocity < -2 then
-			pitch = bugId == "Grasshopper" and 12 or 6
+	if airBlend > 0.01 then
+		local normalizedVertical = math.clamp(verticalVelocity / 55, -1, 1)
+		if bugId == "Grasshopper" then
+			pitch = -normalizedVertical * 6.5 * airBlend
+		else
+			pitch = -normalizedVertical * 3.5 * airBlend
 		end
 	end
 	return CFrame.new(0, bob, 0) * CFrame.Angles(math.rad(pitch), 0, 0)
 end
 
-local function jointMotion(motor: Motor6D, now: number, moving: boolean, grounded: boolean, cycle: number, bugId: string, verticalVelocity: number): CFrame
+local function jointMotion(motor: Motor6D, now: number, moving: boolean, grounded: boolean, cycle: number, bugId: string, verticalVelocity: number, airBlend: number): CFrame
 	local role = motor:GetAttribute("MotionRole") or ""
 	local side = motor:GetAttribute("MotionSide") or 0
 	local phase = motor:GetAttribute("MotionPhase") or 0
 
 	if role == "BodyRoot" then
-		return bodyRootMotion(now, moving, grounded, cycle, bugId, verticalVelocity)
+		return bodyRootMotion(now, moving, grounded, cycle, bugId, verticalVelocity, airBlend)
 	elseif role == "LegUpper" then
 		if moving and grounded then
 			local stride = math.sin(cycle + phase)
 			local lift = math.max(0, math.sin(cycle + phase + 0.45))
-			return CFrame.Angles(math.rad(lift * -8), math.rad(stride * 28), math.rad(side * -lift * 13))
+			return CFrame.Angles(math.rad(lift * -7), math.rad(stride * 27), math.rad(side * -lift * 12))
 		end
 		local idle = math.sin(now * 1.3 + phase)
 		return CFrame.Angles(0, math.rad(idle * 2.5), math.rad(side * idle * 1.5))
@@ -133,25 +137,35 @@ local function jointMotion(motor: Motor6D, now: number, moving: boolean, grounde
 		if moving and grounded then
 			local stride = math.sin(cycle + phase)
 			local lift = math.max(0, math.sin(cycle + phase + 0.45))
-			return CFrame.Angles(math.rad(lift * 16), math.rad(stride * -17), math.rad(side * lift * 17))
+			return CFrame.Angles(math.rad(lift * 15), math.rad(stride * -17), math.rad(side * lift * 16))
 		end
 		return CFrame.new()
 	elseif role == "HindLegThigh" then
-		if bugId == "Grasshopper" and not grounded then
-			local tuck = verticalVelocity > 0 and 1 or 0.78
-			return CFrame.Angles(math.rad(-38 * tuck), math.rad(side * 18), math.rad(side * -16))
+		if bugId == "Grasshopper" and airBlend > 0.01 then
+			local rise = math.clamp(verticalVelocity / 55, 0, 1)
+			local tuck = 14 + (rise * 10)
+			return CFrame.Angles(
+				math.rad(-tuck * airBlend),
+				math.rad(side * 10 * airBlend),
+				math.rad(side * -8 * airBlend)
+			)
 		elseif moving then
 			local stride = math.sin(cycle + phase)
-			return CFrame.Angles(math.rad(stride * 10), math.rad(stride * 20), math.rad(side * -6))
+			return CFrame.Angles(math.rad(stride * 8), math.rad(stride * 20), math.rad(side * -5))
 		end
 		return CFrame.new()
 	elseif role == "HindLegShin" then
-		if bugId == "Grasshopper" and not grounded then
-			local tuck = verticalVelocity > 0 and 1 or 0.78
-			return CFrame.Angles(math.rad(34 * tuck), math.rad(side * -15), math.rad(side * 10))
+		if bugId == "Grasshopper" and airBlend > 0.01 then
+			local rise = math.clamp(verticalVelocity / 55, 0, 1)
+			local tuck = 15 + (rise * 8)
+			return CFrame.Angles(
+				math.rad(tuck * airBlend),
+				math.rad(side * -9 * airBlend),
+				math.rad(side * 6 * airBlend)
+			)
 		elseif moving then
 			local stride = math.sin(cycle + phase)
-			return CFrame.Angles(math.rad(stride * -9), math.rad(stride * -16), 0)
+			return CFrame.Angles(math.rad(stride * -7), math.rad(stride * -16), 0)
 		end
 		return CFrame.new()
 	elseif role == "Antenna" then
@@ -164,27 +178,31 @@ local function jointMotion(motor: Motor6D, now: number, moving: boolean, grounde
 		local sway = math.sin(now * speed + phase + 0.5)
 		return CFrame.Angles(math.rad(sway * 10), math.rad(sway * 22), math.rad(side * sway * 8))
 	elseif role == "WingLeft" or role == "WingRight" then
-		if bugId == "Grasshopper" and not grounded then
-			local flutter = math.sin(now * 30)
-			return CFrame.Angles(math.rad(-8), math.rad(flutter * 7), math.rad(side * (12 + flutter * 15)))
+		if bugId == "Grasshopper" and airBlend > 0.01 then
+			local flutter = math.sin(now * 27)
+			return CFrame.Angles(
+				math.rad(-4 * airBlend),
+				math.rad(flutter * 4 * airBlend),
+				math.rad(side * (6 + flutter * 8) * airBlend)
+			)
 		elseif moving then
 			return CFrame.Angles(0, 0, math.rad(side * math.sin(cycle) * 3))
 		end
 		return CFrame.new()
 	elseif role == "Head" then
-		local nod = moving and math.sin(cycle) * 4 or math.sin(now * 1.8) * 1.5
-		if bugId == "Grasshopper" and not grounded then
-			nod -= 9
+		local nod = moving and math.sin(cycle) * 3 or math.sin(now * 1.8) * 1.5
+		if bugId == "Grasshopper" then
+			nod -= 4 * airBlend
 		end
 		return CFrame.Angles(math.rad(nod), 0, 0)
 	elseif role == "Abdomen" then
 		if moving and grounded then
-			return CFrame.Angles(math.rad(math.sin(cycle + math.pi) * 3.5), 0, math.rad(math.sin(cycle * 0.5) * 1.5))
+			return CFrame.Angles(math.rad(math.sin(cycle + math.pi) * 3.0), 0, math.rad(math.sin(cycle * 0.5) * 1.3))
 		end
 		return CFrame.Angles(math.rad(math.sin(now * 1.5) * 0.8), 0, 0)
 	elseif role == "Shell" then
 		if bugId == "Beetle" and moving and grounded then
-			return CFrame.Angles(0, 0, math.rad(math.sin(cycle * 2) * 2))
+			return CFrame.Angles(0, 0, math.rad(math.sin(cycle * 2) * 1.8))
 		end
 		return CFrame.new()
 	end
@@ -201,14 +219,27 @@ local function animateRecord(record, now: number)
 		return
 	end
 
+	local dt = math.clamp(now - (record.lastUpdate or now), 0, 0.1)
+	record.lastUpdate = now
+
 	local velocity = root.AssemblyLinearVelocity
 	local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
 	local grounded = humanoid.FloorMaterial ~= Enum.Material.Air
 	local moving = horizontalSpeed > 1.1
-	local cadence = math.clamp(6.8 + horizontalSpeed * 0.30, 6.8, 13)
-	local cycle = now * cadence
-	local bugId = model:GetAttribute("BugId") or "Ant"
 
+	-- Tie leg cadence directly to actual ground speed. The previous fixed-ish
+	-- cadence made the bugs slide faster than their feet appeared to move.
+	local cadence = moving and math.clamp(horizontalSpeed * 1.45, 10.5, 28) or 0
+	record.gaitCycle = (record.gaitCycle or 0) + cadence * dt
+	local cycle = record.gaitCycle
+
+	-- Blend into and out of airborne posture rather than snapping between a rigid
+	-- ground pose and a rigid jump pose.
+	local airTarget = grounded and 0 or 1
+	local airAlpha = 1 - math.exp(-dt * (airTarget > record.airBlend and 8 or 6))
+	record.airBlend = record.airBlend + (airTarget - record.airBlend) * airAlpha
+
+	local bugId = model:GetAttribute("BugId") or "Ant"
 	for i = #record.motors, 1, -1 do
 		local motor = record.motors[i]
 		local base = record.baseC0[motor]
@@ -217,7 +248,7 @@ local function animateRecord(record, now: number)
 			table.remove(record.motors, i)
 		else
 			motor.Transform = CFrame.new()
-			motor.C0 = base * jointMotion(motor, now, moving, grounded, cycle, bugId, velocity.Y)
+			motor.C0 = base * jointMotion(motor, now, moving, grounded, cycle, bugId, velocity.Y, record.airBlend)
 		end
 	end
 end
