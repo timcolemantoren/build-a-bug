@@ -6,6 +6,7 @@
 local RemoteNames = {
 	FolderName = "BuildABugRemotes",
 	SelectBug = "SelectBug",
+	SetCosmetic = "SetCosmetic",
 	StartRoundRequest = "StartRoundRequest",
 	ExitRoundRequest = "ExitRoundRequest",
 	RoundStateChanged = "RoundStateChanged",
