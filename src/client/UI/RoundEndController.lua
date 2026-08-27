@@ -55,16 +55,17 @@ local function ensureGui(remotes)
 
 	playAgainButton = Instance.new("TextButton")
 	playAgainButton.Name = "PlayAgain"
-	playAgainButton.Size = UDim2.fromOffset(180, 44)
-	playAgainButton.Position = UDim2.fromOffset(90, 184)
+	playAgainButton.Size = UDim2.fromOffset(210, 44)
+	playAgainButton.Position = UDim2.fromOffset(75, 184)
 	playAgainButton.BackgroundTransparency = 0.05
-	playAgainButton.Text = "Play Again"
+	playAgainButton.Text = "Join Next Match"
 	playAgainButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	playAgainButton.Font = Enum.Font.GothamBold
 	playAgainButton.TextSize = 18
 	playAgainButton.Parent = panel
 	playAgainButton.MouseButton1Click:Connect(function()
 		panel.Visible = false
+		-- This now moves the player into the physical lobby queue circle.
 		remotes.StartRoundRequest:FireServer()
 	end)
 end
@@ -75,6 +76,7 @@ local function showRoundEnd(payload)
 	end
 
 	local survivedSeconds = payload and payload.survivedSeconds or "?"
+	local mapName = payload and payload.mapName or "Backyard"
 	local dna = latestData and latestData.currency and latestData.currency.dna or 0
 	local crumbs = latestData and latestData.currency and latestData.currency.crumbs or 0
 	local current = latestData and latestData.progression and latestData.progression.current
@@ -82,6 +84,7 @@ local function showRoundEnd(payload)
 	local title = current and current.title or "Fresh Hatchling"
 	local nextText = nextLevel and ("Next title at " .. tostring(nextLevel.dnaRequired) .. " DNA") or "Max title reached"
 
+	titleLabel.Text = mapName .. " Complete!"
 	summaryLabel.Text = string.format(
 		"Survived: %s seconds\nTotal Crumbs: %s\nTotal DNA: %s\nTitle: %s\n%s",
 		tostring(survivedSeconds),
