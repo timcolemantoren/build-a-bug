@@ -7,12 +7,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
 local ProgressionConfig = require(BuildABugShared.Config.ProgressionConfig)
+local CosmeticStyles = require(BuildABugShared.Config.CosmeticStyles)
 
 local DATASTORE_NAME = "BuildABug_PlayerData_v1"
 
--- In an unpublished local Studio place, DataStoreService:GetDataStore can throw and stop
--- the whole server from booting. Keep the server playable by falling back to memory-only
--- data until the place is published and API services are enabled.
 local store = nil
 local dataStoreEnabled = false
 
@@ -45,10 +43,13 @@ local function makeDefaultData()
 			Grasshopper = true,
 		},
 		unlockedCosmetics = {},
+		cosmetics = {
+			bodyColor = "Natural",
+		},
 		savedBuilds = {
 			Slot1 = {
 				base = "Ant",
-				color = "Ruby",
+				color = "Natural",
 				pattern = "None",
 				eyes = "Default",
 				shell = "Basic",
@@ -60,6 +61,36 @@ local function makeDefaultData()
 			foodCollected = 0,
 		},
 	}
+end
+
+local function normalizeData(data)
+	data.version = data.version or 1
+	data.selectedBug = BugArchetypes[data.selectedBug] and data.selectedBug or "Ant"
+
+	data.currency = data.currency or {}
+	data.currency.dna = data.currency.dna or 0
+	data.currency.crumbs = data.currency.crumbs or 0
+
+	data.unlockedBugs = data.unlockedBugs or {}
+	data.unlockedBugs.Ant = data.unlockedBugs.Ant ~= false
+	data.unlockedBugs.Beetle = data.unlockedBugs.Beetle ~= false
+	data.unlockedBugs.Grasshopper = data.unlockedBugs.Grasshopper ~= false
+	data.unlockedCosmetics = data.unlockedCosmetics or {}
+
+	data.cosmetics = data.cosmetics or {}
+	local bodyColor = data.cosmetics.bodyColor or "Natural"
+	if not CosmeticStyles.IsValidBodyColor(bodyColor) then
+		bodyColor = "Natural"
+	end
+	data.cosmetics.bodyColor = bodyColor
+
+	data.savedBuilds = data.savedBuilds or {}
+	data.stats = data.stats or {}
+	data.stats.roundsPlayed = data.stats.roundsPlayed or 0
+	data.stats.longestSurvival = data.stats.longestSurvival or 0
+	data.stats.foodCollected = data.stats.foodCollected or 0
+
+	return data
 end
 
 local function getKey(player: Player): string
@@ -112,6 +143,7 @@ local function publish(player: Player)
 
 	local currency = data.currency or {}
 	local stats = data.stats or {}
+	local cosmetics = data.cosmetics or {}
 	local dna = currency.dna or 0
 	local currentProgress = ProgressionConfig.GetLevelForDna(dna)
 	local nextProgress = ProgressionConfig.GetNextLevelForDna(dna)
@@ -121,9 +153,8 @@ local function publish(player: Player)
 		next = nextProgress,
 	}
 
-	-- Replicated attributes are the shared read-only identity/progression layer used
-	-- by overhead tags and future profile/customization UI for every player.
 	player:SetAttribute("SelectedBug", data.selectedBug or "Ant")
+	player:SetAttribute("BodyColor", cosmetics.bodyColor or "Natural")
 	player:SetAttribute("BugLevel", currentProgress and currentProgress.level or 1)
 	player:SetAttribute("BugTitle", currentProgress and currentProgress.title or "Fresh Hatchling")
 	player:SetAttribute("RoundsPlayed", stats.roundsPlayed or 0)
@@ -149,8 +180,6 @@ function PlayerDataService.SelectBug(player: Player, bugId: string): boolean
 		return false
 	end
 
-	-- Bug choice is a pre-round decision. Switching during a live match would let
-	-- players swap movement/defense abilities in response to hazards.
 	if player:GetAttribute("InRound") == true then
 		warn(player.Name .. " tried to switch bugs during an active round")
 		return false
@@ -167,6 +196,33 @@ function PlayerDataService.SelectBug(player: Player, bugId: string): boolean
 	end
 
 	data.selectedBug = bugId
+	publish(player)
+	return true
+end
+
+function PlayerDataService.SetCosmetic(player: Player, slot: string, value: string): boolean
+	local data = PlayerDataService.GetData(player)
+	if not data then
+		return false
+	end
+
+	if player:GetAttribute("InRound") == true then
+		warn(player.Name .. " tried to change cosmetics during an active round")
+		return false
+	end
+
+	if slot ~= "BodyColor" then
+		warn("Unknown cosmetic slot:", slot)
+		return false
+	end
+
+	if not CosmeticStyles.IsValidBodyColor(value) then
+		warn("Unknown body color selected:", value)
+		return false
+	end
+
+	data.cosmetics = data.cosmetics or {}
+	data.cosmetics.bodyColor = value
 	publish(player)
 	return true
 end
@@ -221,7 +277,7 @@ function PlayerDataService.LoadPlayer(player: Player)
 	local defaultData = makeDefaultData()
 
 	if not dataStoreEnabled or not store then
-		playerDataByUserId[player.UserId] = defaultData
+		playerDataByUserId[player.UserId] = normalizeData(defaultData)
 		publish(player)
 		return
 	end
@@ -231,12 +287,12 @@ function PlayerDataService.LoadPlayer(player: Player)
 	end)
 
 	if success and type(savedData) == "table" then
-		playerDataByUserId[player.UserId] = savedData
+		playerDataByUserId[player.UserId] = normalizeData(savedData)
 	else
 		if not success then
 			warn("Failed to load player data for", player.Name, savedData)
 		end
-		playerDataByUserId[player.UserId] = defaultData
+		playerDataByUserId[player.UserId] = normalizeData(defaultData)
 	end
 
 	publish(player)
@@ -281,6 +337,10 @@ function PlayerDataService.Init(remoteEvents)
 
 	remotes.SelectBug.OnServerEvent:Connect(function(player: Player, bugId: string)
 		PlayerDataService.SelectBug(player, bugId)
+	end)
+
+	remotes.SetCosmetic.OnServerEvent:Connect(function(player: Player, slot: string, value: string)
+		PlayerDataService.SetCosmetic(player, slot, value)
 	end)
 
 	for _, player in ipairs(Players:GetPlayers()) do
