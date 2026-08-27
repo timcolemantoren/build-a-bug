@@ -39,18 +39,18 @@ end
 local function makeZone(hazardId: string)
 	if hazardId == "SprinklerBurst" then
 		return {
-			center = Vector3.new(math.random(-35, 35), 0.75, math.random(-25, 25)),
-			size = Vector3.new(18, 0.25, 70),
+			center = Vector3.new(math.random(-165, 165), 0.75, math.random(-155, 150)),
+			size = Vector3.new(22, 0.25, 105),
 		}
 	elseif hazardId == "ShoeStomp" then
 		return {
-			center = Vector3.new(math.random(-45, 45), 0.75, math.random(-45, 45)),
-			size = Vector3.new(24, 0.25, 24),
+			center = Vector3.new(math.random(-180, 180), 0.75, math.random(-165, 150)),
+			size = Vector3.new(30, 0.25, 34),
 		}
 	else
 		return {
-			center = Vector3.new(math.random(-45, 45), 0.75, math.random(-45, 45)),
-			size = Vector3.new(34, 0.25, 26),
+			center = Vector3.new(math.random(-175, 175), 0.75, math.random(-165, 150)),
+			size = Vector3.new(48, 0.25, 36),
 		}
 	end
 end
@@ -99,11 +99,13 @@ end
 
 local function damagePlayersInZone(zone, damage: number)
 	for _, player in ipairs(Players:GetPlayers()) do
-		local character = player.Character
-		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		if rootPart and humanoid and humanoid.Health > 0 and isInsideZone(rootPart, zone) then
-			humanoid:TakeDamage(getDamageForPlayer(player, damage))
+		if player:GetAttribute("InRound") == true then
+			local character = player.Character
+			local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if rootPart and humanoid and humanoid.Health > 0 and isInsideZone(rootPart, zone) then
+				humanoid:TakeDamage(getDamageForPlayer(player, damage))
+			end
 		end
 	end
 end
@@ -132,13 +134,17 @@ function HazardService.WarnHazard(hazardId: string)
 	local warningPart = createWarningPart(hazard, zone)
 
 	if remotes and remotes.HazardWarning then
-		remotes.HazardWarning:FireAllClients({
-			id = hazard.id,
-			displayName = hazard.displayName,
-			warningSeconds = hazard.warningSeconds,
-			damage = hazard.damage,
-			description = hazard.description,
-		})
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player:GetAttribute("InRound") == true then
+				remotes.HazardWarning:FireClient(player, {
+					id = hazard.id,
+					displayName = hazard.displayName,
+					warningSeconds = hazard.warningSeconds,
+					damage = hazard.damage,
+					description = hazard.description,
+				})
+			end
+		end
 	end
 
 	task.delay(hazard.warningSeconds or 3, function()
