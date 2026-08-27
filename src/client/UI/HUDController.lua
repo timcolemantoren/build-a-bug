@@ -14,6 +14,8 @@ local progressLabel = nil
 local hazardLabel = nil
 local countdownToken = 0
 local expanded = false
+local activePlayersRemaining = nil
+local activePlayerCount = nil
 
 local lastStatusText = "Build a Bug"
 local lastDataText = "DNA: 0 | Crumbs: 0 | Bug: Ant"
@@ -41,14 +43,14 @@ local function applyLayout()
 	end
 
 	if expanded then
-		panel.Size = UDim2.fromOffset(280, 148)
+		panel.Size = UDim2.fromOffset(300, 148)
 		toggleButton.Text = "Hide"
 		statusLabel.Text = lastStatusText
 		dataLabel.Visible = true
 		progressLabel.Visible = true
 		hazardLabel.Visible = true
 	else
-		panel.Size = UDim2.fromOffset(230, 44)
+		panel.Size = UDim2.fromOffset(250, 44)
 		toggleButton.Text = "Info"
 		statusLabel.Text = lastStatusText
 		dataLabel.Visible = false
@@ -74,7 +76,7 @@ local function ensureGui()
 	panel.Parent = gui
 
 	statusLabel = makeLabel(panel, "RoundStatus", 5, 34)
-	statusLabel.Size = UDim2.fromOffset(170, 34)
+	statusLabel.Size = UDim2.fromOffset(190, 34)
 	statusLabel.Text = lastStatusText
 
 	toggleButton = Instance.new("TextButton")
@@ -111,6 +113,13 @@ local function setStatus(text: string)
 	end
 end
 
+local function formatRoundStatus(remaining: number): string
+	if activePlayersRemaining and activePlayerCount then
+		return string.format("%ss | Bugs: %s/%s", remaining, activePlayersRemaining, activePlayerCount)
+	end
+	return string.format("Time: %ss", remaining)
+end
+
 local function startRoundCountdown(durationSeconds: number)
 	countdownToken += 1
 	local token = countdownToken
@@ -118,7 +127,7 @@ local function startRoundCountdown(durationSeconds: number)
 
 	task.spawn(function()
 		while remaining >= 0 and token == countdownToken do
-			setStatus(string.format("Time: %ss", remaining))
+			setStatus(formatRoundStatus(remaining))
 			task.wait(1)
 			remaining -= 1
 		end
@@ -148,28 +157,44 @@ function HUDController.Init(remotes)
 
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, payload)
 		ensureGui()
-		local mapName = payload and payload.mapName or "Backyard"
+		payload = payload or {}
+		local mapName = payload.mapName or "Backyard"
 
 		if state == "Started" then
+			activePlayersRemaining = payload.playersRemaining or payload.playerCount
+			activePlayerCount = payload.playerCount
 			startRoundCountdown(payload.durationSeconds or 0)
+		elseif state == "RosterUpdate" then
+			activePlayersRemaining = payload.playersRemaining or activePlayersRemaining
+			activePlayerCount = payload.playerCount or activePlayerCount
 		elseif state == "Countdown" then
 			countdownToken += 1
-			setStatus(string.format("%s in %ss | %s queued", mapName, payload.seconds or 0, payload.queuedPlayers or 0))
+			local lockText = payload.locked and "LOCKED" or "Join circle"
+			setStatus(string.format("%s | %ss | %s queued", lockText, payload.seconds or 0, payload.queuedPlayers or 0))
+		elseif state == "RosterLocked" then
+			countdownToken += 1
+			setStatus(string.format("ROSTER LOCKED | %ss", payload.seconds or 0))
 		elseif state == "Waiting" then
 			countdownToken += 1
+			activePlayersRemaining = nil
+			activePlayerCount = nil
 			setStatus(string.format("%s | Join circle", mapName))
 		elseif state == "MatchInProgress" then
 			countdownToken += 1
 			setStatus(string.format("%s | Match active", mapName))
 		elseif state == "Eliminated" then
 			countdownToken += 1
-			setStatus(string.format("Squished! %ss", payload.survivedSeconds or 0))
+			activePlayersRemaining = payload.playersRemaining
+			activePlayerCount = payload.playerCount
+			setStatus(string.format("SQUISHED! %ss | %s left", payload.survivedSeconds or 0, payload.playersRemaining or 0))
 		elseif state == "Results" then
 			countdownToken += 1
 			setStatus("Round complete | Next soon")
 		elseif state == "Ended" then
 			countdownToken += 1
-			setStatus(string.format("Complete: %ss", payload.survivedSeconds or "?"))
+			activePlayersRemaining = nil
+			activePlayerCount = nil
+			setStatus("Round complete")
 		else
 			setStatus("State: " .. tostring(state))
 		end
@@ -177,6 +202,10 @@ function HUDController.Init(remotes)
 
 	remotes.HazardWarning.OnClientEvent:Connect(function(hazard)
 		ensureGui()
+		if player:GetAttribute("InRound") ~= true then
+			return
+		end
+
 		hazardLabel.Text = "Hazard: " .. tostring(hazard.displayName) .. "!"
 		if not expanded then
 			setStatus("Hazard: " .. tostring(hazard.displayName))
