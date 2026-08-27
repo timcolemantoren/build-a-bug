@@ -10,6 +10,7 @@ local panel = nil
 local titleLabel = nil
 local summaryLabel = nil
 local playAgainButton = nil
+local roamButton = nil
 local latestData = nil
 local noticeToken = 0
 
@@ -30,6 +31,15 @@ local function makeLabel(parent: Instance, name: string, y: number, height: numb
 	return label
 end
 
+local function setResultButtonsVisible(visible: boolean)
+	if playAgainButton then
+		playAgainButton.Visible = visible
+	end
+	if roamButton then
+		roamButton.Visible = visible
+	end
+end
+
 local function ensureGui(remotes)
 	if gui then
 		return
@@ -42,23 +52,24 @@ local function ensureGui(remotes)
 
 	panel = Instance.new("Frame")
 	panel.Name = "Panel"
-	panel.Size = UDim2.fromOffset(380, 270)
-	panel.Position = UDim2.new(0.5, -190, 0.5, -135)
+	panel.Size = UDim2.fromOffset(390, 320)
+	panel.Position = UDim2.new(0.5, -195, 0.5, -160)
 	panel.BackgroundTransparency = 0.15
 	panel.Visible = false
 	panel.Parent = gui
 
 	titleLabel = makeLabel(panel, "Title", 18, 42, 24)
+	titleLabel.Size = UDim2.fromOffset(350, 42)
 	titleLabel.Text = "Round Complete!"
 
-	summaryLabel = makeLabel(panel, "Summary", 66, 122, 17)
-	summaryLabel.Size = UDim2.fromOffset(340, 122)
+	summaryLabel = makeLabel(panel, "Summary", 66, 132, 17)
+	summaryLabel.Size = UDim2.fromOffset(350, 132)
 	summaryLabel.Text = ""
 
 	playAgainButton = Instance.new("TextButton")
 	playAgainButton.Name = "PlayAgain"
-	playAgainButton.Size = UDim2.fromOffset(210, 44)
-	playAgainButton.Position = UDim2.fromOffset(85, 204)
+	playAgainButton.Size = UDim2.fromOffset(230, 44)
+	playAgainButton.Position = UDim2.fromOffset(80, 208)
 	playAgainButton.BackgroundTransparency = 0.05
 	playAgainButton.Text = "Join Next Match"
 	playAgainButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -68,6 +79,23 @@ local function ensureGui(remotes)
 	playAgainButton.MouseButton1Click:Connect(function()
 		panel.Visible = false
 		remotes.StartRoundRequest:FireServer()
+	end)
+
+	roamButton = Instance.new("TextButton")
+	roamButton.Name = "RoamBackyard"
+	roamButton.Size = UDim2.fromOffset(230, 40)
+	roamButton.Position = UDim2.fromOffset(80, 262)
+	roamButton.BackgroundTransparency = 0.18
+	roamButton.Text = "Roam Backyard"
+	roamButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	roamButton.Font = Enum.Font.GothamBold
+	roamButton.TextSize = 17
+	roamButton.Parent = panel
+	roamButton.MouseButton1Click:Connect(function()
+		-- The lobby and arena share the same persistent backyard place. Closing the
+		-- results card leaves the player free to explore, change bugs, or walk into
+		-- the queue circle later.
+		panel.Visible = false
 	end)
 end
 
@@ -85,11 +113,11 @@ local function showEliminated(payload)
 		tostring(payload and payload.playersRemaining or 0),
 		(payload and payload.playersRemaining == 1) and " is" or "s are"
 	)
-	playAgainButton.Visible = false
+	setResultButtonsVisible(false)
 	panel.Visible = true
 
 	task.delay(3, function()
-		if token == noticeToken and panel and not playAgainButton.Visible then
+		if token == noticeToken and panel and playAgainButton and not playAgainButton.Visible then
 			panel.Visible = false
 		end
 	end)
@@ -124,7 +152,7 @@ local function showRoundEnd(payload)
 		nextText
 	)
 
-	playAgainButton.Visible = true
+	setResultButtonsVisible(true)
 	panel.Visible = true
 end
 
@@ -137,10 +165,10 @@ function RoundEndController.Init(remotes)
 
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, payload)
 		if state == "Started" then
-		noticeToken += 1
-		if panel then
-			panel.Visible = false
-		end
+			noticeToken += 1
+			if panel then
+				panel.Visible = false
+			end
 		elseif state == "Eliminated" then
 			showEliminated(payload)
 		elseif state == "Ended" then
