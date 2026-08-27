@@ -13,6 +13,7 @@ local RoundConfig = {
 	survivalDnaRewardPerMinute = 5,
 	crumbDnaReward = 1,
 	dnaPickupReward = 3,
+	crumbHealPercent = 0.04,
 }
 
 -- Backward compatibility with older code paths.
