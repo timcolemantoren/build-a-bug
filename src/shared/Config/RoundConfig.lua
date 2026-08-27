@@ -1,7 +1,8 @@
 --!strict
 
 local RoundConfig = {
-	lobbyCountdownSeconds = 15,
+	lobbyCountdownSeconds = 20,
+	resultsSeconds = 8,
 	roundDurationSeconds = 180,
 	minimumPlayers = 1,
 	pickupSpawnIntervalSeconds = 6,
