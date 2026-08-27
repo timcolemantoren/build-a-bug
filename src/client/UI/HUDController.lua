@@ -111,7 +111,7 @@ local function setStatus(text: string)
 	end
 end
 
-local function startCountdown(durationSeconds: number)
+local function startRoundCountdown(durationSeconds: number)
 	countdownToken += 1
 	local token = countdownToken
 	local remaining = math.floor(durationSeconds)
@@ -148,11 +148,28 @@ function HUDController.Init(remotes)
 
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, payload)
 		ensureGui()
+		local mapName = payload and payload.mapName or "Backyard"
+
 		if state == "Started" then
-			startCountdown(payload.durationSeconds or 0)
+			startRoundCountdown(payload.durationSeconds or 0)
+		elseif state == "Countdown" then
+			countdownToken += 1
+			setStatus(string.format("%s in %ss | %s queued", mapName, payload.seconds or 0, payload.queuedPlayers or 0))
+		elseif state == "Waiting" then
+			countdownToken += 1
+			setStatus(string.format("%s | Join circle", mapName))
+		elseif state == "MatchInProgress" then
+			countdownToken += 1
+			setStatus(string.format("%s | Match active", mapName))
+		elseif state == "Eliminated" then
+			countdownToken += 1
+			setStatus(string.format("Squished! %ss", payload.survivedSeconds or 0))
+		elseif state == "Results" then
+			countdownToken += 1
+			setStatus("Round complete | Next soon")
 		elseif state == "Ended" then
 			countdownToken += 1
-			setStatus(string.format("Ended: %ss", payload.survivedSeconds or "?"))
+			setStatus(string.format("Complete: %ss", payload.survivedSeconds or "?"))
 		else
 			setStatus("State: " .. tostring(state))
 		end
