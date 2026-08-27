@@ -17,6 +17,7 @@ local feedbackLabel = nil
 local selectedBug = "Ant"
 local readyAt = 0
 local feedbackToken = 0
+local inRound = false
 
 local function getAbilityName(): string
 	local bug = BugArchetypes[selectedBug]
@@ -46,8 +47,20 @@ local function getFeedbackText(): string
 	return "Ability used"
 end
 
+local function updateVisibility()
+	if button then
+		button.Visible = inRound
+	end
+	if cooldownLabel then
+		cooldownLabel.Visible = inRound
+	end
+	if feedbackLabel and not inRound then
+		feedbackLabel.Visible = false
+	end
+end
+
 local function showFeedback(text: string)
-	if not feedbackLabel then
+	if not feedbackLabel or not inRound then
 		return
 	end
 
@@ -69,17 +82,16 @@ local function refreshButton()
 	end
 
 	local remaining = math.ceil(readyAt - os.clock())
+	button.Text = getAbilityName()
 	if remaining > 0 then
-		button.Text = getAbilityName()
 		cooldownLabel.Text = tostring(remaining) .. "s"
 	else
-		button.Text = getAbilityName()
 		cooldownLabel.Text = "Ready"
 	end
 end
 
 local function useAbility(remotes)
-	if os.clock() < readyAt then
+	if not inRound or os.clock() < readyAt then
 		return
 	end
 
@@ -136,6 +148,7 @@ local function ensureGui(remotes)
 	feedbackLabel.Parent = gui
 
 	refreshButton()
+	updateVisibility()
 end
 
 function AbilityController.Init(remotes)
@@ -145,6 +158,17 @@ function AbilityController.Init(remotes)
 		selectedBug = data.selectedBug or "Ant"
 		readyAt = 0
 		refreshButton()
+	end)
+
+	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, _payload)
+		if state == "Started" then
+			inRound = true
+			readyAt = 0
+		elseif state == "Ended" or state == "Eliminated" or state == "Waiting" or state == "Results" or state == "MatchInProgress" then
+			inRound = false
+		end
+		refreshButton()
+		updateVisibility()
 	end)
 
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
