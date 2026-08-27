@@ -13,25 +13,27 @@
 - Pickups and temporary hazards reset between rounds; the map itself remains.
 - Per-player results show crumbs collected and DNA earned during that round.
 - Current map registry supports future selectable maps.
-- Starter bugs now use articulated visual rigs over the reliable Roblox Humanoid controller.
+- Starter bugs use articulated visual rigs over the reliable Roblox Humanoid controller.
 - Ant, Beetle, and Grasshopper have different silhouettes, movement profiles, abilities, and play styles.
 - Player identity tags show name, level/title, bug, rounds played, and best survival.
-- Lobby Profile / Customize hub shows progression and stats.
-- First cosmetic slot is functional body color with Natural, Ruby, Moss, and Midnight styles.
+- Lobby Profile / Customize hub shows progression, stats, currency, and cosmetics.
+- Body Color and Eyes are functional cosmetic slots.
+- Cosmetic unlocks are account-wide and cosmetic-only.
+- Available DNA is spendable currency. Lifetime DNA is permanent level/title progression and never decreases when DNA is spent.
+- Exit Round rolls back both available and lifetime DNA earned during the forfeited round.
 
 ## Next mechanics / player-identity pass
 
 1. Continue multiplayer testing with 2-4 Studio clients and verify queue/lock/elimination/results behavior.
-2. Refine bug animation and ground contact without changing the proven movement controller.
-3. Keep bug powers/roles clearly explained in pre-round selection UI.
-4. Refine overhead identity readability at different distances and player counts.
-5. Add additional cosmetic slots: pattern, eyes, shell/wing treatment, antenna details, and earned cosmetic accents.
-6. Cosmetics should change appearance only; gameplay stats continue to come from the chosen bug archetype.
-7. Decide which cosmetics are DNA unlocks versus achievements/special rewards.
-8. Tune reward pacing now that per-round reward deltas are visible.
-9. Test pickup competition with multiple players and decide whether some collectibles should become player-specific.
-10. Add map voting only after the core shared-match loop is stable.
-11. Add insect unlock pricing after round economy is better understood.
+2. Refine overhead identity readability at different distances and player counts.
+3. Tune cosmetic prices against actual DNA earned per two-minute round.
+4. Add more cosmetic slots: patterns, shell/wing treatment, antenna accents, and trails.
+5. Add achievement/special-reward cosmetics alongside DNA-purchased cosmetics.
+6. Cosmetics must remain appearance-only; gameplay stats continue to come from the chosen bug archetype.
+7. Test pickup competition with multiple players and decide whether some collectibles should become player-specific.
+8. Add insect unlock pricing after round economy is better understood.
+9. Add map voting after the shared-match loop and player progression are stable.
+10. Consider a lobby leaderboard or showcase once progression has enough history to make it interesting.
 
 ## Environment polish backlog
 
