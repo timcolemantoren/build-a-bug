@@ -1,4 +1,4 @@
---!strict
+--!nonstrict
 
 -- Central map registry. Mechanics should refer to map IDs instead of hard-coding
 -- "the backyard" so seasonal and future maps can plug into the same match loop.
