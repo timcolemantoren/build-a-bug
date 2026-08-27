@@ -23,6 +23,7 @@ local participants = {}
 local deathConnections = {}
 local countdownToken = 0
 local roundToken = 0
+local lockedRoster = nil
 
 local function getMap()
 	return MapConfig.GetMap(currentMapId) or MapConfig.GetMap(MapConfig.DefaultMapId)
@@ -226,6 +227,26 @@ local function countAliveParticipants(): number
 	return count
 end
 
+local function countParticipants(): number
+	local count = 0
+	for _, entry in pairs(participants) do
+		if entry.player and entry.player.Parent == Players then
+			count += 1
+		end
+	end
+	return count
+end
+
+local function broadcastRosterUpdate()
+	local mapPayload = getMapPayload()
+	broadcast("RosterUpdate", {
+		playersRemaining = countAliveParticipants(),
+		playerCount = countParticipants(),
+		mapId = mapPayload.mapId,
+		mapName = mapPayload.mapName,
+	})
+end
+
 local function disconnectDeath(player: Player)
 	local connection = deathConnections[player.UserId]
 	if connection then
@@ -249,14 +270,18 @@ local function eliminatePlayer(player: Player)
 	player:SetAttribute("InRound", false)
 	player:SetAttribute("QueuedForMatch", false)
 
+	local remaining = countAliveParticipants()
 	local mapPayload = getMapPayload()
 	fireClient(player, "Eliminated", {
 		survivedSeconds = entry.survivedSeconds,
+		playersRemaining = remaining,
+		playerCount = countParticipants(),
 		mapId = mapPayload.mapId,
 		mapName = mapPayload.mapName,
 	})
+	broadcastRosterUpdate()
 
-	if countAliveParticipants() == 0 then
+	if remaining == 0 then
 		task.defer(function()
 			RoundService.EndRound()
 		end)
@@ -286,7 +311,16 @@ local function updateQueueAttributes()
 		if player:GetAttribute("InRound") == true then
 			player:SetAttribute("QueuedForMatch", false)
 		else
-			player:SetAttribute("QueuedForMatch", LobbyService.IsPlayerInsideQueue(player))
+			local locked = false
+			if matchState == "Countdown" and lockedRoster then
+				for _, lockedPlayer in ipairs(lockedRoster) do
+					if lockedPlayer == player then
+						locked = true
+						break
+					end
+				end
+			end
+			player:SetAttribute("QueuedForMatch", locked or LobbyService.IsPlayerInsideQueue(player))
 		end
 	end
 end
@@ -298,6 +332,7 @@ end
 
 local function setWaitingState()
 	matchState = "Waiting"
+	lockedRoster = nil
 	local queued = getQueuedPlayers()
 	local mapPayload = getMapPayload()
 	LobbyService.SetBoard("Waiting", nil, #queued, mapPayload.mapName)
@@ -314,9 +349,11 @@ local function beginCountdown()
 	end
 
 	matchState = "Countdown"
+	lockedRoster = nil
 	countdownToken += 1
 	local myToken = countdownToken
 	local mapPayload = getMapPayload()
+	local lockAt = RoundConfig.countdownLockSeconds or 3
 
 	task.spawn(function()
 		for remaining = RoundConfig.lobbyCountdownSeconds, 0, -1 do
@@ -324,19 +361,37 @@ local function beginCountdown()
 				return
 			end
 
-			local queued = getQueuedPlayers()
-			if #queued < RoundConfig.minimumPlayers then
+			local roster = lockedRoster or getQueuedPlayers()
+			if #roster < RoundConfig.minimumPlayers then
 				setWaitingState()
 				return
 			end
 
-			LobbyService.SetBoard("Countdown", remaining, #queued, mapPayload.mapName)
-			broadcast("Countdown", {
-				seconds = remaining,
-				queuedPlayers = #queued,
-				mapId = mapPayload.mapId,
-				mapName = mapPayload.mapName,
-			})
+			if remaining == lockAt and not lockedRoster then
+				lockedRoster = roster
+				for _, player in ipairs(lockedRoster) do
+					if player.Parent == Players then
+						player:SetAttribute("QueuedForMatch", true)
+					end
+				end
+				LobbyService.SetBoard("Locked", remaining, #lockedRoster, mapPayload.mapName)
+				broadcast("RosterLocked", {
+					seconds = remaining,
+					queuedPlayers = #lockedRoster,
+					mapId = mapPayload.mapId,
+					mapName = mapPayload.mapName,
+				})
+			else
+				local state = lockedRoster and "Locked" or "Countdown"
+				LobbyService.SetBoard(state, remaining, #roster, mapPayload.mapName)
+				broadcast("Countdown", {
+					seconds = remaining,
+					queuedPlayers = #roster,
+					locked = lockedRoster ~= nil,
+					mapId = mapPayload.mapId,
+					mapName = mapPayload.mapName,
+				})
+			end
 
 			if remaining > 0 then
 				task.wait(1)
@@ -347,7 +402,8 @@ local function beginCountdown()
 			return
 		end
 
-		local roster = getQueuedPlayers()
+		local roster = lockedRoster or getQueuedPlayers()
+		lockedRoster = nil
 		if #roster < RoundConfig.minimumPlayers then
 			setWaitingState()
 			return
@@ -372,6 +428,7 @@ function RoundService.StartRound(roster)
 	roundToken += 1
 	local myRoundToken = roundToken
 	matchState = "Active"
+	lockedRoster = nil
 	roundStartedAt = os.clock()
 	participants = {}
 	clearPickups()
@@ -385,27 +442,38 @@ function RoundService.StartRound(roster)
 
 	for index, player in ipairs(playersToStart) do
 		if player.Parent == Players then
+			local data = PlayerDataService.GetData(player)
+			local currency = data and data.currency or {}
 			participants[player.UserId] = {
 				player = player,
 				eliminated = false,
 				survivedSeconds = nil,
+				startDna = currency.dna or 0,
+				startCrumbs = currency.crumbs or 0,
 			}
 			prepareParticipant(player, index)
-			fireClient(player, "Started", {
-				durationSeconds = RoundConfig.roundDurationSeconds,
-				startedAt = roundStartedAt,
-				playerCount = #playersToStart,
-				mapId = mapPayload.mapId,
-				mapName = mapPayload.mapName,
-			})
 		end
+	end
+
+	local actualCount = countParticipants()
+	for _, entry in pairs(participants) do
+		local player = entry.player
+		fireClient(player, "Started", {
+			durationSeconds = RoundConfig.roundDurationSeconds,
+			startedAt = roundStartedAt,
+			playerCount = actualCount,
+			playersRemaining = actualCount,
+			mapId = mapPayload.mapId,
+			mapName = mapPayload.mapName,
+		})
 	end
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		if not participants[player.UserId] then
 			fireClient(player, "MatchInProgress", {
 				durationSeconds = RoundConfig.roundDurationSeconds,
-				playerCount = #playersToStart,
+				playerCount = actualCount,
+				playersRemaining = actualCount,
 				mapId = mapPayload.mapId,
 				mapName = mapPayload.mapName,
 			})
@@ -413,6 +481,7 @@ function RoundService.StartRound(roster)
 	end
 
 	LobbyService.SetBoard("Active", nil, #getQueuedPlayers(), mapPayload.mapName)
+	broadcastRosterUpdate()
 
 	task.spawn(runPickupLoop, myRoundToken)
 	task.spawn(runHazardLoop, myRoundToken)
@@ -440,16 +509,34 @@ function RoundService.EndRound()
 		local player = entry.player
 		if player and player.Parent == Players then
 			local survivedSeconds = entry.survivedSeconds or survivedToEnd
-			RewardService.AwardRoundComplete(player, survivedSeconds)
+			local reward = RewardService.AwardRoundComplete(player, survivedSeconds)
+			local data = PlayerDataService.GetData(player)
+			local currency = data and data.currency or {}
+			local progression = data and data.progression or {}
+			local currentProgress = progression.current
+			local nextProgress = progression.next
+
+			local roundCrumbs = math.max(0, (currency.crumbs or 0) - (entry.startCrumbs or 0))
+			local roundDna = math.max(0, (currency.dna or 0) - (entry.startDna or 0))
+
 			player:SetAttribute("InRound", false)
 			player:SetAttribute("QueuedForMatch", false)
 			disconnectDeath(player)
+			LobbyService.TeleportToLobby(player, 1)
+
 			fireClient(player, "Ended", {
 				survivedSeconds = survivedSeconds,
+				eliminated = entry.eliminated == true,
+				crumbsCollected = roundCrumbs,
+				dnaEarned = roundDna,
+				completionDna = reward and reward.completionDna or 0,
+				totalCrumbs = currency.crumbs or 0,
+				totalDna = currency.dna or 0,
+				title = currentProgress and currentProgress.title or nil,
+				nextTitleDna = nextProgress and nextProgress.dnaRequired or nil,
 				mapId = mapPayload.mapId,
 				mapName = mapPayload.mapName,
 			})
-			LobbyService.TeleportToLobby(player, 1)
 		end
 	end
 
@@ -515,15 +602,21 @@ function RoundService.Init(remoteEvents, playerDataService, rewardService, hazar
 			entry.survivedSeconds = math.max(0, math.floor(os.clock() - roundStartedAt))
 		end
 		disconnectDeath(player)
-		if matchState == "Active" and countAliveParticipants() == 0 then
-			task.defer(function()
-				RoundService.EndRound()
-			end)
+		if matchState == "Active" then
+			broadcastRosterUpdate()
+			if countAliveParticipants() == 0 then
+				task.defer(function()
+					RoundService.EndRound()
+				end)
+			end
 		end
 	end)
 
 	remotes.StartRoundRequest.OnServerEvent:Connect(function(player: Player)
 		if player:GetAttribute("InRound") == true then
+			return
+		end
+		if matchState == "Countdown" and lockedRoster then
 			return
 		end
 		LobbyService.MoveIntoQueue(player)
