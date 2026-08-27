@@ -2,9 +2,11 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local RoundConfig = require(BuildABugShared.Config.RoundConfig)
+local MapConfig = require(BuildABugShared.Config.MapConfig)
 
 local RoundService = {}
 local remotes = nil
@@ -12,25 +14,37 @@ local PlayerDataService = nil
 local RewardService = nil
 local HazardService = nil
 local ArenaService = nil
+local LobbyService = nil
 
-local isRoundActive = false
+local matchState = "Waiting"
 local roundStartedAt = 0
+local currentMapId = MapConfig.DefaultMapId
+local participants = {}
+local deathConnections = {}
+local countdownToken = 0
+local roundToken = 0
 
-local function setRoundState(state: string, payload)
-	if remotes and remotes.RoundStateChanged then
-		remotes.RoundStateChanged:FireAllClients(state, payload or {})
+local function getMap()
+	return MapConfig.GetMap(currentMapId) or MapConfig.GetMap(MapConfig.DefaultMapId)
+end
+
+local function getMapPayload()
+	local map = getMap()
+	return {
+		mapId = map and map.id or currentMapId,
+		mapName = map and map.displayName or "Backyard",
+	}
+end
+
+local function fireClient(player: Player, state: string, payload)
+	if remotes and remotes.RoundStateChanged and player.Parent == Players then
+		remotes.RoundStateChanged:FireClient(player, state, payload or {})
 	end
 end
 
-local function teleportPlayersToNest()
-	local spawnPosition = ArenaService.GetSpawnPosition()
-	for index, player in ipairs(Players:GetPlayers()) do
-		local character = player.Character
-		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-		if rootPart then
-			local offset = Vector3.new((index - 1) * 3, 0, 0)
-			rootPart.CFrame = CFrame.new(spawnPosition + offset)
-		end
+local function broadcast(state: string, payload)
+	if remotes and remotes.RoundStateChanged then
+		remotes.RoundStateChanged:FireAllClients(state, payload or {})
 	end
 end
 
@@ -39,8 +53,16 @@ local function clearPickups()
 	pickupsFolder:ClearAllChildren()
 end
 
+local function clearTemporaryHazards()
+	local arena = Workspace:FindFirstChild("BuildABugArena")
+	local hazards = arena and arena:FindFirstChild("Hazards")
+	if hazards then
+		hazards:ClearAllChildren()
+	end
+end
+
 local function collectPickup(pickup: BasePart, player: Player)
-	if not isRoundActive then
+	if matchState ~= "Active" or player:GetAttribute("InRound") ~= true then
 		return
 	end
 
@@ -60,7 +82,7 @@ local function wirePickupHitbox(hitbox: BasePart, destroyTarget: Instance)
 
 		local character = hit.Parent
 		local player = character and Players:GetPlayerFromCharacter(character)
-		if not player then
+		if not player or player:GetAttribute("InRound") ~= true then
 			return
 		end
 
@@ -123,7 +145,6 @@ local function createDnaPickup(position: Vector3)
 		local y = -2.4 + (t * 4.8)
 		local angle = t * math.pi * 2
 		local offsetA = Vector3.new(math.cos(angle) * 1.1, y, math.sin(angle) * 1.1)
-		local offsetB = -offsetA + Vector3.new(0, y * 2, 0)
 
 		local orbA = Instance.new("Part")
 		orbA.Name = "HelixNodeA"
@@ -162,30 +183,22 @@ local function createDnaPickup(position: Vector3)
 	wirePickupHitbox(hitbox, model)
 end
 
-local function spawnPickup(pickupType: string, position: Vector3)
-	if pickupType == "DNA" then
-		createDnaPickup(position)
-	else
-		createCrumbPickup(position)
-	end
-end
-
 local function spawnPickupWave()
 	for _ = 1, RoundConfig.crumbsPerSpawn do
-		spawnPickup("Crumb", ArenaService.GetRandomGroundPickupPosition())
+		createCrumbPickup(ArenaService.GetRandomGroundPickupPosition())
 	end
 
 	for _ = 1, RoundConfig.dnaPickupsPerSpawn do
 		local useAir = math.random() < 0.6
 		local position = useAir and ArenaService.GetRandomAirPickupPosition() or ArenaService.GetRandomGroundPickupPosition()
-		spawnPickup("DNA", position)
+		createDnaPickup(position)
 	end
 end
 
-local function runHazardLoop()
-	while isRoundActive do
+local function runHazardLoop(myRoundToken: number)
+	while matchState == "Active" and myRoundToken == roundToken do
 		task.wait(18)
-		if not isRoundActive then
+		if matchState ~= "Active" or myRoundToken ~= roundToken then
 			break
 		end
 
@@ -196,70 +209,346 @@ local function runHazardLoop()
 	end
 end
 
-local function runPickupLoop()
-	while isRoundActive do
+local function runPickupLoop(myRoundToken: number)
+	while matchState == "Active" and myRoundToken == roundToken do
 		spawnPickupWave()
 		task.wait(RoundConfig.pickupSpawnIntervalSeconds or RoundConfig.crumbSpawnIntervalSeconds)
 	end
 end
 
-function RoundService.StartRound()
-	if isRoundActive then
+local function countAliveParticipants(): number
+	local count = 0
+	for _, entry in pairs(participants) do
+		if not entry.eliminated and entry.player and entry.player.Parent == Players then
+			count += 1
+		end
+	end
+	return count
+end
+
+local function disconnectDeath(player: Player)
+	local connection = deathConnections[player.UserId]
+	if connection then
+		connection:Disconnect()
+		deathConnections[player.UserId] = nil
+	end
+end
+
+local function eliminatePlayer(player: Player)
+	if matchState ~= "Active" then
 		return
 	end
 
-	clearPickups()
-	teleportPlayersToNest()
+	local entry = participants[player.UserId]
+	if not entry or entry.eliminated then
+		return
+	end
 
-	isRoundActive = true
-	roundStartedAt = os.clock()
+	entry.eliminated = true
+	entry.survivedSeconds = math.max(0, math.floor(os.clock() - roundStartedAt))
+	player:SetAttribute("InRound", false)
+	player:SetAttribute("QueuedForMatch", false)
 
-	setRoundState("Started", {
-		durationSeconds = RoundConfig.roundDurationSeconds,
-		startedAt = roundStartedAt,
+	local mapPayload = getMapPayload()
+	fireClient(player, "Eliminated", {
+		survivedSeconds = entry.survivedSeconds,
+		mapId = mapPayload.mapId,
+		mapName = mapPayload.mapName,
 	})
 
-	task.spawn(runPickupLoop)
-	task.spawn(runHazardLoop)
+	if countAliveParticipants() == 0 then
+		task.defer(function()
+			RoundService.EndRound()
+		end)
+	end
+end
+
+local function prepareParticipant(player: Player, index: number)
+	player:SetAttribute("InRound", true)
+	player:SetAttribute("QueuedForMatch", false)
+	player:SetAttribute("EnvironmentZone", "")
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.Health = humanoid.MaxHealth
+		disconnectDeath(player)
+		deathConnections[player.UserId] = humanoid.Died:Connect(function()
+			eliminatePlayer(player)
+		end)
+	end
+
+	LobbyService.TeleportToRound(player, index)
+end
+
+local function updateQueueAttributes()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player:GetAttribute("InRound") == true then
+			player:SetAttribute("QueuedForMatch", false)
+		else
+			player:SetAttribute("QueuedForMatch", LobbyService.IsPlayerInsideQueue(player))
+		end
+	end
+end
+
+local function getQueuedPlayers()
+	updateQueueAttributes()
+	return LobbyService.GetPlayersInsideQueue()
+end
+
+local function setWaitingState()
+	matchState = "Waiting"
+	local queued = getQueuedPlayers()
+	local mapPayload = getMapPayload()
+	LobbyService.SetBoard("Waiting", nil, #queued, mapPayload.mapName)
+	broadcast("Waiting", {
+		queuedPlayers = #queued,
+		mapId = mapPayload.mapId,
+		mapName = mapPayload.mapName,
+	})
+end
+
+local function beginCountdown()
+	if matchState ~= "Waiting" then
+		return
+	end
+
+	matchState = "Countdown"
+	countdownToken += 1
+	local myToken = countdownToken
+	local mapPayload = getMapPayload()
+
+	task.spawn(function()
+		for remaining = RoundConfig.lobbyCountdownSeconds, 0, -1 do
+			if matchState ~= "Countdown" or myToken ~= countdownToken then
+				return
+			end
+
+			local queued = getQueuedPlayers()
+			if #queued < RoundConfig.minimumPlayers then
+				setWaitingState()
+				return
+			end
+
+			LobbyService.SetBoard("Countdown", remaining, #queued, mapPayload.mapName)
+			broadcast("Countdown", {
+				seconds = remaining,
+				queuedPlayers = #queued,
+				mapId = mapPayload.mapId,
+				mapName = mapPayload.mapName,
+			})
+
+			if remaining > 0 then
+				task.wait(1)
+			end
+		end
+
+		if matchState ~= "Countdown" or myToken ~= countdownToken then
+			return
+		end
+
+		local roster = getQueuedPlayers()
+		if #roster < RoundConfig.minimumPlayers then
+			setWaitingState()
+			return
+		end
+
+		RoundService.StartRound(roster)
+	end)
+end
+
+function RoundService.StartRound(roster)
+	if matchState == "Active" then
+		return
+	end
+
+	local playersToStart = roster or getQueuedPlayers()
+	if #playersToStart < RoundConfig.minimumPlayers then
+		setWaitingState()
+		return
+	end
+
+	countdownToken += 1
+	roundToken += 1
+	local myRoundToken = roundToken
+	matchState = "Active"
+	roundStartedAt = os.clock()
+	participants = {}
+	clearPickups()
+	clearTemporaryHazards()
+
+	local mapPayload = getMapPayload()
+	local arena = Workspace:FindFirstChild("BuildABugArena")
+	if arena then
+		arena:SetAttribute("CurrentMapId", mapPayload.mapId)
+	end
+
+	for index, player in ipairs(playersToStart) do
+		if player.Parent == Players then
+			participants[player.UserId] = {
+				player = player,
+				eliminated = false,
+				survivedSeconds = nil,
+			}
+			prepareParticipant(player, index)
+			fireClient(player, "Started", {
+				durationSeconds = RoundConfig.roundDurationSeconds,
+				startedAt = roundStartedAt,
+				playerCount = #playersToStart,
+				mapId = mapPayload.mapId,
+				mapName = mapPayload.mapName,
+			})
+		end
+	end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if not participants[player.UserId] then
+			fireClient(player, "MatchInProgress", {
+				durationSeconds = RoundConfig.roundDurationSeconds,
+				playerCount = #playersToStart,
+				mapId = mapPayload.mapId,
+				mapName = mapPayload.mapName,
+			})
+		end
+	end
+
+	LobbyService.SetBoard("Active", nil, #getQueuedPlayers(), mapPayload.mapName)
+
+	task.spawn(runPickupLoop, myRoundToken)
+	task.spawn(runHazardLoop, myRoundToken)
 
 	task.delay(RoundConfig.roundDurationSeconds, function()
-		if isRoundActive then
+		if matchState == "Active" and myRoundToken == roundToken then
 			RoundService.EndRound()
 		end
 	end)
 end
 
 function RoundService.EndRound()
-	if not isRoundActive then
+	if matchState ~= "Active" then
 		return
 	end
 
-	local survivedSeconds = math.floor(os.clock() - roundStartedAt)
-	isRoundActive = false
+	matchState = "Results"
+	roundToken += 1
+	local survivedToEnd = math.max(0, math.floor(os.clock() - roundStartedAt))
+	local mapPayload = getMapPayload()
+	clearPickups()
+	clearTemporaryHazards()
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		RewardService.AwardRoundComplete(player, survivedSeconds)
+	for _, entry in pairs(participants) do
+		local player = entry.player
+		if player and player.Parent == Players then
+			local survivedSeconds = entry.survivedSeconds or survivedToEnd
+			RewardService.AwardRoundComplete(player, survivedSeconds)
+			player:SetAttribute("InRound", false)
+			player:SetAttribute("QueuedForMatch", false)
+			disconnectDeath(player)
+			fireClient(player, "Ended", {
+				survivedSeconds = survivedSeconds,
+				mapId = mapPayload.mapId,
+				mapName = mapPayload.mapName,
+			})
+			LobbyService.TeleportToLobby(player, 1)
+		end
 	end
 
-	clearPickups()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if not participants[player.UserId] then
+			fireClient(player, "Results", {
+				mapId = mapPayload.mapId,
+				mapName = mapPayload.mapName,
+			})
+		end
+	end
 
-	setRoundState("Ended", {
-		survivedSeconds = survivedSeconds,
-	})
+	participants = {}
+	LobbyService.SetBoard("Results", nil, #getQueuedPlayers(), mapPayload.mapName)
+
+	task.delay(RoundConfig.resultsSeconds or 8, function()
+		if matchState == "Results" then
+			setWaitingState()
+		end
+	end)
 end
 
-function RoundService.Init(remoteEvents, playerDataService, rewardService, hazardService, arenaService)
+local function setupPlayer(player: Player)
+	player:SetAttribute("InRound", false)
+	player:SetAttribute("QueuedForMatch", false)
+	player:SetAttribute("EnvironmentZone", "")
+
+	player.CharacterAdded:Connect(function()
+		task.wait(0.35)
+		if player.Parent == Players and player:GetAttribute("InRound") ~= true then
+			LobbyService.TeleportToLobby(player, 1)
+		end
+	end)
+
+	if player.Character then
+		task.delay(0.35, function()
+			if player.Parent == Players and player:GetAttribute("InRound") ~= true then
+				LobbyService.TeleportToLobby(player, 1)
+			end
+		end)
+	end
+end
+
+function RoundService.Init(remoteEvents, playerDataService, rewardService, hazardService, arenaService, lobbyService)
 	remotes = remoteEvents
 	PlayerDataService = playerDataService
 	RewardService = rewardService
 	HazardService = hazardService
 	ArenaService = arenaService
+	LobbyService = lobbyService
 
 	clearPickups()
-	setRoundState("Waiting", {})
+	clearTemporaryHazards()
 
-	remotes.StartRoundRequest.OnServerEvent:Connect(function(_player: Player)
-		RoundService.StartRound()
+	for _, player in ipairs(Players:GetPlayers()) do
+		setupPlayer(player)
+	end
+	Players.PlayerAdded:Connect(setupPlayer)
+	Players.PlayerRemoving:Connect(function(player)
+		local entry = participants[player.UserId]
+		if entry and not entry.eliminated then
+			entry.eliminated = true
+			entry.survivedSeconds = math.max(0, math.floor(os.clock() - roundStartedAt))
+		end
+		disconnectDeath(player)
+		if matchState == "Active" and countAliveParticipants() == 0 then
+			task.defer(function()
+				RoundService.EndRound()
+			end)
+		end
+	end)
+
+	remotes.StartRoundRequest.OnServerEvent:Connect(function(player: Player)
+		if player:GetAttribute("InRound") == true then
+			return
+		end
+		LobbyService.MoveIntoQueue(player)
+		player:SetAttribute("QueuedForMatch", true)
+	end)
+
+	setWaitingState()
+
+	task.spawn(function()
+		while true do
+			updateQueueAttributes()
+			local queued = getQueuedPlayers()
+			local mapPayload = getMapPayload()
+
+			if matchState == "Waiting" then
+				LobbyService.SetBoard("Waiting", nil, #queued, mapPayload.mapName)
+				if #queued >= RoundConfig.minimumPlayers then
+					beginCountdown()
+				end
+			elseif matchState == "Active" then
+				LobbyService.SetBoard("Active", nil, #queued, mapPayload.mapName)
+			end
+
+			task.wait(0.3)
+		end
 	end)
 end
 
