@@ -148,11 +148,14 @@ function HazardService.WarnHazard(hazardId: string)
 	end
 
 	task.delay(hazard.warningSeconds or 3, function()
-		if warningPart and warningPart.Parent then
-			warningPart.Transparency = 0.15
-			warningPart.Color = Color3.fromRGB(255, 0, 0)
+		-- Round cleanup destroys warning parts. If this warning no longer exists,
+		-- the hazard was cancelled and should not damage players after the reset.
+		if not warningPart or not warningPart.Parent then
+			return
 		end
 
+		warningPart.Transparency = 0.15
+		warningPart.Color = Color3.fromRGB(255, 0, 0)
 		damagePlayersInZone(zone, hazard.damage or 25)
 
 		task.delay(0.6, function()
