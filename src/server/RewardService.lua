@@ -29,26 +29,33 @@ end
 
 function RewardService.AwardCrumb(player: Player, amount: number?)
 	if not PlayerDataService then
-		return
+		return 0, 0
 	end
 
 	local baseAmount = amount or 1
 	local crumbAmount = getEffectiveCrumbAmount(player, baseAmount)
+	local dnaAmount = RoundConfig.crumbDnaReward * crumbAmount
 	PlayerDataService.AddCrumbs(player, crumbAmount)
-	PlayerDataService.AddDna(player, RoundConfig.crumbDnaReward * crumbAmount)
+	PlayerDataService.AddDna(player, dnaAmount)
+	return crumbAmount, dnaAmount
 end
 
 function RewardService.AwardDnaPickup(player: Player, amount: number?)
 	if not PlayerDataService then
-		return
+		return 0
 	end
 
-	PlayerDataService.AddDna(player, amount or RoundConfig.dnaPickupReward or 3)
+	local dnaAmount = amount or RoundConfig.dnaPickupReward or 3
+	PlayerDataService.AddDna(player, dnaAmount)
+	return dnaAmount
 end
 
 function RewardService.AwardRoundComplete(player: Player, survivedSeconds: number)
 	if not PlayerDataService then
-		return
+		return {
+			completionDna = 0,
+			survivedSeconds = survivedSeconds,
+		}
 	end
 
 	local minutesSurvived = math.floor(survivedSeconds / 60)
@@ -56,6 +63,11 @@ function RewardService.AwardRoundComplete(player: Player, survivedSeconds: numbe
 
 	PlayerDataService.AddDna(player, dnaEarned)
 	PlayerDataService.TrackRoundPlayed(player, survivedSeconds)
+
+	return {
+		completionDna = dnaEarned,
+		survivedSeconds = survivedSeconds,
+	}
 end
 
 return RewardService
