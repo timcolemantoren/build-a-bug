@@ -2,6 +2,7 @@
 
 local RoundConfig = {
 	lobbyCountdownSeconds = 20,
+	countdownLockSeconds = 3,
 	resultsSeconds = 8,
 	roundDurationSeconds = 180,
 	minimumPlayers = 1,
