@@ -31,7 +31,7 @@ local remotes = nil
 
 local function makeDefaultData()
 	return {
-		version = 1,
+		version = 2,
 		selectedBug = "Ant",
 		currency = {
 			dna = 0,
@@ -42,9 +42,13 @@ local function makeDefaultData()
 			Beetle = true,
 			Grasshopper = true,
 		},
-		unlockedCosmetics = {},
+		unlockedCosmetics = {
+			[CosmeticStyles.GetUnlockKey("BodyColor", "Natural")] = true,
+			[CosmeticStyles.GetUnlockKey("Eyes", "Default")] = true,
+		},
 		cosmetics = {
 			bodyColor = "Natural",
+			eyes = "Default",
 		},
 		savedBuilds = {
 			Slot1 = {
@@ -59,17 +63,35 @@ local function makeDefaultData()
 			roundsPlayed = 0,
 			longestSurvival = 0,
 			foodCollected = 0,
+			lifetimeDna = 0,
 		},
 	}
 end
 
+local function markCosmeticOwned(data, slot: string, styleId: string)
+	data.unlockedCosmetics = data.unlockedCosmetics or {}
+	data.unlockedCosmetics[CosmeticStyles.GetUnlockKey(slot, styleId)] = true
+end
+
+local function isCosmeticOwned(data, slot: string, styleId: string): boolean
+	local item = CosmeticStyles.GetItem(slot, styleId)
+	if not item then
+		return false
+	end
+	if (item.cost or 0) <= 0 then
+		return true
+	end
+	local key = CosmeticStyles.GetUnlockKey(slot, styleId)
+	return data.unlockedCosmetics and data.unlockedCosmetics[key] == true
+end
+
 local function normalizeData(data)
-	data.version = data.version or 1
+	data.version = 2
 	data.selectedBug = BugArchetypes[data.selectedBug] and data.selectedBug or "Ant"
 
 	data.currency = data.currency or {}
-	data.currency.dna = data.currency.dna or 0
-	data.currency.crumbs = data.currency.crumbs or 0
+	data.currency.dna = math.max(0, data.currency.dna or 0)
+	data.currency.crumbs = math.max(0, data.currency.crumbs or 0)
 
 	data.unlockedBugs = data.unlockedBugs or {}
 	data.unlockedBugs.Ant = data.unlockedBugs.Ant ~= false
@@ -82,13 +104,32 @@ local function normalizeData(data)
 	if not CosmeticStyles.IsValidBodyColor(bodyColor) then
 		bodyColor = "Natural"
 	end
+	local eyes = data.cosmetics.eyes or "Default"
+	if not CosmeticStyles.IsValidEyeStyle(eyes) then
+		eyes = "Default"
+	end
 	data.cosmetics.bodyColor = bodyColor
+	data.cosmetics.eyes = eyes
+
+	-- Free defaults are always owned. Existing equipped body colors are grandfathered
+	-- because they were selectable before the DNA shop existed.
+	markCosmeticOwned(data, "BodyColor", "Natural")
+	markCosmeticOwned(data, "Eyes", "Default")
+	markCosmeticOwned(data, "BodyColor", bodyColor)
+	markCosmeticOwned(data, "Eyes", eyes)
 
 	data.savedBuilds = data.savedBuilds or {}
 	data.stats = data.stats or {}
 	data.stats.roundsPlayed = data.stats.roundsPlayed or 0
 	data.stats.longestSurvival = data.stats.longestSurvival or 0
 	data.stats.foodCollected = data.stats.foodCollected or 0
+
+	-- Before v2 DNA was never spendable, so the current wallet is a correct migration
+	-- baseline for lifetime progression.
+	if data.stats.lifetimeDna == nil then
+		data.stats.lifetimeDna = data.currency.dna
+	end
+	data.stats.lifetimeDna = math.max(data.stats.lifetimeDna, data.currency.dna)
 
 	return data
 end
@@ -145,21 +186,25 @@ local function publish(player: Player)
 	local stats = data.stats or {}
 	local cosmetics = data.cosmetics or {}
 	local dna = currency.dna or 0
-	local currentProgress = ProgressionConfig.GetLevelForDna(dna)
-	local nextProgress = ProgressionConfig.GetNextLevelForDna(dna)
+	local lifetimeDna = stats.lifetimeDna or dna
+	local currentProgress = ProgressionConfig.GetLevelForDna(lifetimeDna)
+	local nextProgress = ProgressionConfig.GetNextLevelForDna(lifetimeDna)
 
 	data.progression = {
 		current = currentProgress,
 		next = nextProgress,
+		lifetimeDna = lifetimeDna,
 	}
 
 	player:SetAttribute("SelectedBug", data.selectedBug or "Ant")
 	player:SetAttribute("BodyColor", cosmetics.bodyColor or "Natural")
+	player:SetAttribute("EyeStyle", cosmetics.eyes or "Default")
 	player:SetAttribute("BugLevel", currentProgress and currentProgress.level or 1)
 	player:SetAttribute("BugTitle", currentProgress and currentProgress.title or "Fresh Hatchling")
 	player:SetAttribute("RoundsPlayed", stats.roundsPlayed or 0)
 	player:SetAttribute("BestSurvival", stats.longestSurvival or 0)
 	player:SetAttribute("FoodCollected", stats.foodCollected or 0)
+	player:SetAttribute("LifetimeDna", lifetimeDna)
 	player:SetAttribute("TotalDna", dna)
 	player:SetAttribute("TotalCrumbs", currency.crumbs or 0)
 
@@ -200,6 +245,14 @@ function PlayerDataService.SelectBug(player: Player, bugId: string): boolean
 	return true
 end
 
+local function setEquippedCosmetic(data, slot: string, value: string)
+	if slot == "BodyColor" then
+		data.cosmetics.bodyColor = value
+	elseif slot == "Eyes" then
+		data.cosmetics.eyes = value
+	end
+end
+
 function PlayerDataService.SetCosmetic(player: Player, slot: string, value: string): boolean
 	local data = PlayerDataService.GetData(player)
 	if not data then
@@ -211,18 +264,54 @@ function PlayerDataService.SetCosmetic(player: Player, slot: string, value: stri
 		return false
 	end
 
-	if slot ~= "BodyColor" then
-		warn("Unknown cosmetic slot:", slot)
+	local item = CosmeticStyles.GetItem(slot, value)
+	if not item then
+		warn("Unknown cosmetic selected:", slot, value)
 		return false
 	end
 
-	if not CosmeticStyles.IsValidBodyColor(value) then
-		warn("Unknown body color selected:", value)
+	if not isCosmeticOwned(data, slot, value) then
+		warn(player.Name .. " tried to equip a locked cosmetic:", slot, value)
 		return false
 	end
 
 	data.cosmetics = data.cosmetics or {}
-	data.cosmetics.bodyColor = value
+	setEquippedCosmetic(data, slot, value)
+	publish(player)
+	return true
+end
+
+function PlayerDataService.PurchaseCosmetic(player: Player, slot: string, value: string): boolean
+	local data = PlayerDataService.GetData(player)
+	if not data then
+		return false
+	end
+
+	if player:GetAttribute("InRound") == true then
+		warn(player.Name .. " tried to buy cosmetics during an active round")
+		return false
+	end
+
+	local item = CosmeticStyles.GetItem(slot, value)
+	if not item then
+		warn("Unknown cosmetic purchase:", slot, value)
+		return false
+	end
+
+	if isCosmeticOwned(data, slot, value) then
+		setEquippedCosmetic(data, slot, value)
+		publish(player)
+		return true
+	end
+
+	local cost = math.max(0, item.cost or 0)
+	if (data.currency.dna or 0) < cost then
+		return false
+	end
+
+	data.currency.dna -= cost
+	markCosmeticOwned(data, slot, value)
+	setEquippedCosmetic(data, slot, value)
 	publish(player)
 	return true
 end
@@ -234,6 +323,7 @@ function PlayerDataService.AddDna(player: Player, amount: number)
 	end
 
 	data.currency.dna += amount
+	data.stats.lifetimeDna = (data.stats.lifetimeDna or 0) + amount
 	publish(player)
 end
 
@@ -258,6 +348,7 @@ function PlayerDataService.RestoreRoundSnapshot(player: Player, snapshot)
 	data.currency.crumbs = math.max(0, snapshot.crumbs or data.currency.crumbs or 0)
 	if data.stats then
 		data.stats.foodCollected = math.max(0, snapshot.foodCollected or data.stats.foodCollected or 0)
+		data.stats.lifetimeDna = math.max(0, snapshot.lifetimeDna or data.stats.lifetimeDna or 0)
 	end
 	publish(player)
 end
@@ -341,6 +432,10 @@ function PlayerDataService.Init(remoteEvents)
 
 	remotes.SetCosmetic.OnServerEvent:Connect(function(player: Player, slot: string, value: string)
 		PlayerDataService.SetCosmetic(player, slot, value)
+	end)
+
+	remotes.PurchaseCosmetic.OnServerEvent:Connect(function(player: Player, slot: string, value: string)
+		PlayerDataService.PurchaseCosmetic(player, slot, value)
 	end)
 
 	for _, player in ipairs(Players:GetPlayers()) do
