@@ -9,6 +9,7 @@ local remotesFolder = ReplicatedStorage:WaitForChild(RemoteNames.FolderName)
 
 local remotes = {
 	SelectBug = remotesFolder:WaitForChild(RemoteNames.SelectBug),
+	SetCosmetic = remotesFolder:WaitForChild(RemoteNames.SetCosmetic),
 	StartRoundRequest = remotesFolder:WaitForChild(RemoteNames.StartRoundRequest),
 	ExitRoundRequest = remotesFolder:WaitForChild(RemoteNames.ExitRoundRequest),
 	RoundStateChanged = remotesFolder:WaitForChild(RemoteNames.RoundStateChanged),
@@ -20,6 +21,7 @@ local remotes = {
 local clientRoot = script.Parent
 local HUDController = require(clientRoot.UI.HUDController)
 local BugSelectController = require(clientRoot.UI.BugSelectController)
+local ProfileController = require(clientRoot.UI.ProfileController)
 local RoundEndController = require(clientRoot.UI.RoundEndController)
 local AbilityController = require(clientRoot.UI.AbilityController)
 local RoundEventController = require(clientRoot.UI.RoundEventController)
@@ -30,6 +32,7 @@ local EnvironmentMotionController = require(clientRoot.EnvironmentMotionControll
 
 HUDController.Init(remotes)
 BugSelectController.Init(remotes)
+ProfileController.Init(remotes)
 RoundEndController.Init(remotes)
 AbilityController.Init(remotes)
 RoundEventController.Init(remotes)
