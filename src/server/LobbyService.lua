@@ -68,7 +68,7 @@ local function makeNestPad(parent: Instance)
 	local pad = Instance.new("Part")
 	pad.Name = "NestLobbyPad"
 	pad.Size = Vector3.new(72, 0.28, 66)
-	pad.Position = Vector3.new(0, 0.7, 160)
+	pad.Position = Vector3.new(0, 0.78, 160)
 	pad.Anchored = true
 	pad.CanCollide = false
 	pad.CanTouch = false
@@ -205,6 +205,11 @@ function LobbyService.SetBoard(state: string, seconds: number?, queuedCount: num
 		boardLabel.Text = string.format("%s\nMATCH STARTS IN %ss\n%s queued", mapText, tostring(seconds or 0), tostring(count))
 		if queueCircle then
 			queueCircle.Color = Color3.fromRGB(255, 205, 70)
+		end
+	elseif state == "Locked" then
+		boardLabel.Text = string.format("%s\nROSTER LOCKED • %ss\n%s playing", mapText, tostring(seconds or 0), tostring(count))
+		if queueCircle then
+			queueCircle.Color = Color3.fromRGB(255, 125, 70)
 		end
 	elseif state == "Active" then
 		boardLabel.Text = string.format("%s\nMATCH IN PROGRESS\nStand in the circle for the next match", mapText)
