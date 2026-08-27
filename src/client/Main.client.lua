@@ -10,6 +10,7 @@ local remotesFolder = ReplicatedStorage:WaitForChild(RemoteNames.FolderName)
 local remotes = {
 	SelectBug = remotesFolder:WaitForChild(RemoteNames.SelectBug),
 	SetCosmetic = remotesFolder:WaitForChild(RemoteNames.SetCosmetic),
+	PurchaseCosmetic = remotesFolder:WaitForChild(RemoteNames.PurchaseCosmetic),
 	StartRoundRequest = remotesFolder:WaitForChild(RemoteNames.StartRoundRequest),
 	ExitRoundRequest = remotesFolder:WaitForChild(RemoteNames.ExitRoundRequest),
 	RoundStateChanged = remotesFolder:WaitForChild(RemoteNames.RoundStateChanged),
