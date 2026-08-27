@@ -27,17 +27,51 @@ local function getEffectiveCrumbAmount(player: Player, baseAmount: number): numb
 	return baseAmount + (bug.crumbCarryBonus or 0)
 end
 
+local function healFromFood(player: Player, physicalPieces: number): number
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return 0
+	end
+
+	local healPercent = RoundConfig.crumbHealPercent or 0.04
+	local healAmount = humanoid.MaxHealth * healPercent * physicalPieces
+	local oldHealth = humanoid.Health
+	humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + healAmount)
+	local actualHeal = humanoid.Health - oldHealth
+
+	if actualHeal > 0 then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "FoodHealFlash"
+		highlight.FillColor = Color3.fromRGB(100, 255, 120)
+		highlight.OutlineColor = Color3.fromRGB(180, 255, 190)
+		highlight.FillTransparency = 0.65
+		highlight.OutlineTransparency = 0.25
+		highlight.Parent = character
+
+		task.delay(0.3, function()
+			if highlight and highlight.Parent then
+				highlight:Destroy()
+			end
+		end)
+	end
+
+	return actualHeal
+end
+
 function RewardService.AwardCrumb(player: Player, amount: number?)
 	if not PlayerDataService then
-		return 0, 0
+		return 0, 0, 0
 	end
 
 	local baseAmount = amount or 1
 	local crumbAmount = getEffectiveCrumbAmount(player, baseAmount)
 	local dnaAmount = RoundConfig.crumbDnaReward * crumbAmount
+	local healedAmount = healFromFood(player, baseAmount)
+
 	PlayerDataService.AddCrumbs(player, crumbAmount)
 	PlayerDataService.AddDna(player, dnaAmount)
-	return crumbAmount, dnaAmount
+	return crumbAmount, dnaAmount, healedAmount
 end
 
 function RewardService.AwardDnaPickup(player: Player, amount: number?)
