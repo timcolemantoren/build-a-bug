@@ -15,6 +15,7 @@ local panel = nil
 local expanded = false
 local details = {}
 local toggleButton = nil
+local inRound = false
 
 local function makeButton(parent: Instance, text: string, position: UDim2): TextButton
 	local button = Instance.new("TextButton")
@@ -27,6 +28,12 @@ local function makeButton(parent: Instance, text: string, position: UDim2): Text
 	button.TextSize = 16
 	button.Parent = parent
 	return button
+end
+
+local function applyVisibility()
+	if panel then
+		panel.Visible = not inRound
+	end
 end
 
 local function applyLayout()
@@ -47,6 +54,8 @@ local function applyLayout()
 	for _, item in ipairs(details) do
 		item.Visible = expanded
 	end
+
+	applyVisibility()
 end
 
 local function ensureGui(remotes)
@@ -67,6 +76,9 @@ local function ensureGui(remotes)
 	toggleButton = makeButton(panel, "Bugs", UDim2.fromOffset(8, 4))
 	toggleButton.Size = UDim2.fromOffset(80, 34)
 	toggleButton.MouseButton1Click:Connect(function()
+		if inRound then
+			return
+		end
 		expanded = not expanded
 		applyLayout()
 	end)
@@ -89,6 +101,9 @@ local function ensureGui(remotes)
 		if bug then
 			local button = makeButton(panel, bug.displayName, UDim2.fromOffset(20, y))
 			button.MouseButton1Click:Connect(function()
+				if inRound then
+					return
+				end
 				remotes.SelectBug:FireServer(bugId)
 				expanded = false
 				applyLayout()
@@ -100,7 +115,9 @@ local function ensureGui(remotes)
 
 	local startButton = makeButton(panel, "Join Next Match", UDim2.fromOffset(20, 220))
 	startButton.MouseButton1Click:Connect(function()
-		-- Server moves the player into the physical queue circle.
+		if inRound then
+			return
+		end
 		remotes.StartRoundRequest:FireServer()
 		expanded = false
 		applyLayout()
@@ -112,6 +129,16 @@ end
 
 function BugSelectController.Init(remotes)
 	ensureGui(remotes)
+
+	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, _payload)
+		if state == "Started" then
+			inRound = true
+			expanded = false
+		elseif state == "Ended" or state == "Eliminated" or state == "Waiting" or state == "Results" or state == "MatchInProgress" then
+			inRound = false
+		end
+		applyLayout()
+	end)
 end
 
 return BugSelectController
