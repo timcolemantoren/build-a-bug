@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local RoundConfig = require(BuildABugShared.Config.RoundConfig)
 local MapConfig = require(BuildABugShared.Config.MapConfig)
+local RoundEventConfig = require(BuildABugShared.Config.RoundEventConfig)
 
 local RoundService = {}
 local remotes = nil
@@ -46,6 +47,15 @@ end
 local function broadcast(state: string, payload)
 	if remotes and remotes.RoundStateChanged then
 		remotes.RoundStateChanged:FireAllClients(state, payload or {})
+	end
+end
+
+local function sendToActiveParticipants(state: string, payload)
+	for _, entry in pairs(participants) do
+		local player = entry.player
+		if not entry.eliminated and player and player.Parent == Players and player:GetAttribute("InRound") == true then
+			fireClient(player, state, payload)
+		end
 	end
 end
 
@@ -196,17 +206,74 @@ local function spawnPickupWave()
 	end
 end
 
+local function getElapsedSeconds(): number
+	return math.max(0, os.clock() - roundStartedAt)
+end
+
+local function triggerRandomHazard()
+	local hazardId = HazardService.GetRandomHazardId()
+	if hazardId then
+		HazardService.WarnHazard(hazardId)
+	end
+end
+
+local function announceRoundEvent(event)
+	local mapPayload = getMapPayload()
+	sendToActiveParticipants("RoundEvent", {
+		id = event.id,
+		displayName = event.displayName,
+		description = event.description,
+		mapId = mapPayload.mapId,
+		mapName = mapPayload.mapName,
+	})
+end
+
+local function executeRoundEvent(event, myRoundToken: number)
+	if matchState ~= "Active" or myRoundToken ~= roundToken then
+		return
+	end
+
+	announceRoundEvent(event)
+
+	if event.id == "CrumbShower" then
+		for wave = 1, 3 do
+			if matchState ~= "Active" or myRoundToken ~= roundToken then
+				return
+			end
+			for _ = 1, 7 do
+				createCrumbPickup(ArenaService.GetRandomGroundPickupPosition())
+			end
+			if wave < 3 then
+				task.wait(0.45)
+			end
+		end
+	elseif event.id == "DnaBurst" then
+		for _ = 1, 10 do
+			local useAir = math.random() < 0.65
+			local position = useAir and ArenaService.GetRandomAirPickupPosition() or ArenaService.GetRandomGroundPickupPosition()
+			createDnaPickup(position)
+		end
+	elseif event.id == "DoubleTrouble" then
+		triggerRandomHazard()
+		task.delay(1.35, function()
+			if matchState == "Active" and myRoundToken == roundToken then
+				triggerRandomHazard()
+			end
+		end)
+	end
+end
+
 local function runHazardLoop(myRoundToken: number)
 	while matchState == "Active" and myRoundToken == roundToken do
-		task.wait(18)
+		local phase = RoundEventConfig.GetPhase(getElapsedSeconds())
+		local waitSeconds = math.random(phase.hazardMinSeconds, phase.hazardMaxSeconds)
+		task.wait(waitSeconds)
+
 		if matchState ~= "Active" or myRoundToken ~= roundToken then
 			break
 		end
 
-		local hazardId = HazardService.GetRandomHazardId()
-		if hazardId then
-			HazardService.WarnHazard(hazardId)
-		end
+		triggerRandomHazard()
 	end
 end
 
@@ -214,6 +281,77 @@ local function runPickupLoop(myRoundToken: number)
 	while matchState == "Active" and myRoundToken == roundToken do
 		spawnPickupWave()
 		task.wait(RoundConfig.pickupSpawnIntervalSeconds or RoundConfig.crumbSpawnIntervalSeconds)
+	end
+end
+
+local function runRoundEventLoop(myRoundToken: number)
+	local lastEventId = nil
+
+	while matchState == "Active" and myRoundToken == roundToken do
+		local phase = RoundEventConfig.GetPhase(getElapsedSeconds())
+		local waitSeconds = math.random(phase.eventMinSeconds, phase.eventMaxSeconds)
+		task.wait(waitSeconds)
+
+		if matchState ~= "Active" or myRoundToken ~= roundToken then
+			break
+		end
+
+		local event = RoundEventConfig.GetRandomEvent()
+		for _ = 1, 3 do
+			if event.id ~= lastEventId then
+				break
+			end
+			event = RoundEventConfig.GetRandomEvent()
+		end
+
+		lastEventId = event.id
+		executeRoundEvent(event, myRoundToken)
+	end
+end
+
+local function runPhaseLoop(myRoundToken: number)
+	local currentPhaseId = nil
+	local finalScrambleTriggered = false
+
+	while matchState == "Active" and myRoundToken == roundToken do
+		local elapsed = getElapsedSeconds()
+		local phase = RoundEventConfig.GetPhase(elapsed)
+
+		if phase.id ~= currentPhaseId then
+			currentPhaseId = phase.id
+			local mapPayload = getMapPayload()
+			sendToActiveParticipants("PhaseChanged", {
+				phaseId = phase.id,
+				displayName = phase.displayName,
+				elapsedSeconds = math.floor(elapsed),
+				mapId = mapPayload.mapId,
+				mapName = mapPayload.mapName,
+			})
+		end
+
+		local remaining = RoundConfig.roundDurationSeconds - elapsed
+		if not finalScrambleTriggered and remaining <= 10 then
+			finalScrambleTriggered = true
+			local mapPayload = getMapPayload()
+			sendToActiveParticipants("FinalScramble", {
+				displayName = "FINAL SCRAMBLE!",
+				description = "10 seconds! Grab what you can and survive!",
+				mapId = mapPayload.mapId,
+				mapName = mapPayload.mapName,
+			})
+
+			for _ = 1, 4 do
+				createDnaPickup(ArenaService.GetRandomGroundPickupPosition())
+			end
+			triggerRandomHazard()
+			task.delay(1.25, function()
+				if matchState == "Active" and myRoundToken == roundToken then
+					triggerRandomHazard()
+				end
+			end)
+		end
+
+		task.wait(0.5)
 	end
 end
 
@@ -456,6 +594,7 @@ function RoundService.StartRound(roster)
 	end
 
 	local actualCount = countParticipants()
+	local initialPhase = RoundEventConfig.GetPhase(0)
 	for _, entry in pairs(participants) do
 		local player = entry.player
 		fireClient(player, "Started", {
@@ -463,6 +602,8 @@ function RoundService.StartRound(roster)
 			startedAt = roundStartedAt,
 			playerCount = actualCount,
 			playersRemaining = actualCount,
+			phaseId = initialPhase.id,
+			phaseName = initialPhase.displayName,
 			mapId = mapPayload.mapId,
 			mapName = mapPayload.mapName,
 		})
@@ -485,6 +626,8 @@ function RoundService.StartRound(roster)
 
 	task.spawn(runPickupLoop, myRoundToken)
 	task.spawn(runHazardLoop, myRoundToken)
+	task.spawn(runRoundEventLoop, myRoundToken)
+	task.spawn(runPhaseLoop, myRoundToken)
 
 	task.delay(RoundConfig.roundDurationSeconds, function()
 		if matchState == "Active" and myRoundToken == roundToken then
