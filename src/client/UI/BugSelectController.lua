@@ -35,7 +35,7 @@ local function applyLayout()
 	end
 
 	if expanded then
-		panel.Size = UDim2.fromOffset(220, 252)
+		panel.Size = UDim2.fromOffset(220, 268)
 		panel.Position = UDim2.new(1, -236, 0, 14)
 		toggleButton.Text = "Close"
 	else
@@ -98,8 +98,9 @@ local function ensureGui(remotes)
 		end
 	end
 
-	local startButton = makeButton(panel, "Start Round", UDim2.fromOffset(20, 220))
+	local startButton = makeButton(panel, "Join Next Match", UDim2.fromOffset(20, 220))
 	startButton.MouseButton1Click:Connect(function()
+		-- Server moves the player into the physical queue circle.
 		remotes.StartRoundRequest:FireServer()
 		expanded = false
 		applyLayout()
