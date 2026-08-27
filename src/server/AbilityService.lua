@@ -113,8 +113,6 @@ local function burstAtRoot(player: Player, color: Color3)
 end
 
 local function useAntForage(player: Player)
-	-- Simple active for the prototype: a tiny snack boost.
-	-- Ant already has the stronger passive crumb pickup bonus.
 	PlayerDataService.AddCrumbs(player, 2)
 	PlayerDataService.AddDna(player, 2)
 	glowCharacter(player, Color3.fromRGB(255, 185, 70), 1.5, "AntForageGlow")
@@ -155,6 +153,11 @@ function AbilityService.Init(remoteEvents, playerDataService)
 	end)
 
 	remoteEvents.UseAbility.OnServerEvent:Connect(function(player: Player)
+		-- Abilities are match mechanics. This also prevents Ant from farming DNA in the lobby.
+		if player:GetAttribute("InRound") ~= true then
+			return
+		end
+
 		local bugId, bug = getBugForPlayer(player)
 		if not bug or not isReady(player) then
 			return
