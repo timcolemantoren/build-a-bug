@@ -4,8 +4,8 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 -- Lightweight procedural animation for the proxy bug bodies.
--- Every client animates the visible Motor6Ds locally, including other players.
--- No gameplay position, collision, Humanoid state, or server authority is changed.
+-- Every client animates visible Motor6Ds locally, including other players.
+-- Gameplay position, collision, Humanoid state, and server authority are untouched.
 
 local BugMotionController = {}
 
@@ -18,6 +18,11 @@ local accumulator = 0
 
 local function addMotor(record, instance: Instance)
 	if instance:IsA("Motor6D") and instance.Name == MOTOR_NAME then
+		for _, existing in ipairs(record.motors) do
+			if existing == instance then
+				return
+			end
+		end
 		table.insert(record.motors, instance)
 	end
 end
@@ -54,6 +59,14 @@ local function trackVisual(model: Model)
 	model.DescendantAdded:Connect(function(descendant)
 		addMotor(record, descendant)
 	end)
+
+	if RunService:IsStudio() then
+		task.delay(0.25, function()
+			if model.Parent then
+				print(string.format("[Build a Bug] Motion tracking %s with %d joints", tostring(model:GetAttribute("BugId")), #record.motors))
+			end
+		end)
+	end
 end
 
 local function trackCharacter(character: Model)
@@ -78,15 +91,15 @@ local function trackPlayer(player: Player)
 	end
 end
 
-local function getBaseMotion(record, now: number, moving: boolean, grounded: boolean, cycle: number, bugId: string)
-	local bobAmplitude = 0.018
+local function getBaseMotion(now: number, moving: boolean, grounded: boolean, cycle: number, bugId: string, verticalVelocity: number)
+	local bobAmplitude = 0.025
 	if moving and grounded then
 		if bugId == "Beetle" then
-			bobAmplitude = 0.028
+			bobAmplitude = 0.045
 		elseif bugId == "Grasshopper" then
-			bobAmplitude = 0.052
+			bobAmplitude = 0.075
 		else
-			bobAmplitude = 0.042
+			bobAmplitude = 0.065
 		end
 	end
 
@@ -97,56 +110,94 @@ local function getBaseMotion(record, now: number, moving: boolean, grounded: boo
 		bob = math.sin(now * 2.2) * bobAmplitude
 	end
 
-	return CFrame.new(0, bob, 0)
+	local pitch = 0
+	if not grounded then
+		if verticalVelocity > 2 then
+			pitch = -6
+		elseif verticalVelocity < -2 then
+			pitch = 7
+		end
+	end
+
+	return CFrame.new(0, bob, 0) * CFrame.Angles(math.rad(pitch), 0, 0)
 end
 
-local function getMotorMotion(record, motor: Motor6D, now: number, moving: boolean, grounded: boolean, cycle: number, baseMotion: CFrame, bugId: string)
+local function getMotorMotion(motor: Motor6D, now: number, moving: boolean, grounded: boolean, cycle: number, baseMotion: CFrame, bugId: string, verticalVelocity: number)
 	local role = motor:GetAttribute("MotionRole") or ""
 	local side = motor:GetAttribute("MotionSide") or 0
 	local phase = motor:GetAttribute("MotionPhase") or 0
 	local motion = baseMotion
 
 	if role == "LegUpper" then
-		local swing = moving and grounded and math.sin(cycle + phase) or math.sin(now * 1.5 + phase) * 0.10
-		motion *= CFrame.Angles(0, math.rad(swing * 13), math.rad(side * -2))
+		if moving and grounded then
+			local swing = math.sin(cycle + phase)
+			local lift = math.max(0, math.sin(cycle + phase + 0.55))
+			motion *= CFrame.Angles(0, math.rad(swing * 24), math.rad(side * -lift * 10))
+		else
+			local idle = math.sin(now * 1.4 + phase)
+			motion *= CFrame.Angles(0, math.rad(idle * 2.5), math.rad(side * idle * 1.5))
+		end
 	elseif role == "LegLower" then
-		local swing = moving and grounded and math.sin(cycle + phase) or math.sin(now * 1.5 + phase) * 0.10
-		motion *= CFrame.Angles(0, math.rad(swing * -10), math.rad(side * 2))
+		if moving and grounded then
+			local swing = math.sin(cycle + phase)
+			local lift = math.max(0, math.sin(cycle + phase + 0.55))
+			motion *= CFrame.Angles(0, math.rad(swing * -18), math.rad(side * lift * 15))
+		else
+			local idle = math.sin(now * 1.4 + phase)
+			motion *= CFrame.Angles(0, math.rad(idle * -2), 0)
+		end
 	elseif role == "HindLegThigh" then
 		if bugId == "Grasshopper" and not grounded then
-			motion *= CFrame.Angles(math.rad(-18), math.rad(side * 7), math.rad(side * -5))
+			-- Tuck the huge rear legs visibly during a jump.
+			local tuck = verticalVelocity > 0 and 1 or 0.75
+			motion *= CFrame.Angles(math.rad(-32 * tuck), math.rad(side * 15), math.rad(side * -12))
+		elseif moving then
+			local swing = math.sin(cycle + phase)
+			motion *= CFrame.Angles(math.rad(swing * 8), math.rad(swing * 16), math.rad(side * -4))
 		else
-			local swing = moving and math.sin(cycle + phase) or math.sin(now * 1.2 + phase) * 0.08
-			motion *= CFrame.Angles(math.rad(swing * 5), math.rad(swing * 8), 0)
+			local idle = math.sin(now * 1.1 + phase)
+			motion *= CFrame.Angles(0, math.rad(idle * 2), 0)
 		end
 	elseif role == "HindLegShin" then
 		if bugId == "Grasshopper" and not grounded then
-			motion *= CFrame.Angles(math.rad(14), math.rad(side * -5), 0)
+			local tuck = verticalVelocity > 0 and 1 or 0.75
+			motion *= CFrame.Angles(math.rad(28 * tuck), math.rad(side * -12), math.rad(side * 8))
+		elseif moving then
+			local swing = math.sin(cycle + phase)
+			motion *= CFrame.Angles(math.rad(swing * -7), math.rad(swing * -14), 0)
 		else
-			local swing = moving and math.sin(cycle + phase) or math.sin(now * 1.2 + phase) * 0.08
-			motion *= CFrame.Angles(math.rad(swing * -4), math.rad(swing * -7), 0)
+			local idle = math.sin(now * 1.1 + phase)
+			motion *= CFrame.Angles(0, math.rad(idle * -2), 0)
 		end
-	elseif role == "Antenna" or role == "AntennaTip" then
-		local antennaSpeed = moving and 4.6 or 2.2
-		local sway = math.sin(now * antennaSpeed + phase)
-		local amount = role == "AntennaTip" and 8 or 5
-		motion *= CFrame.Angles(math.rad(sway * 2), math.rad(sway * amount), math.rad(side * sway * 2))
+	elseif role == "Antenna" then
+		local speed = moving and 6.2 or 2.4
+		local sway = math.sin(now * speed + phase)
+		local forwardFlick = math.sin(now * (speed * 0.72) + phase * 0.5)
+		motion *= CFrame.Angles(math.rad(forwardFlick * 6), math.rad(sway * 12), math.rad(side * sway * 5))
+	elseif role == "AntennaTip" then
+		local speed = moving and 7.4 or 2.8
+		local sway = math.sin(now * speed + phase + 0.45)
+		motion *= CFrame.Angles(math.rad(sway * 8), math.rad(sway * 18), math.rad(side * sway * 7))
 	elseif role == "WingLeft" or role == "WingRight" then
 		if bugId == "Grasshopper" and not grounded then
-			local flutter = math.sin(now * 24)
-			motion *= CFrame.Angles(0, math.rad(flutter * 4), math.rad(side * flutter * 7))
+			local flutter = math.sin(now * 28)
+			motion *= CFrame.Angles(math.rad(-5), math.rad(flutter * 6), math.rad(side * (10 + flutter * 12)))
 		elseif moving then
-			motion *= CFrame.Angles(0, 0, math.rad(side * math.sin(cycle) * 1.5))
+			motion *= CFrame.Angles(0, 0, math.rad(side * math.sin(cycle) * 3))
 		end
 	elseif role == "Head" then
-		local nod = moving and math.sin(cycle) * 1.8 or math.sin(now * 1.8) * 0.8
+		local nod = moving and math.sin(cycle) * 3.5 or math.sin(now * 1.8) * 1.4
 		if bugId == "Grasshopper" and not grounded then
-			nod -= 5
+			nod -= 8
 		end
 		motion *= CFrame.Angles(math.rad(nod), 0, 0)
-	elseif role == "Thorax" or role == "Pronotum" or role == "Abdomen" or role == "Shell" or role == "ShellSeam" or role == "Eye" then
-		if bugId == "Grasshopper" and not grounded then
-			motion *= CFrame.Angles(math.rad(-3), 0, 0)
+	elseif role == "Abdomen" then
+		if moving and grounded then
+			motion *= CFrame.Angles(math.rad(math.sin(cycle + math.pi) * 2.5), 0, 0)
+		end
+	elseif role == "Shell" or role == "Pronotum" then
+		if bugId == "Beetle" and moving and grounded then
+			motion *= CFrame.Angles(0, 0, math.rad(math.sin(cycle * 2) * 1.6))
 		end
 	end
 
@@ -166,17 +217,17 @@ local function animateRecord(record, now: number)
 	local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
 	local grounded = humanoid.FloorMaterial ~= Enum.Material.Air
 	local moving = horizontalSpeed > 1.1
-	local cadence = math.clamp(5.5 + horizontalSpeed * 0.22, 5.5, 10.5)
+	local cadence = math.clamp(6.4 + horizontalSpeed * 0.28, 6.4, 12.5)
 	local cycle = now * cadence
 	local bugId = model:GetAttribute("BugId") or "Ant"
-	local baseMotion = getBaseMotion(record, now, moving, grounded, cycle, bugId)
+	local baseMotion = getBaseMotion(now, moving, grounded, cycle, bugId, velocity.Y)
 
 	for i = #record.motors, 1, -1 do
 		local motor = record.motors[i]
 		if not motor.Parent or not motor.Part1 then
 			table.remove(record.motors, i)
 		else
-			motor.Transform = getMotorMotion(record, motor, now, moving, grounded, cycle, baseMotion, bugId)
+			motor.Transform = getMotorMotion(motor, now, moving, grounded, cycle, baseMotion, bugId, velocity.Y)
 		end
 	end
 end
