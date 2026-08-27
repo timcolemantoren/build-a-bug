@@ -12,6 +12,7 @@ local ArenaService = require(script.Parent.ArenaService)
 local RoundService = require(script.Parent.RoundService)
 local AbilityService = require(script.Parent.AbilityService)
 local EnvironmentHazardService = require(script.Parent.EnvironmentHazardService)
+local InteractiveFoliageService = require(script.Parent.InteractiveFoliageService)
 
 local function getOrCreateFolder(parent: Instance, name: string): Folder
 	local folder = parent:FindFirstChild(name)
@@ -55,5 +56,6 @@ HazardService.Init(remotes, PlayerDataService)
 RoundService.Init(remotes, PlayerDataService, RewardService, HazardService, ArenaService)
 AbilityService.Init(remotes, PlayerDataService)
 EnvironmentHazardService.Init(PlayerDataService)
+InteractiveFoliageService.Init()
 
 print("[Build a Bug] Server initialized")
