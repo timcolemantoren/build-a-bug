@@ -21,10 +21,12 @@ local HUDController = require(clientRoot.UI.HUDController)
 local BugSelectController = require(clientRoot.UI.BugSelectController)
 local RoundEndController = require(clientRoot.UI.RoundEndController)
 local AbilityController = require(clientRoot.UI.AbilityController)
+local EnvironmentMotionController = require(clientRoot.EnvironmentMotionController)
 
 HUDController.Init(remotes)
 BugSelectController.Init(remotes)
 RoundEndController.Init(remotes)
 AbilityController.Init(remotes)
+EnvironmentMotionController.Init()
 
 print("[Build a Bug] Client initialized")
