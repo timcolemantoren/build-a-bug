@@ -133,6 +133,13 @@ function PlayerDataService.SelectBug(player: Player, bugId: string): boolean
 		return false
 	end
 
+	-- Bug choice is a pre-round decision. Switching during a live match would let
+	-- players swap movement/defense abilities in response to hazards.
+	if player:GetAttribute("InRound") == true then
+		warn(player.Name .. " tried to switch bugs during an active round")
+		return false
+	end
+
 	if not BugArchetypes[bugId] then
 		warn("Unknown bug selected:", bugId)
 		return false
