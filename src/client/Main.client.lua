@@ -10,6 +10,7 @@ local remotesFolder = ReplicatedStorage:WaitForChild(RemoteNames.FolderName)
 local remotes = {
 	SelectBug = remotesFolder:WaitForChild(RemoteNames.SelectBug),
 	StartRoundRequest = remotesFolder:WaitForChild(RemoteNames.StartRoundRequest),
+	ExitRoundRequest = remotesFolder:WaitForChild(RemoteNames.ExitRoundRequest),
 	RoundStateChanged = remotesFolder:WaitForChild(RemoteNames.RoundStateChanged),
 	PlayerDataChanged = remotesFolder:WaitForChild(RemoteNames.PlayerDataChanged),
 	HazardWarning = remotesFolder:WaitForChild(RemoteNames.HazardWarning),
@@ -22,6 +23,7 @@ local BugSelectController = require(clientRoot.UI.BugSelectController)
 local RoundEndController = require(clientRoot.UI.RoundEndController)
 local AbilityController = require(clientRoot.UI.AbilityController)
 local RoundEventController = require(clientRoot.UI.RoundEventController)
+local SurvivalController = require(clientRoot.UI.SurvivalController)
 local EnvironmentMotionController = require(clientRoot.EnvironmentMotionController)
 
 HUDController.Init(remotes)
@@ -29,6 +31,7 @@ BugSelectController.Init(remotes)
 RoundEndController.Init(remotes)
 AbilityController.Init(remotes)
 RoundEventController.Init(remotes)
+SurvivalController.Init(remotes)
 EnvironmentMotionController.Init()
 
 print("[Build a Bug] Client initialized")
