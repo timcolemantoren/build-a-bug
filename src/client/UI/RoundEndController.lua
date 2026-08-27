@@ -11,6 +11,7 @@ local titleLabel = nil
 local summaryLabel = nil
 local playAgainButton = nil
 local latestData = nil
+local noticeToken = 0
 
 local function makeLabel(parent: Instance, name: string, y: number, height: number, textSize: number): TextLabel
 	local label = Instance.new("TextLabel")
@@ -41,8 +42,8 @@ local function ensureGui(remotes)
 
 	panel = Instance.new("Frame")
 	panel.Name = "Panel"
-	panel.Size = UDim2.fromOffset(360, 250)
-	panel.Position = UDim2.new(0.5, -180, 0.5, -125)
+	panel.Size = UDim2.fromOffset(380, 270)
+	panel.Position = UDim2.new(0.5, -190, 0.5, -135)
 	panel.BackgroundTransparency = 0.15
 	panel.Visible = false
 	panel.Parent = gui
@@ -50,13 +51,14 @@ local function ensureGui(remotes)
 	titleLabel = makeLabel(panel, "Title", 18, 42, 24)
 	titleLabel.Text = "Round Complete!"
 
-	summaryLabel = makeLabel(panel, "Summary", 66, 104, 17)
+	summaryLabel = makeLabel(panel, "Summary", 66, 122, 17)
+	summaryLabel.Size = UDim2.fromOffset(340, 122)
 	summaryLabel.Text = ""
 
 	playAgainButton = Instance.new("TextButton")
 	playAgainButton.Name = "PlayAgain"
 	playAgainButton.Size = UDim2.fromOffset(210, 44)
-	playAgainButton.Position = UDim2.fromOffset(75, 184)
+	playAgainButton.Position = UDim2.fromOffset(85, 204)
 	playAgainButton.BackgroundTransparency = 0.05
 	playAgainButton.Text = "Join Next Match"
 	playAgainButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -65,8 +67,31 @@ local function ensureGui(remotes)
 	playAgainButton.Parent = panel
 	playAgainButton.MouseButton1Click:Connect(function()
 		panel.Visible = false
-		-- This now moves the player into the physical lobby queue circle.
 		remotes.StartRoundRequest:FireServer()
+	end)
+end
+
+local function showEliminated(payload)
+	if not panel then
+		return
+	end
+
+	noticeToken += 1
+	local token = noticeToken
+	titleLabel.Text = "SQUISHED!"
+	summaryLabel.Text = string.format(
+		"You survived %s seconds.\n%s bug%s still in the match.\nYour rewards will be totaled when the round ends.",
+		tostring(payload and payload.survivedSeconds or 0),
+		tostring(payload and payload.playersRemaining or 0),
+		(payload and payload.playersRemaining == 1) and " is" or "s are"
+	)
+	playAgainButton.Visible = false
+	panel.Visible = true
+
+	task.delay(3, function()
+		if token == noticeToken and panel and not playAgainButton.Visible then
+			panel.Visible = false
+		end
 	end)
 end
 
@@ -75,25 +100,31 @@ local function showRoundEnd(payload)
 		return
 	end
 
-	local survivedSeconds = payload and payload.survivedSeconds or "?"
-	local mapName = payload and payload.mapName or "Backyard"
-	local dna = latestData and latestData.currency and latestData.currency.dna or 0
-	local crumbs = latestData and latestData.currency and latestData.currency.crumbs or 0
-	local current = latestData and latestData.progression and latestData.progression.current
-	local nextLevel = latestData and latestData.progression and latestData.progression.next
-	local title = current and current.title or "Fresh Hatchling"
-	local nextText = nextLevel and ("Next title at " .. tostring(nextLevel.dnaRequired) .. " DNA") or "Max title reached"
+	noticeToken += 1
+	payload = payload or {}
+	local survivedSeconds = payload.survivedSeconds or 0
+	local mapName = payload.mapName or "Backyard"
+	local roundCrumbs = payload.crumbsCollected or 0
+	local roundDna = payload.dnaEarned or 0
+	local totalDna = payload.totalDna or (latestData and latestData.currency and latestData.currency.dna) or 0
+	local title = payload.title or (latestData and latestData.progression and latestData.progression.current and latestData.progression.current.title) or "Fresh Hatchling"
+	local nextTitleDna = payload.nextTitleDna
+	local resultText = payload.eliminated and "Squished" or "Survived"
+	local nextText = nextTitleDna and ("Next title at " .. tostring(nextTitleDna) .. " DNA") or "Max title reached"
 
 	titleLabel.Text = mapName .. " Complete!"
 	summaryLabel.Text = string.format(
-		"Survived: %s seconds\nTotal Crumbs: %s\nTotal DNA: %s\nTitle: %s\n%s",
+		"%s: %s seconds\nCrumbs this round: %s\nDNA earned this round: %s\nTotal DNA: %s\n%s • %s",
+		resultText,
 		tostring(survivedSeconds),
-		tostring(crumbs),
-		tostring(dna),
+		tostring(roundCrumbs),
+		tostring(roundDna),
+		tostring(totalDna),
 		tostring(title),
 		nextText
 	)
 
+	playAgainButton.Visible = true
 	panel.Visible = true
 end
 
@@ -106,9 +137,12 @@ function RoundEndController.Init(remotes)
 
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, payload)
 		if state == "Started" then
-			if panel then
-				panel.Visible = false
-			end
+		noticeToken += 1
+		if panel then
+			panel.Visible = false
+		end
+		elseif state == "Eliminated" then
+			showEliminated(payload)
 		elseif state == "Ended" then
 			showRoundEnd(payload)
 		end
