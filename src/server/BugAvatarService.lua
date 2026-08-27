@@ -50,6 +50,11 @@ local function getPalette(player: Player, bugId: string)
 	return COLORS[bugId] or COLORS.Ant
 end
 
+local function getEyeStyle(player: Player)
+	local styleId = player:GetAttribute("EyeStyle") or "Default"
+	return CosmeticStyles.EyeStyles[styleId] or CosmeticStyles.EyeStyles.Default
+end
+
 local function hideRobloxAvatar(character: Model)
 	local visual = character:FindFirstChild(VISUAL_MODEL_NAME)
 	for _, descendant in ipairs(character:GetDescendants()) do
@@ -157,17 +162,42 @@ local function createSegment(model: Model, root: BasePart, parentPart: BasePart,
 	return part
 end
 
-local function createEye(model: Model, root: BasePart, head: BasePart, localPosition: Vector3, size: number)
+local function createEye(model: Model, root: BasePart, head: BasePart, localPosition: Vector3, size: number, style)
+	style = style or CosmeticStyles.EyeStyles.Default
+	local actualSize = size * (style.sizeMultiplier or 1)
 	local eye = createPart(
 		model,
 		"Eye",
 		Enum.PartType.Ball,
-		Vector3.new(size, size, size),
+		Vector3.new(actualSize, actualSize, actualSize),
 		bodyFrame(root) * CFrame.new(localPosition),
-		Color3.fromRGB(16, 16, 18),
-		Enum.Material.SmoothPlastic
+		style.color or Color3.fromRGB(16, 16, 18),
+		style.material or Enum.Material.SmoothPlastic
 	)
 	createStaticWeld(head, eye)
+
+	if style.kind == "googly" then
+		local pupilSize = actualSize * 0.48
+		local pupilPosition = localPosition + Vector3.new(0, 0, -actualSize * 0.40)
+		local pupil = createPart(
+			model,
+			"EyePupil",
+			Enum.PartType.Ball,
+			Vector3.new(pupilSize, pupilSize, pupilSize),
+			bodyFrame(root) * CFrame.new(pupilPosition),
+			style.pupilColor or Color3.fromRGB(18, 18, 20),
+			Enum.Material.SmoothPlastic
+		)
+		createStaticWeld(eye, pupil)
+	elseif style.kind == "glow" then
+		local light = Instance.new("PointLight")
+		light.Name = "EyeGlow"
+		light.Color = style.color or Color3.fromRGB(73, 205, 255)
+		light.Brightness = 0.7
+		light.Range = 4
+		light.Parent = eye
+	end
+
 	return eye
 end
 
@@ -195,12 +225,12 @@ local function createAntenna(model: Model, root: BasePart, head: BasePart, side:
 	createSegment(model, root, first, "AntennaTip", bend, tip, 0.07, color, "AntennaTip", side, phase)
 end
 
-local function buildAnt(model: Model, root: BasePart, c)
+local function buildAnt(model: Model, root: BasePart, c, eyeStyle)
 	local thorax = createBodyPart(model, root, nil, "Thorax", Enum.PartType.Ball, Vector3.new(1.30, 1.00, 1.40), CFrame.new(0, 0, -0.30), c.accent, nil, "BodyRoot")
 	local head = createBodyPart(model, root, thorax, "Head", Enum.PartType.Ball, Vector3.new(1.32, 1.02, 1.22), CFrame.new(0, 0.02, -1.62), c.body, nil, "Head")
 	createBodyPart(model, root, thorax, "Abdomen", Enum.PartType.Ball, Vector3.new(1.72, 1.30, 2.20), CFrame.new(0, 0.02, 1.20), c.body, nil, "Abdomen")
-	createEye(model, root, head, Vector3.new(-0.47, 0.14, -2.08), 0.24)
-	createEye(model, root, head, Vector3.new(0.47, 0.14, -2.08), 0.24)
+	createEye(model, root, head, Vector3.new(-0.47, 0.14, -2.08), 0.24, eyeStyle)
+	createEye(model, root, head, Vector3.new(0.47, 0.14, -2.08), 0.24, eyeStyle)
 
 	for row, z in ipairs({ -0.82, 0.0, 0.82 }) do
 		for _, side in ipairs({ -1, 1 }) do
@@ -211,14 +241,14 @@ local function buildAnt(model: Model, root: BasePart, c)
 	createAntenna(model, root, head, 1, -2.02, -3.05, c.dark)
 end
 
-local function buildBeetle(model: Model, root: BasePart, c)
+local function buildBeetle(model: Model, root: BasePart, c, eyeStyle)
 	local pronotum = createBodyPart(model, root, nil, "Pronotum", Enum.PartType.Ball, Vector3.new(2.00, 1.16, 1.52), CFrame.new(0, 0.03, -0.58), c.accent, nil, "BodyRoot")
 	local head = createBodyPart(model, root, pronotum, "Head", Enum.PartType.Ball, Vector3.new(1.42, 1.03, 1.23), CFrame.new(0, -0.02, -1.72), c.dark, nil, "Head")
 	local shell = createBodyPart(model, root, pronotum, "Shell", Enum.PartType.Ball, Vector3.new(2.62, 1.52, 3.12), CFrame.new(0, 0.12, 1.02), c.body, nil, "Shell")
 	local seam = createPart(model, "ShellSeam", Enum.PartType.Block, Vector3.new(0.07, 0.07, 2.58), bodyFrame(root) * CFrame.new(0, 0.91, 1.00), c.dark, Enum.Material.SmoothPlastic)
 	createStaticWeld(shell, seam)
-	createEye(model, root, head, Vector3.new(-0.47, 0.10, -2.13), 0.22)
-	createEye(model, root, head, Vector3.new(0.47, 0.10, -2.13), 0.22)
+	createEye(model, root, head, Vector3.new(-0.47, 0.10, -2.13), 0.22, eyeStyle)
+	createEye(model, root, head, Vector3.new(0.47, 0.10, -2.13), 0.22, eyeStyle)
 
 	for row, z in ipairs({ -0.72, 0.14, 0.96 }) do
 		for _, side in ipairs({ -1, 1 }) do
@@ -229,12 +259,12 @@ local function buildBeetle(model: Model, root: BasePart, c)
 	createAntenna(model, root, head, 1, -2.06, -2.88, c.dark)
 end
 
-local function buildGrasshopper(model: Model, root: BasePart, c)
+local function buildGrasshopper(model: Model, root: BasePart, c, eyeStyle)
 	local thorax = createBodyPart(model, root, nil, "Thorax", Enum.PartType.Ball, Vector3.new(1.50, 1.12, 1.62), CFrame.new(0, 0.04, -0.50), c.body, nil, "BodyRoot")
 	local head = createBodyPart(model, root, thorax, "Head", Enum.PartType.Ball, Vector3.new(1.34, 1.12, 1.22), CFrame.new(0, 0.08, -1.72), c.accent, nil, "Head")
 	local abdomen = createBodyPart(model, root, thorax, "Abdomen", Enum.PartType.Ball, Vector3.new(1.42, 1.02, 2.80), CFrame.new(0, 0.04, 1.18), c.body, nil, "Abdomen")
-	createEye(model, root, head, Vector3.new(-0.49, 0.18, -2.14), 0.27)
-	createEye(model, root, head, Vector3.new(0.49, 0.18, -2.14), 0.27)
+	createEye(model, root, head, Vector3.new(-0.49, 0.18, -2.14), 0.27, eyeStyle)
+	createEye(model, root, head, Vector3.new(0.49, 0.18, -2.14), 0.27, eyeStyle)
 
 	for _, side in ipairs({ -1, 1 }) do
 		local wing = createPart(
@@ -304,7 +334,6 @@ local function createIdentityTag(player: Player, root: BasePart)
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "PlayerIdentity"
 	tag.Size = UDim2.fromOffset(280, 70)
-	-- Root follows actual character movement but does not inherit procedural bug bob.
 	tag.StudsOffsetWorldSpace = Vector3.new(0, 0.55, 0)
 	tag.AlwaysOnTop = true
 	tag.MaxDistance = 75
@@ -374,6 +403,7 @@ local function buildVisual(player: Player)
 	end
 	selectedBug = selectedBug or "Ant"
 	local palette = getPalette(player, selectedBug)
+	local eyeStyle = getEyeStyle(player)
 
 	local model = Instance.new("Model")
 	model.Name = VISUAL_MODEL_NAME
@@ -382,11 +412,11 @@ local function buildVisual(player: Player)
 	model.Parent = character
 
 	if selectedBug == "Beetle" then
-		buildBeetle(model, root, palette)
+		buildBeetle(model, root, palette, eyeStyle)
 	elseif selectedBug == "Grasshopper" then
-		buildGrasshopper(model, root, palette)
+		buildGrasshopper(model, root, palette, eyeStyle)
 	else
-		buildAnt(model, root, palette)
+		buildAnt(model, root, palette, eyeStyle)
 	end
 
 	createIdentityTag(player, root)
@@ -403,6 +433,9 @@ local function setupPlayer(player: Player)
 		task.defer(buildVisual, player)
 	end)
 	player:GetAttributeChangedSignal("BodyColor"):Connect(function()
+		task.defer(buildVisual, player)
+	end)
+	player:GetAttributeChangedSignal("EyeStyle"):Connect(function()
 		task.defer(buildVisual, player)
 	end)
 
