@@ -164,7 +164,7 @@ function AbilityController.Init(remotes)
 		if state == "Started" then
 			inRound = true
 			readyAt = 0
-		elseif state == "Ended" or state == "Eliminated" or state == "Waiting" or state == "Results" or state == "MatchInProgress" then
+		elseif state == "Ended" or state == "Eliminated" or state == "ExitedRound" or state == "Waiting" or state == "Results" or state == "MatchInProgress" then
 			inRound = false
 		end
 		refreshButton()
