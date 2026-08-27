@@ -110,15 +110,28 @@ local function publish(player: Player)
 		return
 	end
 
-	local dna = data.currency and data.currency.dna or 0
+	local currency = data.currency or {}
+	local stats = data.stats or {}
+	local dna = currency.dna or 0
+	local currentProgress = ProgressionConfig.GetLevelForDna(dna)
+	local nextProgress = ProgressionConfig.GetNextLevelForDna(dna)
+
 	data.progression = {
-		current = ProgressionConfig.GetLevelForDna(dna),
-		next = ProgressionConfig.GetNextLevelForDna(dna),
+		current = currentProgress,
+		next = nextProgress,
 	}
 
-	-- Replicated attribute gives the visual avatar layer a clean, read-only signal
-	-- whenever the pre-round bug selection changes.
+	-- Replicated attributes are the shared read-only identity/progression layer used
+	-- by overhead tags and future profile/customization UI for every player.
 	player:SetAttribute("SelectedBug", data.selectedBug or "Ant")
+	player:SetAttribute("BugLevel", currentProgress and currentProgress.level or 1)
+	player:SetAttribute("BugTitle", currentProgress and currentProgress.title or "Fresh Hatchling")
+	player:SetAttribute("RoundsPlayed", stats.roundsPlayed or 0)
+	player:SetAttribute("BestSurvival", stats.longestSurvival or 0)
+	player:SetAttribute("FoodCollected", stats.foodCollected or 0)
+	player:SetAttribute("TotalDna", dna)
+	player:SetAttribute("TotalCrumbs", currency.crumbs or 0)
+
 	applyCharacterTuning(player)
 
 	if remotes and remotes.PlayerDataChanged then
