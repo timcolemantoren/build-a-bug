@@ -21,7 +21,7 @@ local activePhaseName = nil
 
 local lastStatusText = "Build a Bug"
 local lastDataText = "DNA: 0 | Crumbs: 0 | Bug: Ant"
-local lastProgressText = "Lv 1 Fresh Hatchling | Next: 25 DNA"
+local lastProgressText = "Lv 1 Fresh Hatchling | Lifetime DNA: 0 / 25"
 local lastStatsText = "Rounds: 0 | Best: -- | Food: 0"
 
 local function makeLabel(parent: Instance, name: string, yOffset: number, height: number): TextLabel
@@ -111,6 +111,7 @@ local function ensureGui()
 
 	progressLabel = makeLabel(panel, "Progress", 72, 28)
 	progressLabel.Text = lastProgressText
+	progressLabel.TextSize = 13
 
 	statsLabel = makeLabel(panel, "Stats", 100, 28)
 	statsLabel.Text = lastStatsText
@@ -163,12 +164,14 @@ function HUDController.Init(remotes)
 		lastDataText = string.format("DNA: %s | Crumbs: %s | Bug: %s", dna, crumbs, selectedBug)
 		dataLabel.Text = lastDataText
 
-		local current = data.progression and data.progression.current
-		local nextLevel = data.progression and data.progression.next
+		local progression = data.progression or {}
+		local current = progression.current
+		local nextLevel = progression.next
+		local lifetimeDna = progression.lifetimeDna or (data.stats and data.stats.lifetimeDna) or dna
 		if current and nextLevel then
-			lastProgressText = string.format("Lv %s %s | Next: %s DNA", current.level or 1, current.title, nextLevel.dnaRequired)
+			lastProgressText = string.format("Lv %s %s | Lifetime DNA: %s / %s", current.level or 1, current.title, lifetimeDna, nextLevel.dnaRequired)
 		elseif current then
-			lastProgressText = string.format("Lv %s %s | Max Level", current.level or 1, current.title)
+			lastProgressText = string.format("Lv %s %s | Lifetime DNA: %s | Max Level", current.level or 1, current.title, lifetimeDna)
 		end
 		progressLabel.Text = lastProgressText
 
