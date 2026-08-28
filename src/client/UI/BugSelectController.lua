@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
 local BugOrder = require(BuildABugShared.Config.BugOrder)
+local PurchaseConfirmController = require(script.Parent.PurchaseConfirmController)
 
 local BugSelectController = {}
 
@@ -15,14 +16,18 @@ local panel = nil
 local expanded = false
 local details = {}
 local toggleButton = nil
+local statusLabel = nil
 local inRound = false
 local selectedBug = player:GetAttribute("SelectedBug") or "Ant"
+local currentData = nil
 local bugCards = {}
 
 local DEFAULT_CARD = Color3.fromRGB(55, 65, 58)
 local SELECTED_CARD = Color3.fromRGB(74, 103, 76)
+local LOCKED_CARD = Color3.fromRGB(46, 49, 47)
 local DEFAULT_STROKE = Color3.fromRGB(85, 96, 88)
 local SELECTED_STROKE = Color3.fromRGB(137, 174, 132)
+local LOCKED_STROKE = Color3.fromRGB(92, 82, 70)
 
 local function makeButton(parent: Instance, text: string, position: UDim2): TextButton
 	local button = Instance.new("TextButton")
@@ -37,11 +42,30 @@ local function makeButton(parent: Instance, text: string, position: UDim2): Text
 	return button
 end
 
+local function getUnlockedBugs()
+	local data = currentData or {}
+	return data.unlockedBugs or { Ant = true, Beetle = true, Grasshopper = true }
+end
+
+local function getAvailableDna(): number
+	local data = currentData or {}
+	local currency = data.currency or {}
+	return currency.dna or player:GetAttribute("TotalDna") or 0
+end
+
+local function isUnlocked(bugId: string): boolean
+	return getUnlockedBugs()[bugId] == true
+end
+
 local function getRoleLine(bugId: string): string
 	if bugId == "Beetle" then
 		return "Slower • 25% less hazard damage"
 	elseif bugId == "Grasshopper" then
 		return "Fastest • Highest jump"
+	elseif bugId == "Ladybug" then
+		return "Quick • 10% less hazard damage"
+	elseif bugId == "Mantis" then
+		return "Precise • Strong jump • Mid-speed"
 	end
 	return "Balanced speed • Reliable all-rounder"
 end
@@ -53,28 +77,43 @@ local function getPowerLine(bugId: string, bug): string
 		return "POWER: Shell Block | briefly shrugs off most damage"
 	elseif bugId == "Grasshopper" then
 		return "POWER: Leap | launch forward out of danger"
+	elseif bugId == "Ladybug" then
+		return "POWER: Wing Burst | short ground-speed boost"
+	elseif bugId == "Mantis" then
+		return "POWER: Pounce | fast low forward dash"
 	end
 
 	local ability = bug and bug.ability
 	return ability and ("POWER: " .. tostring(ability.displayName)) or ""
 end
 
+local function setStatus(text: string, warning: boolean?)
+	if statusLabel then
+		statusLabel.Text = text
+		statusLabel.TextColor3 = warning and Color3.fromRGB(255, 204, 145) or Color3.fromRGB(195, 225, 190)
+	end
+end
+
 local function refreshBugCards()
 	for bugId, card in pairs(bugCards) do
 		local bug = BugArchetypes[bugId]
 		if bug and card then
-			local isSelected = bugId == selectedBug
-			card.button.BackgroundColor3 = isSelected and SELECTED_CARD or DEFAULT_CARD
-			card.stroke.Color = isSelected and SELECTED_STROKE or DEFAULT_STROKE
+			local unlocked = isUnlocked(bugId)
+			local isSelected = unlocked and bugId == selectedBug
+			card.button.BackgroundColor3 = isSelected and SELECTED_CARD or (unlocked and DEFAULT_CARD or LOCKED_CARD)
+			card.stroke.Color = isSelected and SELECTED_STROKE or (unlocked and DEFAULT_STROKE or LOCKED_STROKE)
 			card.stroke.Thickness = isSelected and 2 or 1
-			local prefix = isSelected and "SELECTED • " or ""
-			card.label.Text = string.format(
-				"%s%s\n%s\n%s",
-				prefix,
-				bug.displayName,
-				getRoleLine(bugId),
-				getPowerLine(bugId, bug)
-			)
+
+			local heading
+			if isSelected then
+				heading = "SELECTED • " .. bug.displayName
+			elseif unlocked then
+				heading = bug.displayName
+			else
+				heading = string.format("LOCKED • %s DNA • %s", tostring(bug.unlockCost or 0), bug.displayName)
+			end
+
+			card.label.Text = string.format("%s\n%s\n%s", heading, getRoleLine(bugId), getPowerLine(bugId, bug))
 		end
 	end
 end
@@ -91,8 +130,8 @@ local function applyLayout()
 	end
 
 	if expanded then
-		panel.Size = UDim2.fromOffset(344, 418)
-		panel.Position = UDim2.new(1, -356, 0, 14)
+		panel.Size = UDim2.fromOffset(356, 510)
+		panel.Position = UDim2.new(1, -370, 0, 14)
 		toggleButton.Text = "Close"
 	else
 		panel.Size = UDim2.fromOffset(96, 44)
@@ -135,7 +174,7 @@ local function ensureGui(remotes)
 
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
-	title.Size = UDim2.fromOffset(316, 30)
+	title.Size = UDim2.fromOffset(328, 30)
 	title.Position = UDim2.fromOffset(14, 44)
 	title.BackgroundTransparency = 1
 	title.Text = "Choose Your Play Style"
@@ -146,20 +185,31 @@ local function ensureGui(remotes)
 	title.Parent = panel
 	table.insert(details, title)
 
-	local y = 78
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "BugCards"
+	scroll.Position = UDim2.fromOffset(12, 78)
+	scroll.Size = UDim2.new(1, -24, 0, 330)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 4
+	scroll.CanvasSize = UDim2.fromOffset(0, (#BugOrder * 92) + 4)
+	scroll.Parent = panel
+	table.insert(details, scroll)
+
+	local y = 0
 	for _, bugId in ipairs(BugOrder) do
 		local currentBugId = bugId
 		local bug = BugArchetypes[currentBugId]
 		if bug then
 			local button = Instance.new("TextButton")
 			button.Name = currentBugId .. "Card"
-			button.Size = UDim2.fromOffset(316, 86)
-			button.Position = UDim2.fromOffset(14, y)
+			button.Size = UDim2.new(1, -8, 0, 86)
+			button.Position = UDim2.fromOffset(0, y)
 			button.BackgroundTransparency = 0.04
 			button.BackgroundColor3 = DEFAULT_CARD
 			button.Text = ""
 			button.AutoButtonColor = false
-			button.Parent = panel
+			button.Parent = scroll
 
 			local stroke = Instance.new("UIStroke")
 			stroke.Color = DEFAULT_STROKE
@@ -174,7 +224,7 @@ local function ensureGui(remotes)
 			label.BackgroundTransparency = 1
 			label.TextColor3 = Color3.fromRGB(255, 255, 255)
 			label.Font = Enum.Font.GothamBold
-			label.TextSize = 14
+			label.TextSize = 13
 			label.TextWrapped = true
 			label.TextXAlignment = Enum.TextXAlignment.Left
 			label.TextYAlignment = Enum.TextYAlignment.Center
@@ -184,27 +234,61 @@ local function ensureGui(remotes)
 				if inRound then
 					return
 				end
-				selectedBug = currentBugId
-				refreshBugCards()
-				remotes.SelectBugLoadout:FireServer(currentBugId)
+
+				if isUnlocked(currentBugId) then
+					selectedBug = currentBugId
+					refreshBugCards()
+					remotes.SelectBugLoadout:FireServer(currentBugId)
+					setStatus("Selected " .. bug.displayName .. ".", false)
+					return
+				end
+
+				local cost = math.max(0, bug.unlockCost or 0)
+				local dna = getAvailableDna()
+				if dna < cost then
+					setStatus(string.format("Need %s more DNA to unlock %s.", tostring(cost - dna), bug.displayName), true)
+					return
+				end
+
+				PurchaseConfirmController.Request({ itemName = bug.displayName, cost = cost, balance = dna }, function()
+					if inRound or isUnlocked(currentBugId) then
+						return
+					end
+					if getAvailableDna() < cost then
+						setStatus("Your DNA balance changed. Unlock cancelled.", true)
+						return
+					end
+					remotes.PurchaseBug:FireServer(currentBugId)
+					setStatus("Unlocking " .. bug.displayName .. "...", false)
+				end)
+				setStatus("Review the bug unlock and choose Buy or Cancel.", false)
 			end)
 
-			bugCards[currentBugId] = {
-				button = button,
-				label = label,
-				stroke = stroke,
-			}
-			table.insert(details, button)
+			bugCards[currentBugId] = { button = button, label = label, stroke = stroke }
 			y += 92
 		end
 	end
 
-	local startButton = makeButton(panel, "Join Next Match", UDim2.fromOffset(77, 360))
-	startButton.Size = UDim2.fromOffset(190, 42)
+	statusLabel = Instance.new("TextLabel")
+	statusLabel.Name = "Status"
+	statusLabel.Size = UDim2.new(1, -28, 0, 36)
+	statusLabel.Position = UDim2.fromOffset(14, 414)
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Text = "Starter bugs are free. Unlock new sidegrades with DNA."
+	statusLabel.TextColor3 = Color3.fromRGB(195, 225, 190)
+	statusLabel.Font = Enum.Font.Gotham
+	statusLabel.TextSize = 11
+	statusLabel.TextWrapped = true
+	statusLabel.Parent = panel
+	table.insert(details, statusLabel)
+
+	local startButton = makeButton(panel, "Join Next Match", UDim2.fromOffset(83, 458))
+	startButton.Size = UDim2.fromOffset(190, 40)
 	startButton.MouseButton1Click:Connect(function()
 		if inRound then
 			return
 		end
+		PurchaseConfirmController.Cancel()
 		remotes.StartRoundRequest:FireServer()
 		expanded = false
 		applyLayout()
@@ -224,12 +308,14 @@ function BugSelectController.Init(remotes)
 	end)
 
 	remotes.PlayerDataChanged.OnClientEvent:Connect(function(data)
+		currentData = data
 		selectedBug = data.selectedBug or selectedBug
 		refreshBugCards()
 	end)
 
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, _payload)
 		if state == "Started" then
+			PurchaseConfirmController.Cancel()
 			inRound = true
 			expanded = false
 		elseif state == "Ended" or state == "Eliminated" or state == "ExitedRound" or state == "Waiting" or state == "Results" or state == "MatchInProgress" then
