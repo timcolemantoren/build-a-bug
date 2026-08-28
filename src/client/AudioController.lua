@@ -58,6 +58,14 @@ local function playDamageCue(damageAmount: number)
 	end
 end
 
+local function playPillbugRollCue()
+	if not inRound or player:GetAttribute("SelectedBug") ~= "Pillbug" then
+		return
+	end
+	playOneShot(SOUND.Bass, 0.52, 1.58, 2)
+	playPingSequence({ 0.76, 0.82, 0.88, 0.95, 1.02 }, 0.13, 0.28)
+end
+
 local function disconnectHealth()
 	if healthConnection then
 		healthConnection:Disconnect()
@@ -190,6 +198,7 @@ function AudioController.Init(remotes)
 		bindCharacter(player.Character)
 	end
 
+	player:GetAttributeChangedSignal("PillbugRollNonce"):Connect(playPillbugRollCue)
 	remotes.RoundStateChanged.OnClientEvent:Connect(playPhaseCue)
 	remotes.HazardWarning.OnClientEvent:Connect(playHazardCue)
 end
