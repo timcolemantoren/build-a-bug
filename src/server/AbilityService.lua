@@ -187,6 +187,57 @@ local function useMantisPounce(player: Player)
 	burstAtRoot(player, Color3.fromRGB(185, 255, 90))
 end
 
+local function useDragonflyAirDash(player: Player)
+	local rootPart = getRootPart(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not rootPart then
+		return
+	end
+
+	local forward = rootPart.CFrame.LookVector
+	if humanoid then
+		humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+	end
+	rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 1.4, 0)
+	rootPart.AssemblyLinearVelocity = Vector3.new(forward.X * 128, 58, forward.Z * 128)
+	glowCharacter(player, Color3.fromRGB(88, 225, 255), 0.85, "DragonflyDashGlow")
+	burstAtRoot(player, Color3.fromRGB(88, 225, 255))
+end
+
+local function usePillbugRollAway(player: Player, bug)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local rootPart = getRootPart(player)
+	if not humanoid or not rootPart then
+		return
+	end
+
+	local duration = bug.ability and bug.ability.durationSeconds or 2.4
+	local boostSpeed = bug.ability and bug.ability.boostSpeed or 24
+	local forward = rootPart.CFrame.LookVector
+
+	-- Reuse the existing protected-window attribute so hazard damage respects the
+	-- armored roll without adding a second damage-reduction implementation.
+	player:SetAttribute("ShellBlockUntil", os.clock() + duration)
+	humanoid.WalkSpeed = boostSpeed
+	rootPart.AssemblyLinearVelocity = Vector3.new(forward.X * 46, 12, forward.Z * 46)
+	glowCharacter(player, Color3.fromRGB(188, 164, 128), duration, "PillbugRollGlow")
+	burstAtRoot(player, Color3.fromRGB(188, 164, 128))
+
+	task.delay(duration, function()
+		if player.Parent ~= Players or player:GetAttribute("InRound") ~= true then
+			return
+		end
+		local currentId, currentBug = getBugForPlayer(player)
+		local currentCharacter = player.Character
+		local currentHumanoid = currentCharacter and currentCharacter:FindFirstChildOfClass("Humanoid")
+		if currentId == "Pillbug" and currentBug and currentHumanoid then
+			currentHumanoid.WalkSpeed = currentBug.movementSpeed or 13
+		end
+	end)
+end
+
 function AbilityService.Init(remoteEvents, playerDataService)
 	PlayerDataService = playerDataService
 
@@ -217,6 +268,10 @@ function AbilityService.Init(remoteEvents, playerDataService)
 			useLadybugWingBurst(player, bug)
 		elseif bugId == "Mantis" then
 			useMantisPounce(player)
+		elseif bugId == "Dragonfly" then
+			useDragonflyAirDash(player)
+		elseif bugId == "Pillbug" then
+			usePillbugRollAway(player, bug)
 		end
 	end)
 end
