@@ -33,9 +33,7 @@ local function getCooldown(player: Player): number
 end
 
 local function setCooldown(player: Player, seconds: number)
-	cooldownsByUserId[player.UserId] = {
-		readyAt = os.clock() + seconds,
-	}
+	cooldownsByUserId[player.UserId] = { readyAt = os.clock() + seconds }
 end
 
 local function isReady(player: Player): boolean
@@ -145,6 +143,50 @@ local function useGrasshopperLeap(player: Player)
 	burstAtRoot(player, Color3.fromRGB(90, 255, 95))
 end
 
+local function useLadybugWingBurst(player: Player, bug)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+
+	local duration = bug.ability and bug.ability.durationSeconds or 3.5
+	local boostSpeed = bug.ability and bug.ability.boostSpeed or 25
+	humanoid.WalkSpeed = boostSpeed
+	glowCharacter(player, Color3.fromRGB(255, 92, 88), duration, "LadybugWingBurstGlow")
+	burstAtRoot(player, Color3.fromRGB(255, 92, 88))
+
+	task.delay(duration, function()
+		if player.Parent ~= Players or player:GetAttribute("InRound") ~= true then
+			return
+		end
+		local currentId, currentBug = getBugForPlayer(player)
+		local currentCharacter = player.Character
+		local currentHumanoid = currentCharacter and currentCharacter:FindFirstChildOfClass("Humanoid")
+		if currentId == "Ladybug" and currentBug and currentHumanoid then
+			currentHumanoid.WalkSpeed = currentBug.movementSpeed or 17
+		end
+	end)
+end
+
+local function useMantisPounce(player: Player)
+	local rootPart = getRootPart(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not rootPart then
+		return
+	end
+
+	local forward = rootPart.CFrame.LookVector
+	if humanoid then
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+	rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 0.8, 0)
+	rootPart.AssemblyLinearVelocity = Vector3.new(forward.X * 94, 42, forward.Z * 94)
+	glowCharacter(player, Color3.fromRGB(185, 255, 90), 0.7, "MantisPounceGlow")
+	burstAtRoot(player, Color3.fromRGB(185, 255, 90))
+end
+
 function AbilityService.Init(remoteEvents, playerDataService)
 	PlayerDataService = playerDataService
 
@@ -153,7 +195,6 @@ function AbilityService.Init(remoteEvents, playerDataService)
 	end)
 
 	remoteEvents.UseAbility.OnServerEvent:Connect(function(player: Player)
-		-- Abilities are match mechanics. This also prevents Ant from farming DNA in the lobby.
 		if player:GetAttribute("InRound") ~= true then
 			return
 		end
@@ -172,6 +213,10 @@ function AbilityService.Init(remoteEvents, playerDataService)
 			useBeetleShellBlock(player, bug)
 		elseif bugId == "Grasshopper" then
 			useGrasshopperLeap(player)
+		elseif bugId == "Ladybug" then
+			useLadybugWingBurst(player, bug)
+		elseif bugId == "Mantis" then
+			useMantisPounce(player)
 		end
 	end)
 end
