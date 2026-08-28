@@ -62,6 +62,9 @@ local function playPhaseCue(state: string, payload)
 		elseif eventId == "CrumbShower" then
 			playPingSequence({ 0.95, 1.06, 1.17 }, 0.10, 0.5)
 		end
+	elseif state == "AchievementUnlocked" then
+		playOneShot(SOUND.Bass, 0.48, 1.32, 2)
+		playPingSequence({ 1.05, 1.28, 1.56, 1.92 }, 0.10, 0.72)
 	elseif state == "Eliminated" then
 		playOneShot(SOUND.Bass, 0.95, 0.48, 3)
 		task.delay(0.06, function()
