@@ -61,11 +61,15 @@ local function getRoleLine(bugId: string): string
 	if bugId == "Beetle" then
 		return "Slower • 25% less hazard damage"
 	elseif bugId == "Grasshopper" then
-		return "Fastest • Highest jump"
+		return "Fastest starter • Highest jump"
 	elseif bugId == "Ladybug" then
 		return "Quick • 10% less hazard damage"
 	elseif bugId == "Mantis" then
 		return "Precise • Strong jump • Mid-speed"
+	elseif bugId == "Dragonfly" then
+		return "Very fast • Strong jump • Risky escape specialist"
+	elseif bugId == "Pillbug" then
+		return "Slow • Armored • 18% less hazard damage"
 	end
 	return "Balanced speed • Reliable all-rounder"
 end
@@ -81,6 +85,10 @@ local function getPowerLine(bugId: string, bug): string
 		return "POWER: Wing Burst | short ground-speed boost"
 	elseif bugId == "Mantis" then
 		return "POWER: Pounce | fast low forward dash"
+	elseif bugId == "Dragonfly" then
+		return "POWER: Air Dash | fast forward and upward escape"
+	elseif bugId == "Pillbug" then
+		return "POWER: Roll Away | protected forward burst"
 	end
 
 	local ability = bug and bug.ability
