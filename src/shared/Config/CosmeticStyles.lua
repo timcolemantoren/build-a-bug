@@ -1,16 +1,10 @@
 --!strict
 
 -- Cosmetic-only visual styles shared by server and client.
--- These never change movement, health, damage, rewards, or abilities.
+-- Prices, rarity, Robux products, and store availability live in CosmeticCatalog.
+-- These styles never change movement, health, damage, rewards, or abilities.
 
 local CosmeticStyles = {}
-
-CosmeticStyles.BodyColorOrder = {
-	"Natural",
-	"Ruby",
-	"Moss",
-	"Midnight",
-}
 
 CosmeticStyles.BodyColors = {
 	Natural = {
@@ -18,7 +12,6 @@ CosmeticStyles.BodyColors = {
 		displayName = "Natural",
 		previewColor = Color3.fromRGB(118, 102, 76),
 		useBugPalette = true,
-		cost = 0,
 	},
 	Ruby = {
 		id = "Ruby",
@@ -27,7 +20,6 @@ CosmeticStyles.BodyColors = {
 		body = Color3.fromRGB(132, 50, 55),
 		dark = Color3.fromRGB(67, 27, 31),
 		accent = Color3.fromRGB(178, 78, 73),
-		cost = 75,
 	},
 	Moss = {
 		id = "Moss",
@@ -36,7 +28,6 @@ CosmeticStyles.BodyColors = {
 		body = Color3.fromRGB(73, 112, 62),
 		dark = Color3.fromRGB(37, 64, 38),
 		accent = Color3.fromRGB(126, 151, 83),
-		cost = 175,
 	},
 	Midnight = {
 		id = "Midnight",
@@ -45,15 +36,7 @@ CosmeticStyles.BodyColors = {
 		body = Color3.fromRGB(48, 56, 82),
 		dark = Color3.fromRGB(23, 27, 43),
 		accent = Color3.fromRGB(91, 101, 142),
-		cost = 350,
 	},
-}
-
-CosmeticStyles.EyeStyleOrder = {
-	"Default",
-	"Googly",
-	"Amber",
-	"Neon",
 }
 
 CosmeticStyles.EyeStyles = {
@@ -61,7 +44,6 @@ CosmeticStyles.EyeStyles = {
 		id = "Default",
 		displayName = "Classic",
 		previewColor = Color3.fromRGB(20, 20, 22),
-		cost = 0,
 		kind = "solid",
 		color = Color3.fromRGB(16, 16, 18),
 		sizeMultiplier = 1,
@@ -71,7 +53,6 @@ CosmeticStyles.EyeStyles = {
 		id = "Googly",
 		displayName = "Googly",
 		previewColor = Color3.fromRGB(235, 235, 228),
-		cost = 125,
 		kind = "googly",
 		color = Color3.fromRGB(238, 238, 232),
 		pupilColor = Color3.fromRGB(18, 18, 20),
@@ -82,7 +63,6 @@ CosmeticStyles.EyeStyles = {
 		id = "Amber",
 		displayName = "Amber",
 		previewColor = Color3.fromRGB(226, 151, 45),
-		cost = 275,
 		kind = "solid",
 		color = Color3.fromRGB(226, 151, 45),
 		sizeMultiplier = 1.12,
@@ -92,10 +72,40 @@ CosmeticStyles.EyeStyles = {
 		id = "Neon",
 		displayName = "Neon Blue",
 		previewColor = Color3.fromRGB(73, 205, 255),
-		cost = 600,
 		kind = "glow",
 		color = Color3.fromRGB(73, 205, 255),
 		sizeMultiplier = 1.18,
+		material = Enum.Material.Neon,
+	},
+}
+
+CosmeticStyles.PatternStyles = {
+	None = {
+		id = "None",
+		displayName = "No Pattern",
+		previewColor = Color3.fromRGB(96, 96, 96),
+		kind = "none",
+	},
+	BackyardStripe = {
+		id = "BackyardStripe",
+		displayName = "Backyard Stripe",
+		previewColor = Color3.fromRGB(224, 209, 145),
+		kind = "stripe",
+		color = Color3.fromRGB(224, 209, 145),
+	},
+	Speckles = {
+		id = "Speckles",
+		displayName = "Speckles",
+		previewColor = Color3.fromRGB(228, 226, 216),
+		kind = "speckles",
+		color = Color3.fromRGB(228, 226, 216),
+	},
+	Sunmark = {
+		id = "Sunmark",
+		displayName = "Golden Mark",
+		previewColor = Color3.fromRGB(255, 190, 54),
+		kind = "sunmark",
+		color = Color3.fromRGB(255, 190, 54),
 		material = Enum.Material.Neon,
 	},
 }
@@ -108,17 +118,19 @@ function CosmeticStyles.IsValidEyeStyle(styleId: string): boolean
 	return CosmeticStyles.EyeStyles[styleId] ~= nil
 end
 
-function CosmeticStyles.GetItem(slot: string, styleId: string)
+function CosmeticStyles.IsValidPatternStyle(styleId: string): boolean
+	return CosmeticStyles.PatternStyles[styleId] ~= nil
+end
+
+function CosmeticStyles.GetStyle(slot: string, styleId: string)
 	if slot == "BodyColor" then
 		return CosmeticStyles.BodyColors[styleId]
 	elseif slot == "Eyes" then
 		return CosmeticStyles.EyeStyles[styleId]
+	elseif slot == "Pattern" then
+		return CosmeticStyles.PatternStyles[styleId]
 	end
 	return nil
-end
-
-function CosmeticStyles.GetUnlockKey(slot: string, styleId: string): string
-	return slot .. ":" .. styleId
 end
 
 return CosmeticStyles
