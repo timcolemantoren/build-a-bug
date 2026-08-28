@@ -34,6 +34,14 @@ local HazardConfig = {
 		damage = 22,
 		description = "A giant toy ball rolls through the yard. Get out of its path.",
 	},
+
+	Raindrop = {
+		id = "Raindrop",
+		displayName = "Giant Raindrop",
+		warningSeconds = 2.0,
+		damage = 16,
+		description = "A huge drop falls from above and splashes where the blue marker appears.",
+	},
 }
 
 return HazardConfig
