@@ -11,6 +11,10 @@ AchievementConfig.Order = {
 	"YardRegular",
 	"SnackStack",
 	"DnaCollector",
+	"SeasonedSurvivor",
+	"YardVeteran",
+	"CrumbChampion",
+	"DnaLegend",
 }
 
 AchievementConfig.Items = {
@@ -53,6 +57,46 @@ AchievementConfig.Items = {
 		rewardSlot = "BodyColor",
 		rewardId = "Electric",
 		rewardName = "Electric Body Color",
+	},
+	SeasonedSurvivor = {
+		id = "SeasonedSurvivor",
+		displayName = "Seasoned Survivor",
+		description = "Survive 10 full rounds.",
+		kind = "fullRoundsSurvived",
+		target = 10,
+		rewardSlot = "Eyes",
+		rewardId = "Starshine",
+		rewardName = "Starshine Eyes",
+	},
+	YardVeteran = {
+		id = "YardVeteran",
+		displayName = "Yard Veteran",
+		description = "Play 25 rounds.",
+		kind = "roundsPlayed",
+		target = 25,
+		rewardSlot = "Eyes",
+		rewardId = "Frost",
+		rewardName = "Frost Eyes",
+	},
+	CrumbChampion = {
+		id = "CrumbChampion",
+		displayName = "Crumb Champion",
+		description = "Collect 500 food.",
+		kind = "foodCollected",
+		target = 500,
+		rewardSlot = "BodyColor",
+		rewardId = "Mint",
+		rewardName = "Mint Body Color",
+	},
+	DnaLegend = {
+		id = "DnaLegend",
+		displayName = "DNA Legend",
+		description = "Earn 2,500 Lifetime DNA.",
+		kind = "lifetimeDna",
+		target = 2500,
+		rewardSlot = "BodyColor",
+		rewardId = "Royal",
+		rewardName = "Royal Purple Body Color",
 	},
 }
 
