@@ -243,11 +243,11 @@ function HUDController.Init(remotes)
 
 	remotes.HazardWarning.OnClientEvent:Connect(function(hazard)
 		ensureGui()
-		if player:GetAttribute("InRound") ~= true then
+		if player:GetAttribute("InRound") ~= true or (hazard.stage or "Warning") ~= "Warning" then
 			return
 		end
 
-		hazardLabel.Text = "Hazard: " .. tostring(hazard.displayName) .. "!"
+		hazardLabel.Text = tostring(hazard.displayName) .. ": " .. tostring(hazard.instruction or "MOVE!")
 		if not expanded then
 			setStatus("Hazard: " .. tostring(hazard.displayName))
 		end
