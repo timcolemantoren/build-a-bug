@@ -39,7 +39,7 @@ local remotes = nil
 
 local function makeDefaultData()
 	return {
-		version = 3,
+		version = 4,
 		selectedBug = "Ant",
 		currency = {
 			dna = 0,
@@ -55,6 +55,7 @@ local function makeDefaultData()
 			[CosmeticCatalog.GetUnlockKey("Eyes", "Default")] = true,
 			[CosmeticCatalog.GetUnlockKey("Pattern", "None")] = true,
 		},
+		achievements = {},
 		cosmetics = {
 			bodyColor = "Natural",
 			eyes = "Default",
@@ -71,6 +72,7 @@ local function makeDefaultData()
 		},
 		stats = {
 			roundsPlayed = 0,
+			fullRoundsSurvived = 0,
 			longestSurvival = 0,
 			foodCollected = 0,
 			lifetimeDna = 0,
@@ -88,15 +90,27 @@ local function isCosmeticOwned(data, slot: string, styleId: string): boolean
 	if not item then
 		return false
 	end
+
+	local key = CosmeticCatalog.GetUnlockKey(slot, styleId)
+	if item.unlockType == "achievement" then
+		return data.unlockedCosmetics and data.unlockedCosmetics[key] == true
+	end
+
 	if (item.dnaCost or 0) <= 0 then
 		return true
 	end
-	local key = CosmeticCatalog.GetUnlockKey(slot, styleId)
 	return data.unlockedCosmetics and data.unlockedCosmetics[key] == true
 end
 
+local function grandfatherEquippedIfAppropriate(data, slot: string, styleId: string)
+	local item = CosmeticCatalog.GetItem(slot, styleId)
+	if item and item.unlockType ~= "achievement" then
+		markCosmeticOwned(data, slot, styleId)
+	end
+end
+
 local function normalizeData(data)
-	data.version = 3
+	data.version = 4
 	data.selectedBug = BugArchetypes[data.selectedBug] and data.selectedBug or "Ant"
 
 	data.currency = data.currency or {}
@@ -108,6 +122,7 @@ local function normalizeData(data)
 	data.unlockedBugs.Beetle = data.unlockedBugs.Beetle ~= false
 	data.unlockedBugs.Grasshopper = data.unlockedBugs.Grasshopper ~= false
 	data.unlockedCosmetics = data.unlockedCosmetics or {}
+	data.achievements = data.achievements or {}
 
 	data.cosmetics = data.cosmetics or {}
 	local bodyColor = data.cosmetics.bodyColor or "Natural"
@@ -126,18 +141,19 @@ local function normalizeData(data)
 	data.cosmetics.eyes = eyes
 	data.cosmetics.pattern = pattern
 
-	-- Free defaults are always owned. Existing equipped cosmetics are grandfathered
-	-- so adding the shop/catalog never removes a look a player was already using.
+	-- Free defaults are always owned. Existing paid equipped cosmetics are
+	-- grandfathered, but achievement-only cosmetics are never granted by migration.
 	markCosmeticOwned(data, "BodyColor", "Natural")
 	markCosmeticOwned(data, "Eyes", "Default")
 	markCosmeticOwned(data, "Pattern", "None")
-	markCosmeticOwned(data, "BodyColor", bodyColor)
-	markCosmeticOwned(data, "Eyes", eyes)
-	markCosmeticOwned(data, "Pattern", pattern)
+	grandfatherEquippedIfAppropriate(data, "BodyColor", bodyColor)
+	grandfatherEquippedIfAppropriate(data, "Eyes", eyes)
+	grandfatherEquippedIfAppropriate(data, "Pattern", pattern)
 
 	data.savedBuilds = data.savedBuilds or {}
 	data.stats = data.stats or {}
 	data.stats.roundsPlayed = data.stats.roundsPlayed or 0
+	data.stats.fullRoundsSurvived = data.stats.fullRoundsSurvived or 0
 	data.stats.longestSurvival = data.stats.longestSurvival or 0
 	data.stats.foodCollected = data.stats.foodCollected or 0
 
@@ -203,6 +219,16 @@ local function applyCharacterTuning(player: Player)
 	end
 end
 
+local function countAchievements(data): number
+	local count = 0
+	for _, completed in pairs(data.achievements or {}) do
+		if completed == true then
+			count += 1
+		end
+	end
+	return count
+end
+
 local function publish(player: Player)
 	local data = playerDataByUserId[player.UserId]
 	if not data then
@@ -230,11 +256,13 @@ local function publish(player: Player)
 	player:SetAttribute("BugLevel", currentProgress and currentProgress.level or 1)
 	player:SetAttribute("BugTitle", currentProgress and currentProgress.title or "Fresh Hatchling")
 	player:SetAttribute("RoundsPlayed", stats.roundsPlayed or 0)
+	player:SetAttribute("FullRoundsSurvived", stats.fullRoundsSurvived or 0)
 	player:SetAttribute("BestSurvival", stats.longestSurvival or 0)
 	player:SetAttribute("FoodCollected", stats.foodCollected or 0)
 	player:SetAttribute("LifetimeDna", lifetimeDna)
 	player:SetAttribute("TotalDna", dna)
 	player:SetAttribute("TotalCrumbs", currency.crumbs or 0)
+	player:SetAttribute("AchievementsUnlocked", countAchievements(data))
 
 	applyCharacterTuning(player)
 
@@ -300,6 +328,30 @@ function PlayerDataService.GrantCosmetic(player: Player, slot: string, value: st
 	if equip == true and player:GetAttribute("InRound") ~= true then
 		setEquippedCosmetic(data, slot, value)
 	end
+	publish(player)
+	return true
+end
+
+function PlayerDataService.UnlockAchievement(player: Player, achievementId: string, rewardSlot: string?, rewardId: string?): boolean
+	local data = PlayerDataService.GetData(player)
+	if not data then
+		return false
+	end
+
+	data.achievements = data.achievements or {}
+	if data.achievements[achievementId] == true then
+		return false
+	end
+
+	data.achievements[achievementId] = true
+	if rewardSlot and rewardId then
+		local item = CosmeticCatalog.GetItem(rewardSlot, rewardId)
+		local style = CosmeticStyles.GetStyle(rewardSlot, rewardId)
+		if item and style then
+			markCosmeticOwned(data, rewardSlot, rewardId)
+		end
+	end
+
 	publish(player)
 	return true
 end
@@ -410,13 +462,16 @@ function PlayerDataService.RestoreRoundSnapshot(player: Player, snapshot)
 	publish(player)
 end
 
-function PlayerDataService.TrackRoundPlayed(player: Player, survivedSeconds: number)
+function PlayerDataService.TrackRoundPlayed(player: Player, survivedSeconds: number, survivedFullRound: boolean?)
 	local data = PlayerDataService.GetData(player)
 	if not data then
 		return
 	end
 
 	data.stats.roundsPlayed += 1
+	if survivedFullRound == true then
+		data.stats.fullRoundsSurvived = (data.stats.fullRoundsSurvived or 0) + 1
+	end
 	data.stats.longestSurvival = math.max(data.stats.longestSurvival, survivedSeconds)
 	publish(player)
 end
