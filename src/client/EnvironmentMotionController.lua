@@ -1,10 +1,12 @@
 --!nonstrict
 
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local EnvironmentMotionController = {}
 
+local player = Players.LocalPlayer
 local activeTweens = {}
 
 local function startSway(part: BasePart, degrees: number, duration: number)
@@ -118,14 +120,47 @@ local function dripLoop(arena: Instance)
 	end)
 end
 
-function EnvironmentMotionController.Init()
-	local arena = Workspace:FindFirstChild("BuildABugArena") or Workspace:WaitForChild("BuildABugArena", 10)
-	if not arena then
+local function applyGrassFlick(payload)
+	payload = payload or {}
+	local velocity = payload.velocity
+	if typeof(velocity) ~= "Vector3" then
 		return
 	end
 
-	addSubtleFoliageMotion(arena)
-	dripLoop(arena)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not root or not root:IsA("BasePart") or not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+	root.AssemblyLinearVelocity = velocity
+	root:ApplyImpulse(velocity * root.AssemblyMass * 0.55)
+
+	-- Reinforce on the owning client after one physics beat so normal movement input
+	-- cannot erase the launch immediately.
+	task.delay(0.07, function()
+		if root and root.Parent and player:GetAttribute("InRound") == true then
+			root.AssemblyLinearVelocity = root.AssemblyLinearVelocity:Lerp(velocity, 0.72)
+		end
+	end)
+end
+
+function EnvironmentMotionController.Init(remotes)
+	local arena = Workspace:FindFirstChild("BuildABugArena") or Workspace:WaitForChild("BuildABugArena", 10)
+	if arena then
+		addSubtleFoliageMotion(arena)
+		dripLoop(arena)
+	end
+
+	if remotes and remotes.RoundStateChanged then
+		remotes.RoundStateChanged.OnClientEvent:Connect(function(state, payload)
+			if state == "GrassFlick" then
+				applyGrassFlick(payload)
+			end
+		end)
+	end
 end
 
 return EnvironmentMotionController
