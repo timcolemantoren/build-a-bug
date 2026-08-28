@@ -7,6 +7,16 @@ local Workspace = game:GetService("Workspace")
 local InteractiveFoliageService = {}
 
 local connectedParts = {}
+local grassBlades = {}
+local nextFlickAtByUserId = {}
+local random = Random.new()
+
+local FLICK_SEARCH_RADIUS = 22
+local FLICK_MIN_INTERVAL = 18
+local FLICK_MAX_INTERVAL = 34
+local FLICK_DAMAGE = 6
+local FLICK_HORIZONTAL_SPEED = 48
+local FLICK_UP_SPEED = 20
 
 local function getArena(): Folder?
 	return Workspace:FindFirstChild("BuildABugArena")
@@ -18,7 +28,7 @@ local function isPlayerPart(hit: BasePart): boolean
 end
 
 local function fallBlade(blade: BasePart, hit: BasePart)
-	if blade:GetAttribute("Fallen") then
+	if blade:GetAttribute("Fallen") or blade:GetAttribute("Flicking") then
 		return
 	end
 
@@ -64,9 +74,179 @@ local function fallBlade(blade: BasePart, hit: BasePart)
 	end)
 end
 
+local function getHorizontalDirection(fromPosition: Vector3, toPosition: Vector3): Vector3
+	local offset = Vector3.new(toPosition.X - fromPosition.X, 0, toPosition.Z - fromPosition.Z)
+	if offset.Magnitude < 0.1 then
+		local angle = random:NextNumber(0, math.pi * 2)
+		return Vector3.new(math.cos(angle), 0, math.sin(angle))
+	end
+	return offset.Unit
+end
+
+local function getPivotedCFrame(originalCFrame: CFrame, height: number, direction: Vector3, angleDegrees: number): CFrame
+	local basePosition = originalCFrame:PointToWorldSpace(Vector3.new(0, -height / 2, 0))
+	local localDirection = originalCFrame:VectorToObjectSpace(direction)
+	local axis = Vector3.new(-localDirection.Z, 0, localDirection.X)
+	if axis.Magnitude < 0.05 then
+		axis = Vector3.xAxis
+	else
+		axis = axis.Unit
+	end
+
+	local rotation = CFrame.fromAxisAngle(axis, math.rad(angleDegrees))
+	local baseFrame = originalCFrame * CFrame.new(0, -height / 2, 0)
+	return baseFrame * rotation * CFrame.new(0, height / 2, 0)
+end
+
+local function flickBladeAtPlayer(blade: BasePart, player: Player)
+	if not blade.Parent or blade:GetAttribute("Fallen") or blade:GetAttribute("Flicking") then
+		return false
+	end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not root or not root:IsA("BasePart") or not humanoid or humanoid.Health <= 0 then
+		return false
+	end
+
+	local distance = (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(blade.Position.X, 0, blade.Position.Z)).Magnitude
+	if distance > FLICK_SEARCH_RADIUS + 4 then
+		return false
+	end
+
+	blade:SetAttribute("Flicking", true)
+	local originalCFrame = blade.CFrame
+	local originalColor = blade.Color
+	local height = blade.Size.Y
+	local towardPlayer = getHorizontalDirection(blade.Position, root.Position)
+	local awayFromPlayer = -towardPlayer
+
+	-- A short visible coil gives the player just enough warning that the flick feels
+	-- like a backyard event rather than invisible random physics.
+	local coilCFrame = getPivotedCFrame(originalCFrame, height, awayFromPlayer, 16)
+	local snapCFrame = getPivotedCFrame(originalCFrame, height, towardPlayer, 24)
+	local warningColor = originalColor:Lerp(Color3.fromRGB(155, 210, 85), 0.42)
+
+	local coilTween = TweenService:Create(
+		blade,
+		TweenInfo.new(0.34, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ CFrame = coilCFrame, Color = warningColor }
+	)
+	coilTween:Play()
+	coilTween.Completed:Wait()
+
+	if not blade.Parent or player:GetAttribute("InRound") ~= true then
+		if blade.Parent then
+			blade.CFrame = originalCFrame
+			blade.Color = originalColor
+			blade:SetAttribute("Flicking", false)
+		end
+		return false
+	end
+
+	local currentCharacter = player.Character
+	local currentRoot = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
+	local currentHumanoid = currentCharacter and currentCharacter:FindFirstChildOfClass("Humanoid")
+	if not currentRoot or not currentRoot:IsA("BasePart") or not currentHumanoid or currentHumanoid.Health <= 0 then
+		blade.CFrame = originalCFrame
+		blade.Color = originalColor
+		blade:SetAttribute("Flicking", false)
+		return false
+	end
+
+	local snapDirection = getHorizontalDirection(blade.Position, currentRoot.Position)
+	local snapTween = TweenService:Create(
+		blade,
+		TweenInfo.new(0.11, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ CFrame = snapCFrame, Color = originalColor }
+	)
+	snapTween:Play()
+
+	currentRoot.AssemblyLinearVelocity = currentRoot.AssemblyLinearVelocity
+		+ snapDirection * FLICK_HORIZONTAL_SPEED
+		+ Vector3.new(0, FLICK_UP_SPEED, 0)
+	currentHumanoid:TakeDamage(FLICK_DAMAGE)
+
+	task.delay(0.16, function()
+		if not blade.Parent then
+			return
+		end
+		local settleTween = TweenService:Create(
+			blade,
+			TweenInfo.new(0.48, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
+			{ CFrame = originalCFrame, Color = originalColor }
+		)
+		settleTween:Play()
+		settleTween.Completed:Connect(function()
+			if blade and blade.Parent then
+				blade:SetAttribute("Flicking", false)
+			end
+		end)
+	end)
+
+	return true
+end
+
+local function findNearbyFlickBlade(player: Player): BasePart?
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return nil
+	end
+
+	local candidates = {}
+	for _, blade in ipairs(grassBlades) do
+		if blade and blade.Parent and not blade:GetAttribute("Fallen") and not blade:GetAttribute("Flicking") then
+			local horizontalDistance = (Vector3.new(blade.Position.X, 0, blade.Position.Z) - Vector3.new(root.Position.X, 0, root.Position.Z)).Magnitude
+			if horizontalDistance >= 4 and horizontalDistance <= FLICK_SEARCH_RADIUS and blade.Size.Y >= 12 then
+				table.insert(candidates, blade)
+			end
+		end
+	end
+
+	if #candidates == 0 then
+		return nil
+	end
+	return candidates[random:NextInteger(1, #candidates)]
+end
+
+local function scheduleNextFlick(player: Player)
+	nextFlickAtByUserId[player.UserId] = os.clock() + random:NextNumber(FLICK_MIN_INTERVAL, FLICK_MAX_INTERVAL)
+end
+
+local function startFlickLoop()
+	task.spawn(function()
+		while true do
+			local now = os.clock()
+			for _, player in ipairs(Players:GetPlayers()) do
+				if player:GetAttribute("InRound") == true then
+					local nextAt = nextFlickAtByUserId[player.UserId]
+					if not nextAt then
+						scheduleNextFlick(player)
+					elseif now >= nextAt then
+						local blade = findNearbyFlickBlade(player)
+						if blade then
+							task.spawn(flickBladeAtPlayer, blade, player)
+						end
+						scheduleNextFlick(player)
+					end
+				else
+					nextFlickAtByUserId[player.UserId] = nil
+				end
+			end
+			task.wait(0.75)
+		end
+	end)
+end
+
 local function connectBlade(blade: Instance)
 	if not blade:IsA("BasePart") then
 		return
+	end
+
+	if not table.find(grassBlades, blade) then
+		table.insert(grassBlades, blade)
 	end
 
 	if connectedParts[blade] then
@@ -92,6 +272,7 @@ local function connectArenaGrass()
 		return
 	end
 
+	grassBlades = {}
 	for _, child in ipairs(grassFolder:GetChildren()) do
 		connectBlade(child)
 	end
@@ -101,6 +282,11 @@ end
 
 function InteractiveFoliageService.Init()
 	connectArenaGrass()
+	startFlickLoop()
+
+	Players.PlayerRemoving:Connect(function(player)
+		nextFlickAtByUserId[player.UserId] = nil
+	end)
 
 	Workspace.ChildAdded:Connect(function(child)
 		if child.Name == "BuildABugArena" then
