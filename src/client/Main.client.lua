@@ -11,6 +11,7 @@ local remotes = {
 	SelectBug = remotesFolder:WaitForChild(RemoteNames.SelectBug),
 	SelectBugLoadout = remotesFolder:WaitForChild(RemoteNames.SelectBugLoadout),
 	PurchaseBug = remotesFolder:WaitForChild(RemoteNames.PurchaseBug),
+	BugUnlockResult = remotesFolder:WaitForChild(RemoteNames.BugUnlockResult),
 	BuildPreset = remotesFolder:WaitForChild(RemoteNames.BuildPreset),
 	SetCosmetic = remotesFolder:WaitForChild(RemoteNames.SetCosmetic),
 	PurchaseCosmetic = remotesFolder:WaitForChild(RemoteNames.PurchaseCosmetic),
