@@ -7,6 +7,7 @@ local RemoteNames = require(BuildABugShared.Remotes.RemoteNames)
 
 local PlayerDataService = require(script.Parent.PlayerDataService)
 local BugLoadoutService = require(script.Parent.BugLoadoutService)
+local BugUnlockService = require(script.Parent.BugUnlockService)
 local AchievementService = require(script.Parent.AchievementService)
 local RewardService = require(script.Parent.RewardService)
 local HazardService = require(script.Parent.HazardService)
@@ -48,6 +49,7 @@ local remotesFolder = getOrCreateFolder(ReplicatedStorage, RemoteNames.FolderNam
 local remotes = {
 	SelectBug = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SelectBug),
 	SelectBugLoadout = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SelectBugLoadout),
+	PurchaseBug = getOrCreateRemoteEvent(remotesFolder, RemoteNames.PurchaseBug),
 	BuildPreset = getOrCreateRemoteEvent(remotesFolder, RemoteNames.BuildPreset),
 	SetCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SetCosmetic),
 	PurchaseCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.PurchaseCosmetic),
@@ -64,6 +66,7 @@ EnvironmentStyleService.Init()
 LobbyService.Build()
 PlayerDataService.Init(remotes)
 BugLoadoutService.Init(PlayerDataService, remotes)
+BugUnlockService.Init(PlayerDataService, remotes)
 AchievementService.Init(PlayerDataService, remotes)
 BugAvatarService.Init(PlayerDataService)
 RewardService.Init(PlayerDataService, AchievementService)
