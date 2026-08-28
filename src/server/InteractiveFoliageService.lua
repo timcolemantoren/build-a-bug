@@ -11,6 +11,7 @@ local connectedParts = {}
 local grassBlades = {}
 local nextFlickAtByUserId = {}
 local random = Random.new()
+local remotes = nil
 
 local FLICK_SEARCH_RADIUS = 42
 local FLICK_MIN_INTERVAL = 16
@@ -127,6 +128,16 @@ local function resetBlade(blade: BasePart, originalCFrame: CFrame, originalColor
 	end)
 end
 
+local function tellClientToLaunch(player: Player, launchVelocity: Vector3)
+	if not remotes or not remotes.RoundStateChanged or player.Parent ~= Players then
+		return
+	end
+
+	remotes.RoundStateChanged:FireClient(player, "GrassFlick", {
+		velocity = launchVelocity,
+	})
+end
+
 local function flickBladeAtPlayer(blade: BasePart, player: Player): boolean
 	if not blade.Parent or blade:GetAttribute("Fallen") or blade:GetAttribute("Flicking") then
 		return false
@@ -178,16 +189,15 @@ local function flickBladeAtPlayer(blade: BasePart, player: Player): boolean
 	):Play()
 	playFlickSound(blade)
 
-	-- Make the flick a real launch rather than a subtle physics nudge. The second
-	-- application prevents the Humanoid controller from immediately swallowing it.
 	local launchVelocity = snapDirection * FLICK_HORIZONTAL_SPEED + Vector3.new(0, FLICK_UP_SPEED, 0)
+
+	-- The server still applies the launch for authoritative state and other clients,
+	-- while the owning client repeats it because Roblox character physics are normally
+	-- client-owned and can otherwise damp the server-side impulse.
 	currentHumanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 	currentRoot.AssemblyLinearVelocity = launchVelocity
-	task.delay(0.06, function()
-		if currentRoot and currentRoot.Parent and player:GetAttribute("InRound") == true then
-			currentRoot.AssemblyLinearVelocity = currentRoot.AssemblyLinearVelocity:Lerp(launchVelocity, 0.65)
-		end
-	end)
+	currentRoot:ApplyImpulse(launchVelocity * currentRoot.AssemblyMass * 0.45)
+	tellClientToLaunch(player, launchVelocity)
 	currentHumanoid:TakeDamage(FLICK_DAMAGE)
 
 	task.delay(0.16, function()
@@ -302,7 +312,8 @@ local function connectArenaGrass()
 	grassFolder.ChildAdded:Connect(connectBlade)
 end
 
-function InteractiveFoliageService.Init()
+function InteractiveFoliageService.Init(remoteEvents)
+	remotes = remoteEvents
 	connectArenaGrass()
 	startFlickLoop()
 
