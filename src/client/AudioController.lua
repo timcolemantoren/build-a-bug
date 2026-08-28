@@ -1,9 +1,15 @@
 --!nonstrict
 
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
 
 local AudioController = {}
+local player = Players.LocalPlayer
+local currentHumanoid = nil
+local healthConnection = nil
+local lastHealth = nil
+local inRound = false
 
 -- Prototype audio uses Roblox-bundled sounds so timing/feedback can be tested
 -- before custom music and SFX assets are authored. All playback is centralized
@@ -35,9 +41,60 @@ local function playPingSequence(speeds, spacing: number, volume: number?)
 	end
 end
 
+local function playDamageCue(damageAmount: number)
+	if damageAmount <= 0 then
+		return
+	end
+
+	local strength = math.clamp(damageAmount / 45, 0, 1)
+	local volume = 0.38 + (0.26 * strength)
+	local playbackSpeed = 1.72 - (0.42 * strength)
+	playOneShot(SOUND.Bass, volume, playbackSpeed, 2)
+
+	if damageAmount >= 30 then
+		task.delay(0.035, function()
+			playOneShot(SOUND.Squish, 0.28, 1.35, 2)
+		end)
+	end
+end
+
+local function disconnectHealth()
+	if healthConnection then
+		healthConnection:Disconnect()
+		healthConnection = nil
+	end
+	currentHumanoid = nil
+	lastHealth = nil
+end
+
+local function bindCharacter(character: Model?)
+	disconnectHealth()
+	if not character then
+		return
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 3)
+	if not humanoid then
+		return
+	end
+
+	currentHumanoid = humanoid
+	lastHealth = humanoid.Health
+	healthConnection = humanoid.HealthChanged:Connect(function(health)
+		if lastHealth ~= nil and health < lastHealth and inRound then
+			playDamageCue(lastHealth - health)
+		end
+		lastHealth = health
+	end)
+end
+
 local function playPhaseCue(state: string, payload)
 	payload = payload or {}
 	if state == "Started" then
+		inRound = true
+		if currentHumanoid then
+			lastHealth = currentHumanoid.Health
+		end
 		playPingSequence({ 0.95, 1.18 }, 0.12, 0.55)
 	elseif state == "PhaseChanged" then
 		local phaseId = payload.phaseId
@@ -66,10 +123,13 @@ local function playPhaseCue(state: string, payload)
 		playOneShot(SOUND.Bass, 0.48, 1.32, 2)
 		playPingSequence({ 1.05, 1.28, 1.56, 1.92 }, 0.10, 0.72)
 	elseif state == "Eliminated" then
+		inRound = false
 		playOneShot(SOUND.Bass, 0.95, 0.48, 3)
 		task.delay(0.06, function()
 			playOneShot(SOUND.Squish, 1.0, 0.82, 4)
 		end)
+	elseif state == "Ended" or state == "ExitedRound" or state == "Waiting" or state == "Results" or state == "MatchInProgress" then
+		inRound = false
 	end
 end
 
@@ -107,6 +167,14 @@ local function playHazardCue(payload)
 end
 
 function AudioController.Init(remotes)
+	player.CharacterAdded:Connect(function(character)
+		task.wait(0.15)
+		bindCharacter(character)
+	end)
+	if player.Character then
+		bindCharacter(player.Character)
+	end
+
 	remotes.RoundStateChanged.OnClientEvent:Connect(playPhaseCue)
 	remotes.HazardWarning.OnClientEvent:Connect(playHazardCue)
 end
