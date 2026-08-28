@@ -116,7 +116,7 @@ local function refreshBugCards()
 			if isSelected then
 				heading = "SELECTED • " .. bug.displayName
 			elseif unlocked then
-				heading = bug.displayName
+				heading = "UNLOCKED • " .. bug.displayName
 			else
 				heading = string.format("LOCKED • %s DNA • %s", tostring(bug.unlockCost or 0), bug.displayName)
 			end
@@ -319,6 +319,37 @@ function BugSelectController.Init(remotes)
 		currentData = data
 		selectedBug = data.selectedBug or selectedBug
 		refreshBugCards()
+	end)
+
+	remotes.BugUnlockResult.OnClientEvent:Connect(function(result)
+		if type(result) ~= "table" then
+			return
+		end
+		local bugId = result.bugId
+		if result.success == true and type(bugId) == "string" then
+			currentData = currentData or {}
+			currentData.unlockedBugs = currentData.unlockedBugs or { Ant = true, Beetle = true, Grasshopper = true }
+			currentData.unlockedBugs[bugId] = true
+			currentData.currency = currentData.currency or {}
+			if type(result.balance) == "number" then
+				currentData.currency.dna = result.balance
+			end
+			if result.selected == true then
+				selectedBug = bugId
+				currentData.selectedBug = bugId
+			end
+			refreshBugCards()
+			local displayName = result.displayName or bugId
+			if result.alreadyOwned then
+				setStatus("Selected " .. displayName .. ".", false)
+			elseif result.selected == true then
+				setStatus("Unlocked " .. displayName .. "! Selected and ready.", false)
+			else
+				setStatus("Unlocked " .. displayName .. "! Tap it to select.", false)
+			end
+		else
+			setStatus(result.message or "Bug unlock failed. Your DNA was not spent.", true)
+		end
 	end)
 
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, _payload)
