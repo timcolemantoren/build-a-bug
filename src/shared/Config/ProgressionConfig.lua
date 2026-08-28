@@ -2,16 +2,19 @@
 
 local ProgressionConfig = {}
 
+-- Early prototype levels arrived too quickly in one or two rounds. Keep level 10
+-- at the original 10k long-term target, but widen the steps substantially so
+-- titles feel earned and later levels become real multi-session goals.
 ProgressionConfig.Levels = {
 	{ level = 1, dnaRequired = 0, title = "Fresh Hatchling" },
-	{ level = 2, dnaRequired = 25, title = "Tiny Forager" },
-	{ level = 3, dnaRequired = 75, title = "Backyard Explorer" },
-	{ level = 4, dnaRequired = 175, title = "Scrappy Survivor" },
-	{ level = 5, dnaRequired = 400, title = "Garden Veteran" },
-	{ level = 6, dnaRequired = 900, title = "Tough Critter" },
-	{ level = 7, dnaRequired = 1800, title = "Micro Monster" },
-	{ level = 8, dnaRequired = 3500, title = "Yard Champion" },
-	{ level = 9, dnaRequired = 6500, title = "Backyard Beast" },
+	{ level = 2, dnaRequired = 150, title = "Tiny Forager" },
+	{ level = 3, dnaRequired = 400, title = "Backyard Explorer" },
+	{ level = 4, dnaRequired = 800, title = "Scrappy Survivor" },
+	{ level = 5, dnaRequired = 1500, title = "Garden Veteran" },
+	{ level = 6, dnaRequired = 2500, title = "Tough Critter" },
+	{ level = 7, dnaRequired = 4000, title = "Micro Monster" },
+	{ level = 8, dnaRequired = 6000, title = "Yard Champion" },
+	{ level = 9, dnaRequired = 8000, title = "Backyard Beast" },
 	{ level = 10, dnaRequired = 10000, title = "Legendary Bug" },
 }
 
