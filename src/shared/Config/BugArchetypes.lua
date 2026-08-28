@@ -115,7 +115,7 @@ local BugArchetypes = {
 	Pillbug = {
 		id = "Pillbug",
 		displayName = "Pillbug",
-		description = "A slow little tank that can roll away from danger in a short armored burst.",
+		description = "A slow little tank that can curl up and roll hard out of danger.",
 		unlockCost = 12000,
 		movementSpeed = 13,
 		jumpPower = 32,
@@ -125,10 +125,10 @@ local BugArchetypes = {
 		ability = {
 			id = "RollAway",
 			displayName = "Roll Away",
-			description = "Curls up and rockets forward for a short protected escape.",
+			description = "Curls into a rolling shell and rockets forward while protected.",
 			cooldownSeconds = 17,
-			durationSeconds = 2.4,
-			boostSpeed = 24,
+			durationSeconds = 1.55,
+			rollSpeed = 72,
 		},
 	},
 }
