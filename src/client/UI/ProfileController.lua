@@ -7,6 +7,7 @@ local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local CosmeticStyles = require(BuildABugShared.Config.CosmeticStyles)
 local CosmeticCatalog = require(BuildABugShared.Config.CosmeticCatalog)
 local AchievementConfig = require(BuildABugShared.Config.AchievementConfig)
+local PurchaseConfirmController = require(script.Parent.PurchaseConfirmController)
 
 local ProfileController = {}
 
@@ -267,8 +268,37 @@ local function useCosmetic(remotes, slot: string, styleId: string)
 		return
 	end
 
-	remotes.PurchaseCosmetic:FireServer(slot, styleId)
-	setShopStatus(string.format("Unlocking %s for %s DNA...", item.displayName, tostring(cost)), false)
+	PurchaseConfirmController.Request({
+		itemName = item.displayName,
+		cost = cost,
+		balance = dna,
+	}, function()
+		if inRound then
+			return
+		end
+
+		if isOwned(slot, styleId) then
+			remotes.SetCosmetic:FireServer(slot, styleId)
+			setShopStatus(item.displayName .. " is already owned and has been equipped.", false)
+			return
+		end
+
+		local currentItem = CosmeticCatalog.GetItem(slot, styleId)
+		if not currentItem or currentItem.unlockType == "achievement" or currentItem.availability ~= "always" then
+			setShopStatus("That cosmetic is no longer available for purchase.", true)
+			return
+		end
+
+		local currentCost = currentItem.dnaCost or 0
+		if getAvailableDna() < currentCost then
+			setShopStatus("Your DNA balance changed. Purchase cancelled.", true)
+			return
+		end
+
+		remotes.PurchaseCosmetic:FireServer(slot, styleId)
+		setShopStatus(string.format("Unlocking %s for %s DNA...", currentItem.displayName, tostring(currentCost)), false)
+	end)
+	setShopStatus("Review the purchase and choose Buy or Cancel.", false)
 end
 
 local function refreshProfile()
@@ -343,6 +373,9 @@ local function applyVisibility()
 	if panel then
 		panel.Visible = not inRound and expanded
 	end
+	if inRound or not expanded then
+		PurchaseConfirmController.Cancel()
+	end
 end
 
 local function createTabButton(parent: Instance, tabId: string, text: string, order: number)
@@ -365,7 +398,7 @@ local function createTabButton(parent: Instance, tabId: string, text: string, or
 		elseif tabId == "Builds" then
 			setShopStatus("Save favorite looks for the current bug. Each species has its own three build slots.", false)
 		elseif tabId ~= "Stats" then
-			setShopStatus("Tap a locked cosmetic to buy it with DNA. Award cosmetics must be earned.", false)
+			setShopStatus("Tap a locked cosmetic to review its DNA purchase. Award cosmetics must be earned.", false)
 		end
 		applyTab()
 	end)
@@ -674,6 +707,7 @@ local function ensureGui(remotes)
 	closeButton.TextSize = 14
 	closeButton.Parent = panel
 	closeButton.MouseButton1Click:Connect(function()
+		PurchaseConfirmController.Cancel()
 		expanded = false
 		applyVisibility()
 	end)
@@ -742,6 +776,7 @@ function ProfileController.Init(remotes)
 
 	remotes.RoundStateChanged.OnClientEvent:Connect(function(state, _payload)
 		if state == "Started" then
+			PurchaseConfirmController.Cancel()
 			inRound = true
 			expanded = false
 		elseif state == "Ended" or state == "Eliminated" or state == "ExitedRound" or state == "Waiting" or state == "Results" or state == "MatchInProgress" then
