@@ -15,6 +15,8 @@ local remotes = nil
 local PlayerDataService = nil
 local hazardGeneration = 0
 
+local ROLLING_BALL_TRAVEL_TIME = 1.75
+
 local hazardIds = {}
 for hazardId, _ in pairs(HazardConfig) do
 	table.insert(hazardIds, hazardId)
@@ -363,7 +365,7 @@ local function createRollingBallImpact(zone, damage: number, myGeneration: numbe
 	weld.Part1 = patch
 	weld.Parent = patch
 
-	local travelTime = 1.45
+	local travelTime = ROLLING_BALL_TRAVEL_TIME
 	local endCFrame = CFrame.new(endPosition) * CFrame.Angles(0, 0, math.rad(900 * direction))
 	local tween = TweenService:Create(ball, TweenInfo.new(travelTime, Enum.EasingStyle.Linear), {
 		CFrame = endCFrame,
