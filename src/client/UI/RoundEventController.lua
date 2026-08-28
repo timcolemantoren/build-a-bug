@@ -148,12 +148,14 @@ function RoundEventController.Init(remotes)
 				3.2,
 				phaseColors.Achievement
 			)
-		elseif state == "Ended" or state == "Eliminated" then
+		elseif state == "Eliminated" then
 			bannerToken += 1
 			if frame then
 				frame.Visible = false
 			end
 		end
+		-- Ended intentionally does not cancel the current banner. A finish-line
+		-- achievement can then remain visible above the results panel for its full cue.
 	end)
 
 	-- Hazard warnings intentionally do not take over the center of the screen.
