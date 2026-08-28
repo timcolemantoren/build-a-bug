@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
 
 local SurvivalController = {}
 
@@ -13,11 +14,14 @@ local healthLabel = nil
 local exitButton = nil
 local forfeitLabel = nil
 local toastLabel = nil
+local damageFlash = nil
 local inRound = false
 local currentHumanoid = nil
 local healthConnection = nil
 local maxHealthConnection = nil
 local toastToken = 0
+local damageFlashToken = 0
+local lastHealth = nil
 
 local function disconnectHealth()
 	if healthConnection then
@@ -29,9 +33,36 @@ local function disconnectHealth()
 		maxHealthConnection = nil
 	end
 	currentHumanoid = nil
+	lastHealth = nil
 end
 
-local function updateHealth()
+local function flashDamage(damageAmount: number)
+	if not damageFlash or not inRound or damageAmount <= 0 then
+		return
+	end
+
+	damageFlashToken += 1
+	local token = damageFlashToken
+	local strength = math.clamp(damageAmount / 45, 0.18, 1)
+	local visibleTransparency = 0.83 - (0.24 * strength)
+
+	damageFlash.Visible = true
+	damageFlash.BackgroundTransparency = visibleTransparency
+
+	local fade = TweenService:Create(
+		damageFlash,
+		TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ BackgroundTransparency = 1 }
+	)
+	fade:Play()
+	fade.Completed:Connect(function()
+		if token == damageFlashToken and damageFlash then
+			damageFlash.Visible = false
+		end
+	end)
+end
+
+local function updateHealth(newHealth: number?)
 	if not healthFill or not healthLabel then
 		return
 	end
@@ -40,11 +71,18 @@ local function updateHealth()
 	if not humanoid then
 		healthFill.Size = UDim2.fromScale(0, 1)
 		healthLabel.Text = "Health"
+		lastHealth = nil
 		return
 	end
 
+	local observedHealth = newHealth or humanoid.Health
+	if lastHealth ~= nil and observedHealth < lastHealth then
+		flashDamage(lastHealth - observedHealth)
+	end
+	lastHealth = observedHealth
+
 	local maxHealth = math.max(1, humanoid.MaxHealth)
-	local health = math.clamp(humanoid.Health, 0, maxHealth)
+	local health = math.clamp(observedHealth, 0, maxHealth)
 	local ratio = health / maxHealth
 	healthFill.Size = UDim2.fromScale(ratio, 1)
 	healthLabel.Text = string.format("Health  %d / %d", math.ceil(health), math.ceil(maxHealth))
@@ -72,9 +110,14 @@ local function bindCharacter(character: Model?)
 	end
 
 	currentHumanoid = humanoid
-	healthConnection = humanoid.HealthChanged:Connect(updateHealth)
-	maxHealthConnection = humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(updateHealth)
-	updateHealth()
+	lastHealth = humanoid.Health
+	healthConnection = humanoid.HealthChanged:Connect(function(health)
+		updateHealth(health)
+	end)
+	maxHealthConnection = humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(function()
+		updateHealth(humanoid.Health)
+	end)
+	updateHealth(humanoid.Health)
 end
 
 local function updateVisibility()
@@ -90,6 +133,11 @@ local function updateVisibility()
 	end
 	if forfeitLabel then
 		forfeitLabel.Visible = inRound
+	end
+	if not inRound and damageFlash then
+		damageFlashToken += 1
+		damageFlash.Visible = false
+		damageFlash.BackgroundTransparency = 1
 	end
 end
 
@@ -122,7 +170,20 @@ local function ensureGui(remotes)
 	gui = Instance.new("ScreenGui")
 	gui.Name = "BuildABugSurvival"
 	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 7
+	gui.IgnoreGuiInset = true
 	gui.Parent = player:WaitForChild("PlayerGui")
+
+	damageFlash = Instance.new("Frame")
+	damageFlash.Name = "DamageFlash"
+	damageFlash.Size = UDim2.fromScale(1, 1)
+	damageFlash.Position = UDim2.fromScale(0, 0)
+	damageFlash.BackgroundColor3 = Color3.fromRGB(220, 32, 32)
+	damageFlash.BackgroundTransparency = 1
+	damageFlash.BorderSizePixel = 0
+	damageFlash.ZIndex = 50
+	damageFlash.Visible = false
+	damageFlash.Parent = gui
 
 	healthPanel = Instance.new("Frame")
 	healthPanel.Name = "HealthPanel"
