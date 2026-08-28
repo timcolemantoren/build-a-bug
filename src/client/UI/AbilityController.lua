@@ -42,6 +42,10 @@ local function getFeedbackText(): string
 		return "Shell Block active"
 	elseif selectedBug == "Grasshopper" then
 		return "Leap!"
+	elseif selectedBug == "Ladybug" then
+		return "Wing Burst!"
+	elseif selectedBug == "Mantis" then
+		return "Pounce!"
 	end
 
 	return "Ability used"
