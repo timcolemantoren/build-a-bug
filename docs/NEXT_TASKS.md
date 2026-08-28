@@ -29,11 +29,12 @@
 - Achievement unlocks have their own reward banner and audio cue.
 - Grass is interactive: some blades fall when touched and occasional nearby blades can coil and flick an active bug during a round.
 - Crumbs and DNA have distinct pickup sounds; phase, hazard, impact, and elimination prototype audio is centralized for later replacement.
-- Backyard hazards now include Shoe Stomp, Sprinkler Burst, Bird Shadow, and a moving Rolling Ball that crosses its telegraphed lane.
+- Any real health loss during a round now produces proportional red screen feedback plus a centralized hit sound, independent of the damage source.
+- Backyard hazards now include Shoe Stomp, Sprinkler Burst, Bird Shadow, a moving Rolling Ball, and a falling Giant Raindrop with a visible splash landing zone.
 
 ## Next mechanics / player-identity pass
 
-1. Continue adding genuinely different hazard motion patterns: falling drops/acorns, gusts, leaf sweeps, rake passes, and similar readable backyard events.
+1. Continue adding genuinely different hazard motion patterns: gusts, leaf sweeps, rake passes, and similar readable backyard events. The Raindrop fall behavior can later be reused for acorns in Fall Backyard.
 2. Make saved-build preset count config-driven, then expand beyond the current three slots once the final customization breadth is clearer.
 3. Test the Builds tab on desktop and iPad, including save, overwrite, load, species switching, and empty-slot behavior.
 4. Test the Awards tab and achievement unlock pacing, then expand with skill-based achievements such as critical-health recovery, bug-specific survival, and streaks.
@@ -52,7 +53,7 @@ Treat audio as part of the core experience rather than final-launch decoration.
 
 - Lobby/nest ambience should feel safe, curious, and playful.
 - Round music should build by phase: Scavenge, Trouble, Chaos, Final Scramble.
-- Important gameplay events need distinct readable cues: queue lock, round start, phase transitions, hazard warnings, shoe/sprinkler/bird/ball impacts, grass flick, crumb pickup, DNA pickup, healing, ability use, low health, squish/elimination, reward/unlock, and cosmetic equip/purchase.
+- Important gameplay events need distinct readable cues: queue lock, round start, phase transitions, hazard warnings, hazard impacts, player damage, grass flick, crumb pickup, DNA pickup, healing, ability use, low health, squish/elimination, reward/unlock, and cosmetic equip/purchase.
 - Environment should have subtle macro-backyard ambience: grass rustle, wind, distant birds, hose/water, occasional human/toy noises.
 - Bug movement sounds should remain light and stylized rather than noisy on every footstep.
 - Sound cues should reinforce danger and anticipation without becoming necessary for players who play muted.
