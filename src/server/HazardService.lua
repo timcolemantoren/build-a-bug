@@ -1,7 +1,9 @@
 --!nonstrict
 
+local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
@@ -17,6 +19,24 @@ local hazardIds = {}
 for hazardId, _ in pairs(HazardConfig) do
 	table.insert(hazardIds, hazardId)
 end
+
+local HAZARD_VISUALS = {
+	ShoeStomp = {
+		warningColor = Color3.fromRGB(255, 72, 50),
+		impactColor = Color3.fromRGB(255, 24, 18),
+		instruction = "MOVE OUT OF THE STOMP ZONE!",
+	},
+	SprinklerBurst = {
+		warningColor = Color3.fromRGB(70, 190, 255),
+		impactColor = Color3.fromRGB(120, 235, 255),
+		instruction = "GET OUT OF THE WATER LANE!",
+	},
+	BirdShadow = {
+		warningColor = Color3.fromRGB(65, 65, 82),
+		impactColor = Color3.fromRGB(28, 28, 38),
+		instruction = "RUN OUT OF THE SHADOW!",
+	},
+}
 
 local function getHazardsFolder(): Folder
 	local arena = Workspace:FindFirstChild("BuildABugArena")
@@ -99,7 +119,43 @@ local function makeZone(hazardId: string, requestedCenter: Vector3?)
 	end
 end
 
+local function addWorldLabel(part: BasePart, hazard, visual)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "HazardLabel"
+	billboard.Size = UDim2.fromOffset(310, 72)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3.8, 0)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 120
+	billboard.LightInfluence = 0
+	billboard.Adornee = part
+	billboard.Parent = part
+
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, 0, 0, 38)
+	title.BackgroundTransparency = 1
+	title.Text = string.upper(hazard.displayName or hazard.id)
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextStrokeTransparency = 0.12
+	title.TextStrokeColor3 = Color3.fromRGB(25, 25, 25)
+	title.Font = Enum.Font.GothamBlack
+	title.TextSize = 24
+	title.Parent = billboard
+
+	local instruction = Instance.new("TextLabel")
+	instruction.Position = UDim2.fromOffset(0, 36)
+	instruction.Size = UDim2.new(1, 0, 0, 30)
+	instruction.BackgroundTransparency = 1
+	instruction.Text = visual.instruction or "MOVE!"
+	instruction.TextColor3 = Color3.fromRGB(255, 238, 180)
+	instruction.TextStrokeTransparency = 0.18
+	instruction.TextStrokeColor3 = Color3.fromRGB(25, 25, 25)
+	instruction.Font = Enum.Font.GothamBold
+	instruction.TextSize = 14
+	instruction.Parent = billboard
+end
+
 local function createWarningPart(hazard, zone)
+	local visual = HAZARD_VISUALS[hazard.id] or HAZARD_VISUALS.ShoeStomp
 	local part = Instance.new("Part")
 	part.Name = hazard.id .. "Warning"
 	part.Anchored = true
@@ -108,11 +164,106 @@ local function createWarningPart(hazard, zone)
 	part.CanQuery = false
 	part.Size = zone.size
 	part.Position = zone.center
-	part.Transparency = 0.38
-	part.Color = Color3.fromRGB(255, 80, 55)
-	part.Material = Enum.Material.Neon
+	part.Transparency = hazard.id == "BirdShadow" and 0.50 or 0.30
+	part.Color = visual.warningColor
+	part.Material = hazard.id == "BirdShadow" and Enum.Material.SmoothPlastic or Enum.Material.Neon
 	part.Parent = getHazardsFolder()
+	addWorldLabel(part, hazard, visual)
+
+	if hazard.id == "BirdShadow" then
+		local driftTween = TweenService:Create(
+			part,
+			TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ Position = zone.center + Vector3.new(8, 0, 0) }
+		)
+		driftTween:Play()
+	end
+
 	return part
+end
+
+local function createShoeVisual(zone, warningSeconds: number)
+	local shoe = Instance.new("Part")
+	shoe.Name = "IncomingShoe"
+	shoe.Anchored = true
+	shoe.CanCollide = false
+	shoe.CanTouch = false
+	shoe.CanQuery = false
+	shoe.Size = Vector3.new(zone.size.X * 0.92, 10, zone.size.Z * 0.92)
+	shoe.Position = zone.center + Vector3.new(0, 52, 0)
+	shoe.Color = Color3.fromRGB(48, 52, 58)
+	shoe.Material = Enum.Material.SmoothPlastic
+	shoe.Transparency = 0.12
+	shoe.Parent = getHazardsFolder()
+
+	local sole = Instance.new("Part")
+	sole.Name = "Sole"
+	sole.Anchored = true
+	sole.CanCollide = false
+	sole.CanTouch = false
+	sole.CanQuery = false
+	sole.Size = Vector3.new(zone.size.X, 2.5, zone.size.Z)
+	sole.Position = shoe.Position - Vector3.new(0, 6, 0)
+	sole.Color = Color3.fromRGB(22, 24, 27)
+	sole.Material = Enum.Material.Rubber
+	sole.Parent = getHazardsFolder()
+
+	local shoeTween = TweenService:Create(
+		shoe,
+		TweenInfo.new(math.max(0.25, warningSeconds), Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Position = zone.center + Vector3.new(0, 7.5, 0) }
+	)
+	local soleTween = TweenService:Create(
+		sole,
+		TweenInfo.new(math.max(0.25, warningSeconds), Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Position = zone.center + Vector3.new(0, 1.4, 0) }
+	)
+	shoeTween:Play()
+	soleTween:Play()
+
+	return { shoe, sole }
+end
+
+local function createSprinklerImpact(zone)
+	local water = Instance.new("Part")
+	water.Name = "SprinklerWaterBlast"
+	water.Anchored = true
+	water.CanCollide = false
+	water.CanTouch = false
+	water.CanQuery = false
+	water.Size = Vector3.new(zone.size.X, 9, zone.size.Z)
+	water.Position = zone.center + Vector3.new(0, 4.5, 0)
+	water.Color = Color3.fromRGB(110, 220, 255)
+	water.Material = Enum.Material.Glass
+	water.Transparency = 0.28
+	water.Parent = getHazardsFolder()
+
+	TweenService:Create(water, TweenInfo.new(0.32, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Transparency = 0.72,
+		Size = Vector3.new(zone.size.X * 1.12, 12, zone.size.Z),
+	}):Play()
+	Debris:AddItem(water, 0.42)
+end
+
+local function createBirdImpact(zone)
+	local shadow = Instance.new("Part")
+	shadow.Name = "BirdShadowSweep"
+	shadow.Anchored = true
+	shadow.CanCollide = false
+	shadow.CanTouch = false
+	shadow.CanQuery = false
+	shadow.Size = Vector3.new(zone.size.X * 1.15, 0.18, zone.size.Z * 1.15)
+	shadow.Position = zone.center + Vector3.new(-28, 0.12, 0)
+	shadow.Color = Color3.fromRGB(20, 20, 28)
+	shadow.Material = Enum.Material.SmoothPlastic
+	shadow.Transparency = 0.30
+	shadow.Parent = getHazardsFolder()
+
+	TweenService:Create(shadow, TweenInfo.new(0.38, Enum.EasingStyle.Linear), {
+		Position = zone.center + Vector3.new(28, 0.12, 0),
+		Transparency = 0.55,
+	}):Play()
+	Debris:AddItem(shadow, 0.45)
 end
 
 local function isInsideZone(rootPart: BasePart, zone): boolean
@@ -154,19 +305,24 @@ local function damagePlayersInZone(zone, damage: number)
 	end
 end
 
-local function announceHazard(hazard)
+local function announceHazard(hazard, stage: string, zone, warningSeconds: number)
 	if not remotes or not remotes.HazardWarning then
 		return
 	end
 
+	local visual = HAZARD_VISUALS[hazard.id] or HAZARD_VISUALS.ShoeStomp
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player:GetAttribute("InRound") == true then
 			remotes.HazardWarning:FireClient(player, {
 				id = hazard.id,
 				displayName = hazard.displayName,
-				warningSeconds = hazard.warningSeconds,
+				stage = stage,
+				warningSeconds = warningSeconds,
 				damage = hazard.damage,
 				description = hazard.description,
+				instruction = visual.instruction,
+				center = zone.center,
+				size = zone.size,
 			})
 		end
 	end
@@ -181,7 +337,6 @@ function HazardService.GetRandomHazardId(): string?
 	if #hazardIds == 0 then
 		return nil
 	end
-
 	return hazardIds[math.random(1, #hazardIds)]
 end
 
@@ -199,25 +354,48 @@ function HazardService.WarnHazard(hazardId: string, options)
 	end
 
 	options = options or {}
-	local center = options.center
-	local zone = makeZone(hazardId, center)
+	local zone = makeZone(hazardId, options.center)
 	local warningPart = createWarningPart(hazard, zone)
 	local myGeneration = hazardGeneration
+	local warningSeconds = (hazard.warningSeconds or 3) * (options.warningScale or 1)
+	local extraVisuals = {}
 
-	announceHazard(hazard)
+	if hazardId == "ShoeStomp" then
+		extraVisuals = createShoeVisual(zone, warningSeconds)
+	end
 
-	task.delay((hazard.warningSeconds or 3) * (options.warningScale or 1), function()
+	announceHazard(hazard, "Warning", zone, warningSeconds)
+
+	task.delay(warningSeconds, function()
 		if myGeneration ~= hazardGeneration then
 			return
 		end
 
+		local visual = HAZARD_VISUALS[hazard.id] or HAZARD_VISUALS.ShoeStomp
 		if warningPart and warningPart.Parent then
-			warningPart.Transparency = 0.08
-			warningPart.Color = Color3.fromRGB(255, 0, 0)
+			warningPart.Transparency = 0.05
+			warningPart.Color = visual.impactColor
 		end
 
+		if hazardId == "SprinklerBurst" then
+			createSprinklerImpact(zone)
+		elseif hazardId == "BirdShadow" then
+			createBirdImpact(zone)
+		end
+
+		announceHazard(hazard, "Impact", zone, warningSeconds)
 		local damage = math.floor((hazard.damage or 25) * (options.damageScale or 1))
 		damagePlayersInZone(zone, damage)
+
+		for _, part in ipairs(extraVisuals) do
+			if part and part.Parent then
+				TweenService:Create(part, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Position = part.Position + Vector3.new(0, 28, 0),
+					Transparency = 0.55,
+				}):Play()
+				Debris:AddItem(part, 0.34)
+			end
+		end
 
 		task.delay(0.55, function()
 			if warningPart and warningPart.Parent then
