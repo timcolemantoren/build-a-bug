@@ -17,6 +17,12 @@ local DEFAULT_LOADOUT = {
 	pattern = "None",
 }
 
+local VALID_PRESETS = {
+	Build1 = true,
+	Build2 = true,
+	Build3 = true,
+}
+
 local function copyLoadout(loadout)
 	return {
 		bodyColor = loadout.bodyColor or DEFAULT_LOADOUT.bodyColor,
@@ -29,6 +35,13 @@ local function getLoadoutTable(data)
 	data.savedBuilds = data.savedBuilds or {}
 	data.savedBuilds.BugLoadouts = data.savedBuilds.BugLoadouts or {}
 	return data.savedBuilds.BugLoadouts
+end
+
+local function getPresetTable(data, bugId: string)
+	data.savedBuilds = data.savedBuilds or {}
+	data.savedBuilds.BugPresets = data.savedBuilds.BugPresets or {}
+	data.savedBuilds.BugPresets[bugId] = data.savedBuilds.BugPresets[bugId] or {}
+	return data.savedBuilds.BugPresets[bugId]
 end
 
 local function sanitizeLoadout(player: Player, loadout)
@@ -48,19 +61,23 @@ local function sanitizeLoadout(player: Player, loadout)
 	return result
 end
 
+local function currentAppearance(data)
+	local cosmetics = data.cosmetics or {}
+	return {
+		bodyColor = cosmetics.bodyColor or DEFAULT_LOADOUT.bodyColor,
+		eyes = cosmetics.eyes or DEFAULT_LOADOUT.eyes,
+		pattern = cosmetics.pattern or DEFAULT_LOADOUT.pattern,
+	}
+end
+
 local function snapshotCurrentLoadout(player: Player)
 	local data = PlayerDataService and PlayerDataService.GetData(player)
 	if not data or not BugArchetypes[data.selectedBug] then
 		return
 	end
 
-	local cosmetics = data.cosmetics or {}
 	local loadouts = getLoadoutTable(data)
-	loadouts[data.selectedBug] = sanitizeLoadout(player, {
-		bodyColor = cosmetics.bodyColor or DEFAULT_LOADOUT.bodyColor,
-		eyes = cosmetics.eyes or DEFAULT_LOADOUT.eyes,
-		pattern = cosmetics.pattern or DEFAULT_LOADOUT.pattern,
-	})
+	loadouts[data.selectedBug] = sanitizeLoadout(player, currentAppearance(data))
 end
 
 local function prepareLoadout(player: Player, bugId: string)
@@ -82,8 +99,72 @@ local function prepareLoadout(player: Player, bugId: string)
 	return loadout
 end
 
+local function publishCurrentData(player: Player)
+	local data = PlayerDataService and PlayerDataService.GetData(player)
+	if not data or not data.selectedBug then
+		return false
+	end
+
+	-- Selecting the already-active bug is a safe way to publish the updated data and
+	-- rebuild the visible insect once without creating a second persistence pathway.
+	return PlayerDataService.SelectBug(player, data.selectedBug)
+end
+
 function BugLoadoutService.SaveCurrentLoadout(player: Player)
 	snapshotCurrentLoadout(player)
+end
+
+function BugLoadoutService.SavePreset(player: Player, presetId: string): boolean
+	if not PlayerDataService or not VALID_PRESETS[presetId] then
+		return false
+	end
+	if player:GetAttribute("InRound") == true then
+		return false
+	end
+
+	local data = PlayerDataService.GetData(player)
+	if not data or not BugArchetypes[data.selectedBug] then
+		return false
+	end
+
+	snapshotCurrentLoadout(player)
+	local presets = getPresetTable(data, data.selectedBug)
+	presets[presetId] = sanitizeLoadout(player, currentAppearance(data))
+	publishCurrentData(player)
+	return true
+end
+
+function BugLoadoutService.LoadPreset(player: Player, presetId: string): boolean
+	if not PlayerDataService or not VALID_PRESETS[presetId] then
+		return false
+	end
+	if player:GetAttribute("InRound") == true then
+		return false
+	end
+
+	local data = PlayerDataService.GetData(player)
+	if not data or not BugArchetypes[data.selectedBug] then
+		return false
+	end
+
+	local presets = getPresetTable(data, data.selectedBug)
+	local saved = presets[presetId]
+	if type(saved) ~= "table" then
+		return false
+	end
+
+	local loadout = sanitizeLoadout(player, saved)
+	presets[presetId] = copyLoadout(loadout)
+	data.cosmetics = data.cosmetics or {}
+	data.cosmetics.bodyColor = loadout.bodyColor
+	data.cosmetics.eyes = loadout.eyes
+	data.cosmetics.pattern = loadout.pattern
+
+	-- Loading a preset also becomes the species' current remembered appearance.
+	local loadouts = getLoadoutTable(data)
+	loadouts[data.selectedBug] = copyLoadout(loadout)
+	publishCurrentData(player)
+	return true
 end
 
 function BugLoadoutService.SelectBug(player: Player, bugId: string): boolean
@@ -134,6 +215,14 @@ function BugLoadoutService.Init(playerDataService, remoteEvents)
 
 	remotes.SelectBugLoadout.OnServerEvent:Connect(function(player: Player, bugId: string)
 		BugLoadoutService.SelectBug(player, bugId)
+	end)
+
+	remotes.BuildPreset.OnServerEvent:Connect(function(player: Player, action: string, presetId: string)
+		if action == "Save" then
+			BugLoadoutService.SavePreset(player, presetId)
+		elseif action == "Load" then
+			BugLoadoutService.LoadPreset(player, presetId)
+		end
 	end)
 
 	-- Profile cosmetic actions are handled by PlayerDataService first. Snapshot on
