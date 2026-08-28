@@ -8,6 +8,7 @@ local RemoteNames = {
 	SelectBug = "SelectBug",
 	SelectBugLoadout = "SelectBugLoadout",
 	PurchaseBug = "PurchaseBug",
+	BugUnlockResult = "BugUnlockResult",
 	BuildPreset = "BuildPreset",
 	SetCosmetic = "SetCosmetic",
 	PurchaseCosmetic = "PurchaseCosmetic",
