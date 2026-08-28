@@ -36,6 +36,11 @@ local HAZARD_VISUALS = {
 		impactColor = Color3.fromRGB(28, 28, 38),
 		instruction = "RUN OUT OF THE SHADOW!",
 	},
+	RollingBall = {
+		warningColor = Color3.fromRGB(255, 178, 55),
+		impactColor = Color3.fromRGB(255, 122, 38),
+		instruction = "GET OUT OF THE BALL'S PATH!",
+	},
 }
 
 local function getHazardsFolder(): Folder
@@ -111,6 +116,12 @@ local function makeZone(hazardId: string, requestedCenter: Vector3?)
 			center = center,
 			size = Vector3.new(34, 0.25, 38),
 		}
+	elseif hazardId == "RollingBall" then
+		return {
+			center = center,
+			size = Vector3.new(120, 0.25, 22),
+			rollDirection = math.random() < 0.5 and -1 or 1,
+		}
 	else
 		return {
 			center = center,
@@ -177,6 +188,13 @@ local function createWarningPart(hazard, zone)
 			{ Position = zone.center + Vector3.new(8, 0, 0) }
 		)
 		driftTween:Play()
+	elseif hazard.id == "RollingBall" then
+		local pulseTween = TweenService:Create(
+			part,
+			TweenInfo.new(0.32, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ Transparency = 0.52 }
+		)
+		pulseTween:Play()
 	end
 
 	return part
@@ -305,6 +323,78 @@ local function damagePlayersInZone(zone, damage: number)
 	end
 end
 
+local function createRollingBallImpact(zone, damage: number, myGeneration: number)
+	local direction = zone.rollDirection or 1
+	local halfTravel = zone.size.X / 2 + 12
+	local startPosition = zone.center + Vector3.new(-direction * halfTravel, 7.8, 0)
+	local endPosition = zone.center + Vector3.new(direction * halfTravel, 7.8, 0)
+
+	local ball = Instance.new("Part")
+	ball.Name = "RollingToyBall"
+	ball.Shape = Enum.PartType.Ball
+	ball.Size = Vector3.new(15, 15, 15)
+	ball.CFrame = CFrame.new(startPosition)
+	ball.Anchored = true
+	ball.CanCollide = false
+	ball.CanTouch = false
+	ball.CanQuery = false
+	ball.Color = Color3.fromRGB(226, 66, 68)
+	ball.Material = Enum.Material.SmoothPlastic
+	ball.Parent = getHazardsFolder()
+
+	-- A contrasting patch makes the rotation readable instead of looking like a
+	-- colored sphere sliding across the ground.
+	local patch = Instance.new("Part")
+	patch.Name = "BallPatch"
+	patch.Shape = Enum.PartType.Ball
+	patch.Size = Vector3.new(4.2, 4.2, 4.2)
+	patch.CFrame = ball.CFrame * CFrame.new(0, 0, -6.2)
+	patch.Anchored = false
+	patch.Massless = true
+	patch.CanCollide = false
+	patch.CanTouch = false
+	patch.CanQuery = false
+	patch.Color = Color3.fromRGB(255, 220, 64)
+	patch.Material = Enum.Material.SmoothPlastic
+	patch.Parent = ball
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = ball
+	weld.Part1 = patch
+	weld.Parent = patch
+
+	local travelTime = 1.45
+	local endCFrame = CFrame.new(endPosition) * CFrame.Angles(0, 0, math.rad(900 * direction))
+	local tween = TweenService:Create(ball, TweenInfo.new(travelTime, Enum.EasingStyle.Linear), {
+		CFrame = endCFrame,
+	})
+	local hitPlayers = {}
+	tween:Play()
+
+	task.spawn(function()
+		local startedAt = os.clock()
+		while ball.Parent and myGeneration == hazardGeneration and os.clock() - startedAt <= travelTime + 0.08 do
+			for _, player in ipairs(Players:GetPlayers()) do
+				if player:GetAttribute("InRound") == true and not hitPlayers[player.UserId] then
+					local character = player.Character
+					local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+					local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+					if rootPart and humanoid and humanoid.Health > 0 then
+						local flatDelta = Vector3.new(rootPart.Position.X - ball.Position.X, 0, rootPart.Position.Z - ball.Position.Z)
+						if flatDelta.Magnitude <= 8.6 then
+							hitPlayers[player.UserId] = true
+							humanoid:TakeDamage(getDamageForPlayer(player, damage))
+						end
+					end
+				end
+			end
+			task.wait(0.045)
+		end
+	end)
+
+	Debris:AddItem(ball, travelTime + 0.15)
+end
+
 local function announceHazard(hazard, stage: string, zone, warningSeconds: number)
 	if not remotes or not remotes.HazardWarning then
 		return
@@ -372,6 +462,19 @@ function HazardService.WarnHazard(hazardId: string, options)
 		end
 
 		local visual = HAZARD_VISUALS[hazard.id] or HAZARD_VISUALS.ShoeStomp
+		local damage = math.floor((hazard.damage or 25) * (options.damageScale or 1))
+
+		if hazardId == "RollingBall" then
+			if warningPart and warningPart.Parent then
+				warningPart.Color = visual.impactColor
+				TweenService:Create(warningPart, TweenInfo.new(0.15), { Transparency = 1 }):Play()
+				Debris:AddItem(warningPart, 0.18)
+			end
+			announceHazard(hazard, "Impact", zone, warningSeconds)
+			createRollingBallImpact(zone, damage, myGeneration)
+			return
+		end
+
 		if warningPart and warningPart.Parent then
 			warningPart.Transparency = 0.05
 			warningPart.Color = visual.impactColor
@@ -384,7 +487,6 @@ function HazardService.WarnHazard(hazardId: string, options)
 		end
 
 		announceHazard(hazard, "Impact", zone, warningSeconds)
-		local damage = math.floor((hazard.damage or 25) * (options.damageScale or 1))
 		damagePlayersInZone(zone, damage)
 
 		for _, part in ipairs(extraVisuals) do
