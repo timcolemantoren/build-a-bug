@@ -8,4 +8,6 @@ return {
 	"Grasshopper",
 	"Ladybug",
 	"Mantis",
+	"Dragonfly",
+	"Pillbug",
 }
