@@ -15,6 +15,7 @@ local exitButton = nil
 local forfeitLabel = nil
 local toastLabel = nil
 local damageFlash = nil
+local damageFlashTween = nil
 local inRound = false
 local currentHumanoid = nil
 local healthConnection = nil
@@ -41,6 +42,11 @@ local function flashDamage(damageAmount: number)
 		return
 	end
 
+	if damageFlashTween then
+		damageFlashTween:Cancel()
+		damageFlashTween = nil
+	end
+
 	damageFlashToken += 1
 	local token = damageFlashToken
 	local strength = math.clamp(damageAmount / 45, 0.18, 1)
@@ -49,15 +55,16 @@ local function flashDamage(damageAmount: number)
 	damageFlash.Visible = true
 	damageFlash.BackgroundTransparency = visibleTransparency
 
-	local fade = TweenService:Create(
+	damageFlashTween = TweenService:Create(
 		damageFlash,
 		TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{ BackgroundTransparency = 1 }
 	)
-	fade:Play()
-	fade.Completed:Connect(function()
+	damageFlashTween:Play()
+	damageFlashTween.Completed:Connect(function()
 		if token == damageFlashToken and damageFlash then
 			damageFlash.Visible = false
+			damageFlashTween = nil
 		end
 	end)
 end
@@ -136,6 +143,10 @@ local function updateVisibility()
 	end
 	if not inRound and damageFlash then
 		damageFlashToken += 1
+		if damageFlashTween then
+			damageFlashTween:Cancel()
+			damageFlashTween = nil
+		end
 		damageFlash.Visible = false
 		damageFlash.BackgroundTransparency = 1
 	end
