@@ -20,6 +20,7 @@
 - Body Color, Eyes, and Patterns are functional cosmetic slots.
 - Cosmetic ownership is account-wide, but each bug species remembers its own equipped appearance.
 - Each bug also has three explicit saved preset slots: Build 1, Build 2, and Build 3. Presets are snapshots and are not automatically overwritten while experimenting.
+- Three preset slots are a prototype starting point, not a product limit. Preset count should become config-driven so we can expand to 6+ saved builds per bug without changing the persistence model or rebuilding the UI.
 - Available DNA is spendable currency. Lifetime DNA is permanent level/title progression and never decreases when DNA is spent.
 - Exit Round rolls back both available and lifetime DNA earned during the forfeited round.
 - Cosmetic visual definitions are separated from commerce metadata so prices, rarity, availability, achievements, and future Robux products can evolve independently.
@@ -33,16 +34,17 @@
 ## Next mechanics / player-identity pass
 
 1. Continue adding genuinely different hazard motion patterns: falling drops/acorns, gusts, leaf sweeps, rake passes, and similar readable backyard events.
-2. Test the Builds tab on desktop and iPad, including save, overwrite, load, species switching, and empty-slot behavior.
-3. Test the Awards tab and achievement unlock pacing, then expand with skill-based achievements such as critical-health recovery, bug-specific survival, and streaks.
-4. Tune Body Color, Eyes, and Pattern prices against actual DNA earned per two-minute round.
-5. Add additional cosmetic slots: shell/wing treatment, antenna accents, and trails.
-6. Refine overhead identity readability at different distances and player counts.
-7. Continue multiplayer testing with 2-4 Studio clients and verify queue/lock/elimination/results behavior.
-8. Test pickup competition with multiple players and decide whether some collectibles should become player-specific.
-9. Add insect unlock pricing after round economy is better understood.
-10. Add map voting after the shared-match loop and player progression are stable.
-11. Consider a lobby leaderboard or showcase once progression has enough history to make it interesting.
+2. Make saved-build preset count config-driven, then expand beyond the current three slots once the final customization breadth is clearer.
+3. Test the Builds tab on desktop and iPad, including save, overwrite, load, species switching, and empty-slot behavior.
+4. Test the Awards tab and achievement unlock pacing, then expand with skill-based achievements such as critical-health recovery, bug-specific survival, and streaks.
+5. Tune Body Color, Eyes, and Pattern prices against actual DNA earned per two-minute round.
+6. Add additional cosmetic slots: shell/wing treatment, antenna accents, and trails.
+7. Refine overhead identity readability at different distances and player counts.
+8. Continue multiplayer testing with 2-4 Studio clients and verify queue/lock/elimination/results behavior.
+9. Test pickup competition with multiple players and decide whether some collectibles should become player-specific.
+10. Add insect unlock pricing after round economy is better understood.
+11. Add map voting after the shared-match loop and player progression are stable.
+12. Consider a lobby leaderboard or showcase once progression has enough history to make it interesting.
 
 ## Audio / music roadmap
 
