@@ -151,6 +151,8 @@ local function playHazardCue(payload)
 		elseif hazardId == "RollingBall" then
 			playOneShot(SOUND.Bass, 0.60, 1.38, 2)
 			playPingSequence({ 0.92, 1.02, 1.12 }, 0.15, 0.50)
+		elseif hazardId == "Raindrop" then
+			playPingSequence({ 1.62, 1.44, 1.26 }, 0.16, 0.50)
 		end
 	elseif stage == "Impact" then
 		if hazardId == "ShoeStomp" then
@@ -162,6 +164,8 @@ local function playHazardCue(payload)
 		elseif hazardId == "RollingBall" then
 			playOneShot(SOUND.Bass, 0.72, 1.60, 2)
 			playPingSequence({ 0.78, 0.88, 0.98, 1.08 }, 0.11, 0.38)
+		elseif hazardId == "Raindrop" then
+			playOneShot(SOUND.Water, 0.82, 1.28, 3)
 		end
 	end
 end
