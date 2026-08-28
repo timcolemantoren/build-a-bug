@@ -42,6 +42,6 @@ SurvivalController.Init(remotes)
 AudioController.Init(remotes)
 CameraController.Init()
 BugMotionController.Init()
-EnvironmentMotionController.Init()
+EnvironmentMotionController.Init(remotes)
 
 print("[Build a Bug] Client initialized")
