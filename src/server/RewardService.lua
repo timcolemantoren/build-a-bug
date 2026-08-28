@@ -1,5 +1,6 @@
 --!nonstrict
 
+local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
@@ -9,8 +10,45 @@ local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
 local RewardService = {}
 local PlayerDataService = nil
 
+local PICKUP_SOUNDS = {
+	Crumb = {
+		id = "rbxasset://sounds/electronicpingshort.wav",
+		volume = 0.38,
+		playbackSpeed = 0.92,
+	},
+	DNA = {
+		id = "rbxasset://sounds/electronicpingshort.wav",
+		volume = 0.48,
+		playbackSpeed = 1.55,
+	},
+}
+
 function RewardService.Init(playerDataService)
 	PlayerDataService = playerDataService
+end
+
+local function playPickupSound(player: Player, pickupType: string)
+	local config = PICKUP_SOUNDS[pickupType]
+	if not config then
+		return
+	end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return
+	end
+
+	local sound = Instance.new("Sound")
+	sound.Name = pickupType .. "PickupSound"
+	sound.SoundId = config.id
+	sound.Volume = config.volume
+	sound.PlaybackSpeed = config.playbackSpeed
+	sound.RollOffMinDistance = 5
+	sound.RollOffMaxDistance = 28
+	sound.Parent = root
+	sound:Play()
+	Debris:AddItem(sound, 2)
 end
 
 local function getEffectiveCrumbAmount(player: Player, baseAmount: number): number
@@ -71,6 +109,7 @@ function RewardService.AwardCrumb(player: Player, amount: number?)
 
 	PlayerDataService.AddCrumbs(player, crumbAmount)
 	PlayerDataService.AddDna(player, dnaAmount)
+	playPickupSound(player, "Crumb")
 	return crumbAmount, dnaAmount, healedAmount
 end
 
@@ -81,6 +120,7 @@ function RewardService.AwardDnaPickup(player: Player, amount: number?)
 
 	local dnaAmount = amount or RoundConfig.dnaPickupReward or 3
 	PlayerDataService.AddDna(player, dnaAmount)
+	playPickupSound(player, "DNA")
 	return dnaAmount
 end
 
