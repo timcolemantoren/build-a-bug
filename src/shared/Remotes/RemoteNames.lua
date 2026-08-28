@@ -7,6 +7,7 @@ local RemoteNames = {
 	FolderName = "BuildABugRemotes",
 	SelectBug = "SelectBug",
 	SelectBugLoadout = "SelectBugLoadout",
+	PurchaseBug = "PurchaseBug",
 	BuildPreset = "BuildPreset",
 	SetCosmetic = "SetCosmetic",
 	PurchaseCosmetic = "PurchaseCosmetic",
