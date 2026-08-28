@@ -1,5 +1,6 @@
 --!nonstrict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
@@ -27,11 +28,6 @@ local function announce(player: Player, achievement)
 		rewardId = achievement.rewardId,
 		rewardName = achievement.rewardName,
 	})
-end
-
-function AchievementService.Init(playerDataService, remoteEvents)
-	PlayerDataService = playerDataService
-	remotes = remoteEvents
 end
 
 function AchievementService.Evaluate(player: Player)
@@ -66,6 +62,24 @@ function AchievementService.Evaluate(player: Player)
 	end
 
 	return unlockedNow
+end
+
+local function evaluateAfterLoad(player: Player)
+	task.delay(0.8, function()
+		if player.Parent == Players then
+			AchievementService.Evaluate(player)
+		end
+	end)
+end
+
+function AchievementService.Init(playerDataService, remoteEvents)
+	PlayerDataService = playerDataService
+	remotes = remoteEvents
+
+	Players.PlayerAdded:Connect(evaluateAfterLoad)
+	for _, player in ipairs(Players:GetPlayers()) do
+		evaluateAfterLoad(player)
+	end
 end
 
 return AchievementService
