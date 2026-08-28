@@ -192,7 +192,12 @@ local function buildPillbug(player: Player, model: Model, root: BasePart)
 	for i = 1, 6 do
 		local z = -0.18 + ((i - 1) * 0.58)
 		local width = 2.18 - math.abs(i - 3.5) * 0.13
-		local plate = bodyPart(model, root, parent, "ShellPlate", Vector3.new(width, 1.28, 0.82), CFrame.new(0, 0.10, z), (i % 2 == 0) and c.body or c.accent, "Abdomen")
+		local plate = bodyPart(model, root, parent, "ShellPlate", Vector3.new(width, 1.28, 0.82), CFrame.new(0, 0.10, z), (i % 2 == 0) and c.body or c.accent, "PillbugPlate")
+		local joint = plate:FindFirstChild("ShellPlateJoint")
+		if joint and joint:IsA("Motor6D") then
+			joint:SetAttribute("RollIndex", i)
+			joint:SetAttribute("MotionPhase", i * 0.38)
+		end
 		parent = plate
 	end
 
@@ -222,7 +227,7 @@ local function replaceVisual(player: Player, model: Model)
 	for _, child in ipairs(model:GetChildren()) do
 		child:Destroy()
 	end
-	model:SetAttribute("RigVersion", 6)
+	model:SetAttribute("RigVersion", 7)
 	if bugId == "Dragonfly" then
 		buildDragonfly(player, model, root)
 	else
