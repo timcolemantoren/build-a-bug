@@ -1,14 +1,14 @@
 --!strict
 
--- Base bug types for the MVP.
--- For now, all bugs use 100 health so Roblox's default health bar stays predictable.
--- Durability differences should come from hazard damage rules, not max health changes.
+-- Base bug types and unlockable sidegrades.
+-- All bugs use 100 health so durability differences come from hazard rules and abilities.
 
 local BugArchetypes = {
 	Ant = {
 		id = "Ant",
 		displayName = "Ant",
 		description = "A balanced worker bug that can gather extra food.",
+		unlockCost = 0,
 		movementSpeed = 16,
 		jumpPower = 45,
 		maxHealth = 100,
@@ -26,6 +26,7 @@ local BugArchetypes = {
 		id = "Beetle",
 		displayName = "Beetle",
 		description = "A tough armored bug that survives mistakes but moves slower.",
+		unlockCost = 0,
 		movementSpeed = 12,
 		jumpPower = 34,
 		maxHealth = 100,
@@ -44,6 +45,7 @@ local BugArchetypes = {
 		id = "Grasshopper",
 		displayName = "Grasshopper",
 		description = "A fragile jumper built for quick escapes.",
+		unlockCost = 0,
 		movementSpeed = 19,
 		jumpPower = 72,
 		maxHealth = 100,
@@ -53,6 +55,43 @@ local BugArchetypes = {
 			displayName = "Leap",
 			description = "Launches forward to escape danger.",
 			cooldownSeconds = 12,
+		},
+	},
+
+	Ladybug = {
+		id = "Ladybug",
+		displayName = "Ladybug",
+		description = "A quick, nimble bug with a short burst of wing-assisted speed.",
+		unlockCost = 850,
+		movementSpeed = 17,
+		jumpPower = 48,
+		maxHealth = 100,
+		hungerDrainPerSecond = 1.15,
+		damageReduction = 0.10,
+		ability = {
+			id = "WingBurst",
+			displayName = "Wing Burst",
+			description = "Briefly boosts ground speed to escape a bad situation.",
+			cooldownSeconds = 16,
+			durationSeconds = 3.5,
+			boostSpeed = 25,
+		},
+	},
+
+	Mantis = {
+		id = "Mantis",
+		displayName = "Mantis",
+		description = "A precise hunter with a fast forward pounce and strong jump.",
+		unlockCost = 2500,
+		movementSpeed = 15,
+		jumpPower = 58,
+		maxHealth = 100,
+		hungerDrainPerSecond = 1.25,
+		ability = {
+			id = "Pounce",
+			displayName = "Pounce",
+			description = "Dashes forward in a low, fast arc.",
+			cooldownSeconds = 14,
 		},
 	},
 }
