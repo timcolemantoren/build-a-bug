@@ -50,6 +50,14 @@ local HazardConfig = {
 		damage = 0,
 		description = "A strong gust sweeps across the yard and pushes bugs sideways.",
 	},
+
+	RakeSweep = {
+		id = "RakeSweep",
+		displayName = "Rake Sweep",
+		warningSeconds = 2.6,
+		damage = 24,
+		description = "A giant garden rake sweeps across the yard. Dodge the moving rake head.",
+	},
 }
 
 return HazardConfig
