@@ -186,7 +186,7 @@ local function ensureGui(remotes)
 				end
 				selectedBug = currentBugId
 				refreshBugCards()
-				remotes.SelectBug:FireServer(currentBugId)
+				remotes.SelectBugLoadout:FireServer(currentBugId)
 			end)
 
 			bugCards[currentBugId] = {
