@@ -16,10 +16,10 @@
 - Starter bugs use articulated visual rigs over the reliable Roblox Humanoid controller.
 - Ant, Beetle, and Grasshopper have different silhouettes, movement profiles, abilities, and play styles.
 - Player identity tags show name, level/title, bug, rounds played, and best survival.
-- Lobby Profile / Customize hub uses scalable tabs for Stats, Colors, Eyes, Patterns, and Awards.
+- Lobby Profile / Customize hub uses scalable tabs for Stats, Builds, Colors, Eyes, Patterns, and Awards.
 - Body Color, Eyes, and Patterns are functional cosmetic slots.
-- Cosmetic unlocks are account-wide and cosmetic-only.
-- Equipped appearance is saved per bug species. A bug with no saved appearance starts Natural / Classic Eyes / No Pattern, while returning to a previously customized species restores its own look.
+- Cosmetic ownership is account-wide, but each bug species remembers its own equipped appearance.
+- Each bug also has three explicit saved preset slots: Build 1, Build 2, and Build 3. Presets are snapshots and are not automatically overwritten while experimenting.
 - Available DNA is spendable currency. Lifetime DNA is permanent level/title progression and never decreases when DNA is spent.
 - Exit Round rolls back both available and lifetime DNA earned during the forfeited round.
 - Cosmetic visual definitions are separated from commerce metadata so prices, rarity, availability, achievements, and future Robux products can evolve independently.
@@ -28,14 +28,15 @@
 - Achievement unlocks have their own reward banner and audio cue.
 - Grass is interactive: some blades fall when touched and occasional nearby blades can coil and flick an active bug during a round.
 - Crumbs and DNA have distinct pickup sounds; phase, hazard, impact, and elimination prototype audio is centralized for later replacement.
+- Backyard hazards now include Shoe Stomp, Sprinkler Burst, Bird Shadow, and a moving Rolling Ball that crosses its telegraphed lane.
 
 ## Next mechanics / player-identity pass
 
-1. Add more hazard motion patterns rather than simply increasing hazard frequency: rolling objects, falling drops/acorns, gusts, leaf sweeps, and similar readable backyard events.
-2. Test the Awards tab and achievement unlock pacing, then expand with skill-based achievements such as critical-health recovery, bug-specific survival, and streaks.
-3. Tune Body Color, Eyes, and Pattern prices against actual DNA earned per two-minute round.
-4. Add additional cosmetic slots: shell/wing treatment, antenna accents, and trails.
-5. Add explicit multi-preset saved builds once cosmetic variety makes multiple looks per species useful. Automatic per-species appearance remains the default simple experience.
+1. Continue adding genuinely different hazard motion patterns: falling drops/acorns, gusts, leaf sweeps, rake passes, and similar readable backyard events.
+2. Test the Builds tab on desktop and iPad, including save, overwrite, load, species switching, and empty-slot behavior.
+3. Test the Awards tab and achievement unlock pacing, then expand with skill-based achievements such as critical-health recovery, bug-specific survival, and streaks.
+4. Tune Body Color, Eyes, and Pattern prices against actual DNA earned per two-minute round.
+5. Add additional cosmetic slots: shell/wing treatment, antenna accents, and trails.
 6. Refine overhead identity readability at different distances and player counts.
 7. Continue multiplayer testing with 2-4 Studio clients and verify queue/lock/elimination/results behavior.
 8. Test pickup competition with multiple players and decide whether some collectibles should become player-specific.
@@ -49,11 +50,11 @@ Treat audio as part of the core experience rather than final-launch decoration.
 
 - Lobby/nest ambience should feel safe, curious, and playful.
 - Round music should build by phase: Scavenge, Trouble, Chaos, Final Scramble.
-- Important gameplay events need distinct readable cues: queue lock, round start, phase transitions, hazard warnings, shoe/sprinkler/bird impacts, grass flick, crumb pickup, DNA pickup, healing, ability use, low health, squish/elimination, reward/unlock, and cosmetic equip/purchase.
+- Important gameplay events need distinct readable cues: queue lock, round start, phase transitions, hazard warnings, shoe/sprinkler/bird/ball impacts, grass flick, crumb pickup, DNA pickup, healing, ability use, low health, squish/elimination, reward/unlock, and cosmetic equip/purchase.
 - Environment should have subtle macro-backyard ambience: grass rustle, wind, distant birds, hose/water, occasional human/toy noises.
 - Bug movement sounds should remain light and stylized rather than noisy on every footstep.
 - Sound cues should reinforce danger and anticipation without becoming necessary for players who play muted.
-- Keep SFX event names/config centralized when implementation starts so maps and cosmetics can add audio without hard-coding asset IDs throughout gameplay services.
+- Keep SFX event names/config centralized so maps and cosmetics can add audio without hard-coding asset IDs throughout gameplay services.
 
 ## Monetization / store roadmap
 
