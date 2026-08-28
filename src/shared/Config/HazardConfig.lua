@@ -1,6 +1,6 @@
 --!strict
 
--- MVP hazards should be readable, funny, and dodgeable.
+-- Hazards should be readable, funny, and dodgeable.
 -- The world can feel chaotic without every mistake being brutally punishing.
 local HazardConfig = {
 	BirdShadow = {
@@ -25,6 +25,14 @@ local HazardConfig = {
 		warningSeconds = 2.7,
 		damage = 42,
 		description = "A giant shoe lands after the stomp zone appears.",
+	},
+
+	RollingBall = {
+		id = "RollingBall",
+		displayName = "Rolling Ball",
+		warningSeconds = 2.5,
+		damage = 22,
+		description = "A giant toy ball rolls through the yard. Get out of its path.",
 	},
 }
 
