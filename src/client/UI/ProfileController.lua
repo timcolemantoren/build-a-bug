@@ -25,6 +25,7 @@ local selectedPattern = player:GetAttribute("PatternStyle") or "None"
 
 local cosmeticCards = {}
 local achievementCards = {}
+local buildCards = {}
 local tabButtons = {}
 local tabPages = {}
 
@@ -35,6 +36,7 @@ local currencyLabel = nil
 local statsLabel = nil
 local bugLabel = nil
 local shopStatusLabel = nil
+local buildsIntroLabel = nil
 
 local DEFAULT_CARD = Color3.fromRGB(55, 62, 58)
 local SELECTED_CARD = Color3.fromRGB(74, 103, 76)
@@ -46,6 +48,14 @@ local LOCKED_STROKE = Color3.fromRGB(72, 72, 72)
 local ACHIEVED_STROKE = Color3.fromRGB(218, 190, 87)
 local TAB_IDLE = Color3.fromRGB(58, 65, 61)
 local TAB_ACTIVE = Color3.fromRGB(82, 109, 83)
+local BUILD_FILLED = Color3.fromRGB(61, 73, 65)
+local BUILD_EMPTY = Color3.fromRGB(46, 51, 48)
+
+local BUILD_PRESETS = {
+	{ id = "Build1", name = "Build 1" },
+	{ id = "Build2", name = "Build 2" },
+	{ id = "Build3", name = "Build 3" },
+}
 
 local function formatTime(seconds: number): string
 	seconds = math.max(0, math.floor(seconds or 0))
@@ -76,6 +86,11 @@ local function getAvailableDna(): number
 	local data = currentData or {}
 	local currency = data.currency or {}
 	return currency.dna or player:GetAttribute("TotalDna") or 0
+end
+
+local function getCurrentBugId(): string
+	local data = currentData or {}
+	return data.selectedBug or player:GetAttribute("SelectedBug") or "Ant"
 end
 
 local function isOwned(slot: string, styleId: string): boolean
@@ -112,6 +127,51 @@ local function setShopStatus(text: string, isWarning: boolean?)
 	end
 	shopStatusLabel.Text = text
 	shopStatusLabel.TextColor3 = isWarning and Color3.fromRGB(255, 205, 145) or Color3.fromRGB(195, 225, 190)
+end
+
+local function styleDisplayName(slot: string, styleId: string?): string
+	if not styleId then
+		return "None"
+	end
+	local style = CosmeticStyles.GetStyle(slot, styleId)
+	return style and style.displayName or tostring(styleId)
+end
+
+local function getPreset(presetId: string)
+	local data = currentData or {}
+	local savedBuilds = data.savedBuilds or {}
+	local presetsByBug = savedBuilds.BugPresets or {}
+	local bugPresets = presetsByBug[getCurrentBugId()] or {}
+	return bugPresets[presetId]
+end
+
+local function formatBuildSummary(loadout): string
+	if type(loadout) ~= "table" then
+		return "Empty slot"
+	end
+	return string.format(
+		"%s  •  %s\n%s",
+		styleDisplayName("BodyColor", loadout.bodyColor or "Natural"),
+		styleDisplayName("Eyes", loadout.eyes or "Default"),
+		styleDisplayName("Pattern", loadout.pattern or "None")
+	)
+end
+
+local function refreshBuildCards()
+	local bugId = getCurrentBugId()
+	if buildsIntroLabel then
+		buildsIntroLabel.Text = bugId .. " Saved Builds"
+	end
+
+	for presetId, card in pairs(buildCards) do
+		local preset = getPreset(presetId)
+		local filled = type(preset) == "table"
+		card.frame.BackgroundColor3 = filled and BUILD_FILLED or BUILD_EMPTY
+		card.summary.Text = formatBuildSummary(preset)
+		card.saveButton.Text = filled and "Overwrite" or "Save"
+		card.loadButton.TextTransparency = filled and 0 or 0.52
+		card.loadButton.BackgroundTransparency = filled and 0.08 or 0.42
+	end
 end
 
 local function refreshCosmeticCards()
@@ -228,7 +288,7 @@ local function refreshProfile()
 	local fullSurvives = stats.fullRoundsSurvived or player:GetAttribute("FullRoundsSurvived") or 0
 	local best = stats.longestSurvival or player:GetAttribute("BestSurvival") or 0
 	local food = stats.foodCollected or player:GetAttribute("FoodCollected") or 0
-	local bugId = data.selectedBug or player:GetAttribute("SelectedBug") or "Ant"
+	local bugId = getCurrentBugId()
 	local completedCount = 0
 	for _, value in pairs(achievements) do
 		if value == true then
@@ -262,6 +322,7 @@ local function refreshProfile()
 
 	refreshCosmeticCards()
 	refreshAchievementCards()
+	refreshBuildCards()
 end
 
 local function applyTab()
@@ -287,7 +348,7 @@ end
 local function createTabButton(parent: Instance, tabId: string, text: string, order: number)
 	local button = Instance.new("TextButton")
 	button.Name = tabId .. "Tab"
-	button.Size = UDim2.new(0.2, -5, 1, 0)
+	button.Size = UDim2.fromOffset(80, 36)
 	button.LayoutOrder = order
 	button.BackgroundColor3 = TAB_IDLE
 	button.BackgroundTransparency = 0.02
@@ -301,6 +362,8 @@ local function createTabButton(parent: Instance, tabId: string, text: string, or
 		activeTab = tabId
 		if tabId == "Awards" then
 			setShopStatus("Complete Awards to unlock cosmetics that cannot be bought with DNA.", false)
+		elseif tabId == "Builds" then
+			setShopStatus("Save favorite looks for the current bug. Each species has its own three build slots.", false)
 		elseif tabId ~= "Stats" then
 			setShopStatus("Tap a locked cosmetic to buy it with DNA. Award cosmetics must be earned.", false)
 		end
@@ -319,6 +382,84 @@ local function createPage(parent: Instance, tabId: string): Frame
 	page.Parent = parent
 	tabPages[tabId] = page
 	return page
+end
+
+local function createBuildsPage(parent: Instance, remotes)
+	local page = createPage(parent, "Builds")
+	buildsIntroLabel = makeText(page, "Intro", "Ant Saved Builds", UDim2.fromOffset(16, 4), UDim2.new(1, -32, 0, 28), 17, true)
+	local note = makeText(page, "Note", "Your current look is remembered automatically. Save favorite snapshots here.", UDim2.fromOffset(16, 30), UDim2.new(1, -32, 0, 38), 11, false)
+	note.TextColor3 = Color3.fromRGB(205, 215, 205)
+
+	for index, presetInfo in ipairs(BUILD_PRESETS) do
+		local presetId = presetInfo.id
+		local card = Instance.new("Frame")
+		card.Name = presetId
+		card.Size = UDim2.new(1, -24, 0, 84)
+		card.Position = UDim2.fromOffset(12, 72 + ((index - 1) * 92))
+		card.BackgroundColor3 = BUILD_EMPTY
+		card.BackgroundTransparency = 0.02
+		card.Parent = page
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = OWNED_STROKE
+		stroke.Thickness = 1
+		stroke.Parent = card
+
+		local title = makeText(card, "Title", presetInfo.name, UDim2.fromOffset(12, 5), UDim2.new(1, -180, 0, 22), 14, true)
+		title.TextColor3 = Color3.fromRGB(250, 250, 245)
+		local summary = makeText(card, "Summary", "Empty slot", UDim2.fromOffset(12, 28), UDim2.new(1, -180, 0, 46), 11, false)
+		summary.TextColor3 = Color3.fromRGB(210, 218, 210)
+
+		local saveButton = Instance.new("TextButton")
+		saveButton.Name = "Save"
+		saveButton.Size = UDim2.fromOffset(78, 32)
+		saveButton.Position = UDim2.new(1, -166, 0, 30)
+		saveButton.BackgroundColor3 = Color3.fromRGB(78, 101, 79)
+		saveButton.BackgroundTransparency = 0.08
+		saveButton.Text = "Save"
+		saveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		saveButton.Font = Enum.Font.GothamBold
+		saveButton.TextSize = 12
+		saveButton.Parent = card
+		saveButton.MouseButton1Click:Connect(function()
+			if inRound then
+				return
+			end
+			remotes.BuildPreset:FireServer("Save", presetId)
+			setShopStatus("Saving " .. presetInfo.name .. " for " .. getCurrentBugId() .. "...", false)
+		end)
+
+		local loadButton = Instance.new("TextButton")
+		loadButton.Name = "Load"
+		loadButton.Size = UDim2.fromOffset(70, 32)
+		loadButton.Position = UDim2.new(1, -80, 0, 30)
+		loadButton.BackgroundColor3 = Color3.fromRGB(75, 82, 79)
+		loadButton.BackgroundTransparency = 0.42
+		loadButton.Text = "Load"
+		loadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		loadButton.TextTransparency = 0.52
+		loadButton.Font = Enum.Font.GothamBold
+		loadButton.TextSize = 12
+		loadButton.Parent = card
+		loadButton.MouseButton1Click:Connect(function()
+			if inRound then
+				return
+			end
+			if type(getPreset(presetId)) ~= "table" then
+				setShopStatus(presetInfo.name .. " is empty. Save your current look first.", true)
+				return
+			end
+			remotes.BuildPreset:FireServer("Load", presetId)
+			setShopStatus("Loading " .. presetInfo.name .. " for " .. getCurrentBugId() .. "...", false)
+		end)
+
+		buildCards[presetId] = {
+			frame = card,
+			summary = summary,
+			saveButton = saveButton,
+			loadButton = loadButton,
+		}
+	end
 end
 
 local function createCosmeticPage(parent: Instance, remotes, tabId: string, slot: string)
@@ -537,24 +678,29 @@ local function ensureGui(remotes)
 		applyVisibility()
 	end)
 
-	local tabs = Instance.new("Frame")
+	local tabs = Instance.new("ScrollingFrame")
 	tabs.Name = "Tabs"
 	tabs.Position = UDim2.fromOffset(14, 70)
 	tabs.Size = UDim2.new(1, -28, 0, 38)
 	tabs.BackgroundTransparency = 1
+	tabs.BorderSizePixel = 0
+	tabs.ScrollBarThickness = 0
+	tabs.ScrollingDirection = Enum.ScrollingDirection.X
+	tabs.CanvasSize = UDim2.fromOffset(510, 0)
 	tabs.Parent = panel
 
 	local tabLayout = Instance.new("UIListLayout")
 	tabLayout.FillDirection = Enum.FillDirection.Horizontal
-	tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	tabLayout.Padding = UDim.new(0, 6)
 	tabLayout.Parent = tabs
 
 	createTabButton(tabs, "Stats", "Stats", 1)
-	createTabButton(tabs, "Colors", "Colors", 2)
-	createTabButton(tabs, "Eyes", "Eyes", 3)
-	createTabButton(tabs, "Patterns", "Patterns", 4)
-	createTabButton(tabs, "Awards", "Awards", 5)
+	createTabButton(tabs, "Builds", "Builds", 2)
+	createTabButton(tabs, "Colors", "Colors", 3)
+	createTabButton(tabs, "Eyes", "Eyes", 4)
+	createTabButton(tabs, "Patterns", "Patterns", 5)
+	createTabButton(tabs, "Awards", "Awards", 6)
 
 	local content = Instance.new("Frame")
 	content.Name = "TabContent"
@@ -570,6 +716,7 @@ local function ensureGui(remotes)
 	statsLabel = makeText(statsPage, "Stats", "Rounds played: 0\nFull rounds survived: 0\nBest survival: --\nFood collected: 0\nAwards: 0 / 4", UDim2.fromOffset(18, 158), UDim2.new(1, -36, 0, 108), 13, false)
 	bugLabel = makeText(statsPage, "Bug", "Current bug: Ant\nColor: Natural    Eyes: Default\nPattern: None", UDim2.fromOffset(18, 270), UDim2.new(1, -36, 0, 72), 13, true)
 
+	createBuildsPage(content, remotes)
 	createCosmeticPage(content, remotes, "Colors", "BodyColor")
 	createCosmeticPage(content, remotes, "Eyes", "Eyes")
 	createCosmeticPage(content, remotes, "Patterns", "Pattern")
