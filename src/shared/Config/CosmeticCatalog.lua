@@ -7,18 +7,18 @@
 -- robuxProductId = 0 means the item is eligible for a future Developer Product,
 -- but no live Roblox product has been configured yet.
 -- availability = "always" is the current shop. "rotation" is reserved for a
--- future featured/limited-stock shop without changing ownership or rendering.
+-- future featured/limited-stock shop. "achievement" means gameplay reward only.
 
 local CosmeticCatalog = {}
 
 CosmeticCatalog.Slots = {
 	BodyColor = {
 		displayName = "Colors",
-		order = { "Natural", "Ruby", "Moss", "Midnight" },
+		order = { "Natural", "Ruby", "Moss", "Midnight", "Honey", "Electric" },
 	},
 	Eyes = {
 		displayName = "Eyes",
-		order = { "Default", "Googly", "Amber", "Neon" },
+		order = { "Default", "Googly", "Amber", "Neon", "VictoryGold", "Bubblegum" },
 	},
 	Pattern = {
 		displayName = "Patterns",
@@ -64,6 +64,28 @@ CosmeticCatalog.Items = {
 			robuxEligible = true,
 			robuxProductId = 0,
 		},
+		Honey = {
+			id = "Honey",
+			displayName = "Honey",
+			dnaCost = 0,
+			rarity = "Achievement",
+			availability = "achievement",
+			unlockType = "achievement",
+			achievementId = "SnackStack",
+			robuxEligible = false,
+			robuxProductId = 0,
+		},
+		Electric = {
+			id = "Electric",
+			displayName = "Electric",
+			dnaCost = 0,
+			rarity = "Achievement",
+			availability = "achievement",
+			unlockType = "achievement",
+			achievementId = "DnaCollector",
+			robuxEligible = false,
+			robuxProductId = 0,
+		},
 	},
 
 	Eyes = {
@@ -101,6 +123,28 @@ CosmeticCatalog.Items = {
 			rarity = "Epic",
 			availability = "always",
 			robuxEligible = true,
+			robuxProductId = 0,
+		},
+		VictoryGold = {
+			id = "VictoryGold",
+			displayName = "Victory Gold",
+			dnaCost = 0,
+			rarity = "Achievement",
+			availability = "achievement",
+			unlockType = "achievement",
+			achievementId = "BackyardSurvivor",
+			robuxEligible = false,
+			robuxProductId = 0,
+		},
+		Bubblegum = {
+			id = "Bubblegum",
+			displayName = "Bubblegum",
+			dnaCost = 0,
+			rarity = "Achievement",
+			availability = "achievement",
+			unlockType = "achievement",
+			achievementId = "YardRegular",
+			robuxEligible = false,
 			robuxProductId = 0,
 		},
 	},
