@@ -55,6 +55,7 @@ local remotes = {
 	SelectBug = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SelectBug),
 	SelectBugLoadout = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SelectBugLoadout),
 	PurchaseBug = getOrCreateRemoteEvent(remotesFolder, RemoteNames.PurchaseBug),
+	BugUnlockResult = getOrCreateRemoteEvent(remotesFolder, RemoteNames.BugUnlockResult),
 	BuildPreset = getOrCreateRemoteEvent(remotesFolder, RemoteNames.BuildPreset),
 	SetCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SetCosmetic),
 	PurchaseCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.PurchaseCosmetic),
