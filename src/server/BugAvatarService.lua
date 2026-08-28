@@ -6,11 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local CosmeticStyles = require(BuildABugShared.Config.CosmeticStyles)
 
--- Articulated bug avatar system.
--- Roblox's hidden Humanoid/R15 character still owns all movement, collision,
--- health, networking, and abilities. The visible insect is a lightweight Motor6D
--- hierarchy attached to HumanoidRootPart so motion can propagate through real
--- body/hip/knee/antenna chains.
+-- Roblox's hidden Humanoid/R15 character still owns movement, collision, health,
+-- networking, and abilities. The visible insect is a lightweight articulated rig.
 
 local BugAvatarService = {}
 local PlayerDataService = nil
@@ -53,6 +50,11 @@ end
 local function getEyeStyle(player: Player)
 	local styleId = player:GetAttribute("EyeStyle") or "Default"
 	return CosmeticStyles.EyeStyles[styleId] or CosmeticStyles.EyeStyles.Default
+end
+
+local function getPatternStyle(player: Player)
+	local styleId = player:GetAttribute("PatternStyle") or "None"
+	return CosmeticStyles.PatternStyles[styleId] or CosmeticStyles.PatternStyles.None
 end
 
 local function hideRobloxAvatar(character: Model)
@@ -299,14 +301,85 @@ local function buildGrasshopper(model: Model, root: BasePart, c, eyeStyle)
 	createAntenna(model, root, head, 1, -2.00, -3.40, c.dark)
 end
 
+local function createPatternPiece(model: Model, target: BasePart, name: string, size: Vector3, localCFrame: CFrame, color: Color3, material, shape)
+	local piece = createPart(model, name, shape or Enum.PartType.Block, size, target.CFrame * localCFrame, color, material or Enum.Material.SmoothPlastic)
+	piece.CastShadow = false
+	createStaticWeld(target, piece)
+	return piece
+end
+
+local function applyPattern(model: Model, patternStyle)
+	if not patternStyle or patternStyle.kind == "none" then
+		return
+	end
+
+	local target = model:FindFirstChild("Shell") or model:FindFirstChild("Abdomen") or model:FindFirstChild("Thorax") or model:FindFirstChild("Pronotum")
+	if not target or not target:IsA("BasePart") then
+		return
+	end
+
+	local topY = target.Size.Y * 0.49 + 0.04
+	local color = patternStyle.color or Color3.fromRGB(230, 220, 170)
+	local material = patternStyle.material or Enum.Material.SmoothPlastic
+
+	if patternStyle.kind == "stripe" then
+		for _, zScale in ipairs({ -0.18, 0.18 }) do
+			createPatternPiece(
+				model,
+				target,
+				"PatternStripe",
+				Vector3.new(target.Size.X * 0.72, 0.09, math.max(0.18, target.Size.Z * 0.12)),
+				CFrame.new(0, topY, target.Size.Z * zScale),
+				color,
+				material
+			)
+		end
+	elseif patternStyle.kind == "speckles" then
+		local offsets = {
+			Vector2.new(-0.23, -0.20),
+			Vector2.new(0.22, -0.13),
+			Vector2.new(-0.12, 0.08),
+			Vector2.new(0.26, 0.19),
+			Vector2.new(-0.28, 0.26),
+		}
+		for _, offset in ipairs(offsets) do
+			local diameter = math.max(0.16, math.min(target.Size.X, target.Size.Z) * 0.16)
+			createPatternPiece(
+				model,
+				target,
+				"PatternSpeckle",
+				Vector3.new(diameter, 0.10, diameter),
+				CFrame.new(target.Size.X * offset.X, topY, target.Size.Z * offset.Y),
+				color,
+				material,
+				Enum.PartType.Ball
+			)
+		end
+	elseif patternStyle.kind == "sunmark" then
+		local mark = createPatternPiece(
+			model,
+			target,
+			"PatternSunmark",
+			Vector3.new(target.Size.X * 0.42, 0.10, target.Size.Z * 0.30),
+			CFrame.new(0, topY, 0) * CFrame.Angles(0, math.rad(45), 0),
+			color,
+			material
+		)
+		local light = Instance.new("PointLight")
+		light.Name = "PatternGlow"
+		light.Color = color
+		light.Brightness = 0.25
+		light.Range = 2.5
+		light.Parent = mark
+	end
+end
+
 local function formatBestTime(seconds: number): string
 	seconds = math.max(0, math.floor(seconds or 0))
 	if seconds <= 0 then
 		return "--"
 	end
-	local minutes = math.floor(seconds / 60)
-	local remainder = seconds % 60
-	return string.format("%d:%02d", minutes, remainder)
+	return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
 local function makeTagLabel(parent: Instance, name: string, y: number, height: number, textSize: number, color: Color3): TextLabel
@@ -404,11 +477,12 @@ local function buildVisual(player: Player)
 	selectedBug = selectedBug or "Ant"
 	local palette = getPalette(player, selectedBug)
 	local eyeStyle = getEyeStyle(player)
+	local patternStyle = getPatternStyle(player)
 
 	local model = Instance.new("Model")
 	model.Name = VISUAL_MODEL_NAME
 	model:SetAttribute("BugId", selectedBug)
-	model:SetAttribute("RigVersion", 2)
+	model:SetAttribute("RigVersion", 3)
 	model.Parent = character
 
 	if selectedBug == "Beetle" then
@@ -419,6 +493,7 @@ local function buildVisual(player: Player)
 		buildAnt(model, root, palette, eyeStyle)
 	end
 
+	applyPattern(model, patternStyle)
 	createIdentityTag(player, root)
 	refreshIdentityTag(player)
 	hideRobloxAvatar(character)
@@ -429,15 +504,11 @@ local function buildVisual(player: Player)
 end
 
 local function setupPlayer(player: Player)
-	player:GetAttributeChangedSignal("SelectedBug"):Connect(function()
-		task.defer(buildVisual, player)
-	end)
-	player:GetAttributeChangedSignal("BodyColor"):Connect(function()
-		task.defer(buildVisual, player)
-	end)
-	player:GetAttributeChangedSignal("EyeStyle"):Connect(function()
-		task.defer(buildVisual, player)
-	end)
+	for _, visualAttribute in ipairs({ "SelectedBug", "BodyColor", "EyeStyle", "PatternStyle" }) do
+		player:GetAttributeChangedSignal(visualAttribute):Connect(function()
+			task.defer(buildVisual, player)
+		end)
+	end
 
 	for _, attributeName in ipairs({ "BugLevel", "BugTitle", "RoundsPlayed", "BestSurvival" }) do
 		player:GetAttributeChangedSignal(attributeName):Connect(function()
