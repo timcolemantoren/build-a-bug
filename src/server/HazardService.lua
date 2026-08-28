@@ -16,6 +16,8 @@ local PlayerDataService = nil
 local hazardGeneration = 0
 
 local ROLLING_BALL_TRAVEL_TIME = 1.75
+local WIND_GUST_DURATION = 0.85
+local WIND_GUST_SPEED = 32
 
 local hazardIds = {}
 for hazardId, _ in pairs(HazardConfig) do
@@ -47,6 +49,11 @@ local HAZARD_VISUALS = {
 		warningColor = Color3.fromRGB(82, 190, 255),
 		impactColor = Color3.fromRGB(145, 230, 255),
 		instruction = "MOVE OFF THE BLUE SPLASH ZONE!",
+	},
+	WindGust = {
+		warningColor = Color3.fromRGB(166, 235, 225),
+		impactColor = Color3.fromRGB(224, 255, 250),
+		instruction = "BRACE OR GET OUT OF THE GUST!",
 	},
 }
 
@@ -134,6 +141,14 @@ local function makeZone(hazardId: string, requestedCenter: Vector3?)
 			center = center,
 			size = Vector3.new(22, 0.25, 22),
 		}
+	elseif hazardId == "WindGust" then
+		local direction = math.random() < 0.5 and -1 or 1
+		local alongX = math.random() < 0.5
+		return {
+			center = center,
+			size = alongX and Vector3.new(104, 0.25, 38) or Vector3.new(38, 0.25, 104),
+			pushVector = alongX and Vector3.new(direction * WIND_GUST_SPEED, 0, 0) or Vector3.new(0, 0, direction * WIND_GUST_SPEED),
+		}
 	else
 		return {
 			center = center,
@@ -194,6 +209,8 @@ local function createWarningPart(hazard, zone)
 		part.Shape = Enum.PartType.Ball
 		part.Size = Vector3.new(zone.size.X, 0.22, zone.size.Z)
 		part.Transparency = 0.38
+	elseif hazard.id == "WindGust" then
+		part.Transparency = 0.58
 	end
 	part.Parent = getHazardsFolder()
 	addWorldLabel(part, hazard, visual)
@@ -205,11 +222,12 @@ local function createWarningPart(hazard, zone)
 			{ Position = zone.center + Vector3.new(8, 0, 0) }
 		)
 		driftTween:Play()
-	elseif hazard.id == "RollingBall" or hazard.id == "Raindrop" then
+	elseif hazard.id == "RollingBall" or hazard.id == "Raindrop" or hazard.id == "WindGust" then
+		local targetTransparency = hazard.id == "WindGust" and 0.76 or 0.58
 		local pulseTween = TweenService:Create(
 			part,
 			TweenInfo.new(0.32, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-			{ Transparency = 0.58 }
+			{ Transparency = targetTransparency }
 		)
 		pulseTween:Play()
 	end
@@ -378,6 +396,52 @@ local function createBirdImpact(zone)
 	Debris:AddItem(shadow, 0.45)
 end
 
+local function createWindGustImpact(zone)
+	local pushVector = zone.pushVector or Vector3.new(WIND_GUST_SPEED, 0, 0)
+	local alongX = math.abs(pushVector.X) > math.abs(pushVector.Z)
+	local direction = alongX and math.sign(pushVector.X) or math.sign(pushVector.Z)
+	local halfTravel = (alongX and zone.size.X or zone.size.Z) / 2
+	local crossHalf = (alongX and zone.size.Z or zone.size.X) / 2
+
+	for index = 1, 9 do
+		local crossOffset = -crossHalf + ((index - 0.5) / 9) * crossHalf * 2
+		local startOffset = -direction * (halfTravel + 8)
+		local startPosition
+		local endPosition
+		local streakSize
+		if alongX then
+			startPosition = zone.center + Vector3.new(startOffset, 1.8 + ((index % 3) * 0.7), crossOffset)
+			endPosition = zone.center + Vector3.new(direction * (halfTravel + 8), 1.8 + ((index % 3) * 0.7), crossOffset)
+			streakSize = Vector3.new(18, 0.34, 0.7)
+		else
+			startPosition = zone.center + Vector3.new(crossOffset, 1.8 + ((index % 3) * 0.7), startOffset)
+			endPosition = zone.center + Vector3.new(crossOffset, 1.8 + ((index % 3) * 0.7), direction * (halfTravel + 8))
+			streakSize = Vector3.new(0.7, 0.34, 18)
+		end
+
+		task.delay((index - 1) * 0.035, function()
+			local streak = Instance.new("Part")
+			streak.Name = "WindStreak"
+			streak.Anchored = true
+			streak.CanCollide = false
+			streak.CanTouch = false
+			streak.CanQuery = false
+			streak.Size = streakSize
+			streak.Position = startPosition
+			streak.Color = Color3.fromRGB(222, 255, 249)
+			streak.Material = Enum.Material.Neon
+			streak.Transparency = 0.28
+			streak.Parent = getHazardsFolder()
+
+			TweenService:Create(streak, TweenInfo.new(WIND_GUST_DURATION, Enum.EasingStyle.Linear), {
+				Position = endPosition,
+				Transparency = 0.9,
+			}):Play()
+			Debris:AddItem(streak, WIND_GUST_DURATION + 0.08)
+		end)
+	end
+end
+
 local function isInsideZone(rootPart: BasePart, zone): boolean
 	local relative = rootPart.Position - zone.center
 	local half = zone.size / 2
@@ -412,6 +476,26 @@ local function damagePlayersInZone(zone, damage: number)
 			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 			if rootPart and humanoid and humanoid.Health > 0 and isInsideZone(rootPart, zone) then
 				humanoid:TakeDamage(getDamageForPlayer(player, damage))
+			end
+		end
+	end
+end
+
+local function pushPlayersInWindZone(zone)
+	if not remotes or not remotes.RoundStateChanged then
+		return
+	end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player:GetAttribute("InRound") == true then
+			local character = player.Character
+			local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if rootPart and humanoid and humanoid.Health > 0 and isInsideZone(rootPart, zone) then
+				remotes.RoundStateChanged:FireClient(player, "WindGustPush", {
+					velocity = zone.pushVector,
+					duration = WIND_GUST_DURATION,
+				})
 			end
 		end
 	end
@@ -505,6 +589,7 @@ local function announceHazard(hazard, stage: string, zone, warningSeconds: numbe
 				instruction = visual.instruction,
 				center = zone.center,
 				size = zone.size,
+				pushVector = zone.pushVector,
 			})
 		end
 	end
@@ -566,6 +651,16 @@ function HazardService.WarnHazard(hazardId: string, options)
 			end
 			announceHazard(hazard, "Impact", zone, warningSeconds)
 			createRollingBallImpact(zone, damage, myGeneration)
+			return
+		elseif hazardId == "WindGust" then
+			if warningPart and warningPart.Parent then
+				warningPart.Color = visual.impactColor
+				TweenService:Create(warningPart, TweenInfo.new(0.18), { Transparency = 1 }):Play()
+				Debris:AddItem(warningPart, 0.20)
+			end
+			announceHazard(hazard, "Impact", zone, warningSeconds)
+			createWindGustImpact(zone)
+			pushPlayersInWindZone(zone)
 			return
 		end
 
