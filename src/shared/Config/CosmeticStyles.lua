@@ -37,6 +37,22 @@ CosmeticStyles.BodyColors = {
 		dark = Color3.fromRGB(23, 27, 43),
 		accent = Color3.fromRGB(91, 101, 142),
 	},
+	Honey = {
+		id = "Honey",
+		displayName = "Honey",
+		previewColor = Color3.fromRGB(225, 166, 61),
+		body = Color3.fromRGB(202, 139, 42),
+		dark = Color3.fromRGB(107, 70, 29),
+		accent = Color3.fromRGB(245, 194, 83),
+	},
+	Electric = {
+		id = "Electric",
+		displayName = "Electric",
+		previewColor = Color3.fromRGB(158, 91, 232),
+		body = Color3.fromRGB(129, 67, 205),
+		dark = Color3.fromRGB(59, 31, 103),
+		accent = Color3.fromRGB(198, 116, 255),
+	},
 }
 
 CosmeticStyles.EyeStyles = {
@@ -75,6 +91,24 @@ CosmeticStyles.EyeStyles = {
 		kind = "glow",
 		color = Color3.fromRGB(73, 205, 255),
 		sizeMultiplier = 1.18,
+		material = Enum.Material.Neon,
+	},
+	VictoryGold = {
+		id = "VictoryGold",
+		displayName = "Victory Gold",
+		previewColor = Color3.fromRGB(255, 214, 65),
+		kind = "glow",
+		color = Color3.fromRGB(255, 214, 65),
+		sizeMultiplier = 1.24,
+		material = Enum.Material.Neon,
+	},
+	Bubblegum = {
+		id = "Bubblegum",
+		displayName = "Bubblegum",
+		previewColor = Color3.fromRGB(255, 112, 190),
+		kind = "solid",
+		color = Color3.fromRGB(255, 112, 190),
+		sizeMultiplier = 1.28,
 		material = Enum.Material.Neon,
 	},
 }
