@@ -9,6 +9,7 @@ local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
 
 local RewardService = {}
 local PlayerDataService = nil
+local AchievementService = nil
 
 local PICKUP_SOUNDS = {
 	Crumb = {
@@ -23,8 +24,15 @@ local PICKUP_SOUNDS = {
 	},
 }
 
-function RewardService.Init(playerDataService)
+function RewardService.Init(playerDataService, achievementService)
 	PlayerDataService = playerDataService
+	AchievementService = achievementService
+end
+
+local function evaluateAchievements(player: Player)
+	if AchievementService then
+		AchievementService.Evaluate(player)
+	end
 end
 
 local function playPickupSound(player: Player, pickupType: string)
@@ -110,6 +118,7 @@ function RewardService.AwardCrumb(player: Player, amount: number?)
 	PlayerDataService.AddCrumbs(player, crumbAmount)
 	PlayerDataService.AddDna(player, dnaAmount)
 	playPickupSound(player, "Crumb")
+	evaluateAchievements(player)
 	return crumbAmount, dnaAmount, healedAmount
 end
 
@@ -121,10 +130,11 @@ function RewardService.AwardDnaPickup(player: Player, amount: number?)
 	local dnaAmount = amount or RoundConfig.dnaPickupReward or 3
 	PlayerDataService.AddDna(player, dnaAmount)
 	playPickupSound(player, "DNA")
+	evaluateAchievements(player)
 	return dnaAmount
 end
 
-function RewardService.AwardRoundComplete(player: Player, survivedSeconds: number)
+function RewardService.AwardRoundComplete(player: Player, survivedSeconds: number, survivedFullRound: boolean?)
 	if not PlayerDataService then
 		return {
 			completionDna = 0,
@@ -136,7 +146,8 @@ function RewardService.AwardRoundComplete(player: Player, survivedSeconds: numbe
 	local dnaEarned = RoundConfig.baseDnaReward + (minutesSurvived * RoundConfig.survivalDnaRewardPerMinute)
 
 	PlayerDataService.AddDna(player, dnaEarned)
-	PlayerDataService.TrackRoundPlayed(player, survivedSeconds)
+	PlayerDataService.TrackRoundPlayed(player, survivedSeconds, survivedFullRound == true)
+	evaluateAchievements(player)
 
 	return {
 		completionDna = dnaEarned,
