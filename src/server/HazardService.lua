@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local HazardConfig = require(BuildABugShared.Config.HazardConfig)
 local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
+local RakeSweepHazard = require(script.Parent.RakeSweepHazard)
 
 local HazardService = {}
 local remotes = nil
@@ -18,6 +19,7 @@ local hazardGeneration = 0
 local ROLLING_BALL_TRAVEL_TIME = 1.75
 local WIND_GUST_DURATION = 0.85
 local WIND_GUST_SPEED = 32
+local RAKE_SWEEP_TRAVEL_TIME = 2.05
 
 local hazardIds = {}
 for hazardId, _ in pairs(HazardConfig) do
@@ -54,6 +56,11 @@ local HAZARD_VISUALS = {
 		warningColor = Color3.fromRGB(166, 235, 225),
 		impactColor = Color3.fromRGB(224, 255, 250),
 		instruction = "BRACE OR GET OUT OF THE GUST!",
+	},
+	RakeSweep = {
+		warningColor = Color3.fromRGB(220, 165, 92),
+		impactColor = Color3.fromRGB(255, 196, 104),
+		instruction = "DODGE THE MOVING RAKE!",
 	},
 }
 
@@ -149,6 +156,15 @@ local function makeZone(hazardId: string, requestedCenter: Vector3?)
 			size = alongX and Vector3.new(104, 0.25, 38) or Vector3.new(38, 0.25, 104),
 			pushVector = alongX and Vector3.new(direction * WIND_GUST_SPEED, 0, 0) or Vector3.new(0, 0, direction * WIND_GUST_SPEED),
 		}
+	elseif hazardId == "RakeSweep" then
+		local direction = math.random() < 0.5 and -1 or 1
+		local alongX = math.random() < 0.5
+		return {
+			center = center,
+			size = alongX and Vector3.new(112, 0.25, 42) or Vector3.new(42, 0.25, 112),
+			alongX = alongX,
+			sweepDirection = direction,
+		}
 	else
 		return {
 			center = center,
@@ -211,6 +227,8 @@ local function createWarningPart(hazard, zone)
 		part.Transparency = 0.38
 	elseif hazard.id == "WindGust" then
 		part.Transparency = 0.58
+	elseif hazard.id == "RakeSweep" then
+		part.Transparency = 0.46
 	end
 	part.Parent = getHazardsFolder()
 	addWorldLabel(part, hazard, visual)
@@ -222,8 +240,8 @@ local function createWarningPart(hazard, zone)
 			{ Position = zone.center + Vector3.new(8, 0, 0) }
 		)
 		driftTween:Play()
-	elseif hazard.id == "RollingBall" or hazard.id == "Raindrop" or hazard.id == "WindGust" then
-		local targetTransparency = hazard.id == "WindGust" and 0.76 or 0.58
+	elseif hazard.id == "RollingBall" or hazard.id == "Raindrop" or hazard.id == "WindGust" or hazard.id == "RakeSweep" then
+		local targetTransparency = hazard.id == "WindGust" and 0.76 or (hazard.id == "RakeSweep" and 0.68 or 0.58)
 		local pulseTween = TweenService:Create(
 			part,
 			TweenInfo.new(0.32, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
@@ -661,6 +679,31 @@ function HazardService.WarnHazard(hazardId: string, options)
 			announceHazard(hazard, "Impact", zone, warningSeconds)
 			createWindGustImpact(zone)
 			pushPlayersInWindZone(zone)
+			return
+		elseif hazardId == "RakeSweep" then
+			if warningPart and warningPart.Parent then
+				warningPart.Color = visual.impactColor
+				TweenService:Create(warningPart, TweenInfo.new(0.18), { Transparency = 1 }):Play()
+				Debris:AddItem(warningPart, 0.20)
+			end
+			announceHazard(hazard, "Impact", zone, warningSeconds)
+			RakeSweepHazard.Run(
+				zone,
+				damage,
+				RAKE_SWEEP_TRAVEL_TIME,
+				getHazardsFolder(),
+				function()
+					return myGeneration == hazardGeneration
+				end,
+				function(player, humanoid, baseDamage, sweepVector)
+					humanoid:TakeDamage(getDamageForPlayer(player, baseDamage))
+					if remotes and remotes.RoundStateChanged then
+						remotes.RoundStateChanged:FireClient(player, "RakeHit", {
+							velocity = (sweepVector * 38) + Vector3.new(0, 8, 0),
+						})
+					end
+				end
+			)
 			return
 		end
 
