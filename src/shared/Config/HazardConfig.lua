@@ -42,6 +42,14 @@ local HazardConfig = {
 		damage = 16,
 		description = "A huge drop falls from above and splashes where the blue marker appears.",
 	},
+
+	WindGust = {
+		id = "WindGust",
+		displayName = "Wind Gust",
+		warningSeconds = 2.2,
+		damage = 0,
+		description = "A strong gust sweeps across the yard and pushes bugs sideways.",
+	},
 }
 
 return HazardConfig
