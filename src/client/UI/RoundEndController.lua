@@ -13,6 +13,7 @@ local summaryLabel = nil
 local playAgainButton = nil
 local roamButton = nil
 local splatFlash = nil
+local splatBurst = nil
 local splatLabel = nil
 local latestData = nil
 local noticeToken = 0
@@ -43,6 +44,49 @@ local function setResultButtonsVisible(visible: boolean)
 	end
 end
 
+local function createComicBurst(parent: Instance): Frame
+	local burst = Instance.new("Frame")
+	burst.Name = "ComicBurst"
+	burst.AnchorPoint = Vector2.new(0.5, 0.5)
+	burst.Size = UDim2.fromOffset(380, 220)
+	burst.Position = UDim2.fromScale(0.5, 0.47)
+	burst.BackgroundTransparency = 1
+	burst.Visible = false
+	burst.ZIndex = 40
+	burst.Parent = parent
+
+	local center = Instance.new("Frame")
+	center.Name = "BurstCenter"
+	center.AnchorPoint = Vector2.new(0.5, 0.5)
+	center.Size = UDim2.fromOffset(270, 135)
+	center.Position = UDim2.fromScale(0.5, 0.5)
+	center.BackgroundColor3 = Color3.fromRGB(255, 210, 54)
+	center.BorderSizePixel = 0
+	center.Rotation = 4
+	center.ZIndex = 40
+	center.Parent = burst
+
+	local centerStroke = Instance.new("UIStroke")
+	centerStroke.Color = Color3.fromRGB(170, 37, 29)
+	centerStroke.Thickness = 6
+	centerStroke.Parent = center
+
+	for i = 1, 12 do
+		local ray = Instance.new("Frame")
+		ray.Name = "Ray" .. i
+		ray.AnchorPoint = Vector2.new(0.5, 1)
+		ray.Size = UDim2.fromOffset((i % 2 == 0) and 24 or 15, (i % 3 == 0) and 120 or 95)
+		ray.Position = UDim2.fromScale(0.5, 0.5)
+		ray.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(255, 103, 42) or Color3.fromRGB(255, 218, 67)
+		ray.BorderSizePixel = 0
+		ray.Rotation = (i - 1) * 30
+		ray.ZIndex = 39
+		ray.Parent = burst
+	end
+
+	return burst
+end
+
 local function ensureGui(remotes)
 	if gui then
 		return
@@ -61,8 +105,10 @@ local function ensureGui(remotes)
 	splatFlash.BackgroundTransparency = 1
 	splatFlash.BorderSizePixel = 0
 	splatFlash.Visible = false
-	splatFlash.ZIndex = 40
+	splatFlash.ZIndex = 38
 	splatFlash.Parent = gui
+
+	splatBurst = createComicBurst(gui)
 
 	splatLabel = Instance.new("TextLabel")
 	splatLabel.Name = "Splat"
@@ -71,14 +117,14 @@ local function ensureGui(remotes)
 	splatLabel.Position = UDim2.fromScale(0.5, 0.47)
 	splatLabel.BackgroundTransparency = 1
 	splatLabel.Text = "SPLAT!"
-	splatLabel.TextColor3 = Color3.fromRGB(255, 232, 102)
-	splatLabel.TextStrokeColor3 = Color3.fromRGB(78, 23, 18)
+	splatLabel.TextColor3 = Color3.fromRGB(255, 245, 125)
+	splatLabel.TextStrokeColor3 = Color3.fromRGB(116, 24, 20)
 	splatLabel.TextStrokeTransparency = 0
 	splatLabel.Font = Enum.Font.GothamBlack
 	splatLabel.TextSize = 38
 	splatLabel.Rotation = -14
 	splatLabel.Visible = false
-	splatLabel.ZIndex = 41
+	splatLabel.ZIndex = 42
 	splatLabel.Parent = gui
 
 	panel = Instance.new("Frame")
@@ -134,39 +180,52 @@ local function ensureGui(remotes)
 end
 
 local function playSplatVisual()
-	if not splatFlash or not splatLabel then
+	if not splatFlash or not splatBurst or not splatLabel then
 		return
 	end
 
 	splatFlash.Visible = true
-	splatFlash.BackgroundTransparency = 0.56
+	splatFlash.BackgroundTransparency = 0.62
+	splatBurst.Visible = true
+	splatBurst.Size = UDim2.fromOffset(190, 110)
+	splatBurst.Rotation = -8
 	splatLabel.Visible = true
 	splatLabel.TextTransparency = 0
 	splatLabel.TextStrokeTransparency = 0
-	splatLabel.Size = UDim2.fromOffset(210, 72)
-	splatLabel.TextSize = 32
+	splatLabel.Size = UDim2.fromOffset(180, 64)
+	splatLabel.TextSize = 30
 	splatLabel.Rotation = -18
 
-	TweenService:Create(splatLabel, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = UDim2.fromOffset(520, 155),
-		TextSize = 78,
-		Rotation = 7,
+	TweenService:Create(splatBurst, TweenInfo.new(0.20, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.fromOffset(520, 300),
+		Rotation = 4,
 	}):Play()
-	TweenService:Create(splatFlash, TweenInfo.new(0.75, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+	TweenService:Create(splatLabel, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.fromOffset(500, 150),
+		TextSize = 82,
+		Rotation = 6,
+	}):Play()
+	TweenService:Create(splatFlash, TweenInfo.new(0.78, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		BackgroundTransparency = 1,
 	}):Play()
 
-	task.delay(0.72, function()
-		if not splatLabel then
+	task.delay(0.82, function()
+		if not splatLabel or not splatBurst then
 			return
 		end
-		TweenService:Create(splatLabel, TweenInfo.new(0.28), {
+		TweenService:Create(splatLabel, TweenInfo.new(0.24), {
 			TextTransparency = 1,
 			TextStrokeTransparency = 1,
 		}):Play()
+		TweenService:Create(splatBurst, TweenInfo.new(0.28), {
+			Size = UDim2.fromOffset(560, 330),
+	}):Play()
 		task.delay(0.30, function()
 			if splatFlash then
 				splatFlash.Visible = false
+			end
+			if splatBurst then
+				splatBurst.Visible = false
 			end
 			if splatLabel then
 				splatLabel.Visible = false
@@ -194,15 +253,14 @@ local function showEliminated(payload)
 	)
 	setResultButtonsVisible(false)
 
-	-- Let SPLAT own the screen for a beat, then show the useful information.
 	panel.Visible = false
-	task.delay(0.62, function()
+	task.delay(0.78, function()
 		if token == noticeToken and panel then
 			panel.Visible = true
 		end
 	end)
 
-	task.delay(3.6, function()
+	task.delay(3.8, function()
 		if token == noticeToken and panel and playAgainButton and not playAgainButton.Visible then
 			panel.Visible = false
 		end
