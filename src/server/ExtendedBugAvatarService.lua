@@ -151,8 +151,38 @@ local function eye(model: Model, root: BasePart, head: BasePart, position: Vecto
 	end
 end
 
-local function ladybugSpot(model: Model, root: BasePart, shell: BasePart, x: number, z: number, size: number)
-	local spot = createPart(model, "LadybugSpot", Enum.PartType.Ball, Vector3.new(size, 0.055, size), bodyFrame(root) * CFrame.new(x, 0.91, z), Color3.fromRGB(27, 24, 24), Enum.Material.SmoothPlastic)
+local function shellSurfaceFrame(shell: BasePart, xScale: number, zScale: number, sink: number): CFrame
+	local rx = math.max(0.01, shell.Size.X * 0.5)
+	local ry = math.max(0.01, shell.Size.Y * 0.5)
+	local rz = math.max(0.01, shell.Size.Z * 0.5)
+	xScale = math.clamp(xScale, -0.78, 0.78)
+	zScale = math.clamp(zScale, -0.78, 0.78)
+
+	local x = rx * xScale
+	local z = rz * zScale
+	local inside = 1 - (x * x) / (rx * rx) - (z * z) / (rz * rz)
+	local y = ry * math.sqrt(math.max(0.035, inside))
+	local normal = Vector3.new(x / (rx * rx), y / (ry * ry), z / (rz * rz)).Unit
+	local reference = Vector3.zAxis
+	if math.abs(normal:Dot(reference)) > 0.92 then
+		reference = Vector3.xAxis
+	end
+	local right = normal:Cross(reference).Unit
+	local back = right:Cross(normal).Unit
+	return shell.CFrame * CFrame.fromMatrix(Vector3.new(x, y, z) - normal * sink, right, normal, back)
+end
+
+local function ladybugSpot(model: Model, shell: BasePart, xScale: number, zScale: number, size: number)
+	local thickness = 0.045
+	local spot = createPart(
+		model,
+		"LadybugSpot",
+		Enum.PartType.Ball,
+		Vector3.new(size, thickness, size),
+		shellSurfaceFrame(shell, xScale, zScale, thickness * 0.32),
+		Color3.fromRGB(27, 24, 24),
+		Enum.Material.SmoothPlastic
+	)
 	spot.CastShadow = false
 	weld(shell, spot)
 end
@@ -165,9 +195,17 @@ local function buildLadybug(player: Player, model: Model, root: BasePart)
 	local shell = bodyPart(model, root, thorax, "Shell", Vector3.new(2.48, 1.48, 2.94), CFrame.new(0, 0.12, 0.96), c.body, "Shell")
 	local seam = createPart(model, "ShellSeam", Enum.PartType.Block, Vector3.new(0.06, 0.06, 2.42), bodyFrame(root) * CFrame.new(0, 0.91, 0.95), c.dark, Enum.Material.SmoothPlastic)
 	weld(shell, seam)
-	for _, s in ipairs({ { -0.62, 0.18 }, { 0.62, 0.18 }, { -0.72, 0.90 }, { 0.72, 0.90 }, { -0.48, 1.56 }, { 0.48, 1.56 } }) do
-		ladybugSpot(model, root, shell, s[1], s[2], 0.38)
+
+	-- Native Ladybug spots are true surface markings now, not flattened balls at a
+	-- shared world height. This keeps every dot flush to the curved shell.
+	for _, s in ipairs({
+		{ -0.50, -0.53 }, { 0.50, -0.53 },
+		{ -0.58, -0.04 }, { 0.58, -0.04 },
+		{ -0.40, 0.41 }, { 0.40, 0.41 },
+	}) do
+		ladybugSpot(model, shell, s[1], s[2], 0.38)
 	end
+
 	eye(model, root, head, Vector3.new(-0.43, 0.10, -2.08), 0.22, eyes)
 	eye(model, root, head, Vector3.new(0.43, 0.10, -2.08), 0.22, eyes)
 	for row, z in ipairs({ -0.72, 0.12, 0.92 }) do
@@ -220,7 +258,7 @@ local function replaceVisual(player: Player, model: Model)
 	for _, child in ipairs(model:GetChildren()) do
 		child:Destroy()
 	end
-	model:SetAttribute("RigVersion", 5)
+	model:SetAttribute("RigVersion", 6)
 	if bugId == "Ladybug" then
 		buildLadybug(player, model, root)
 	else
