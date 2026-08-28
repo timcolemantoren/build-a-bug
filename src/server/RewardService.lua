@@ -144,9 +144,13 @@ function RewardService.AwardRoundComplete(player: Player, survivedSeconds: numbe
 
 	local minutesSurvived = math.floor(survivedSeconds / 60)
 	local dnaEarned = RoundConfig.baseDnaReward + (minutesSurvived * RoundConfig.survivalDnaRewardPerMinute)
+	local fullRound = survivedFullRound
+	if fullRound == nil then
+		fullRound = survivedSeconds >= (RoundConfig.roundDurationSeconds or 120)
+	end
 
 	PlayerDataService.AddDna(player, dnaEarned)
-	PlayerDataService.TrackRoundPlayed(player, survivedSeconds, survivedFullRound == true)
+	PlayerDataService.TrackRoundPlayed(player, survivedSeconds, fullRound == true)
 	evaluateAchievements(player)
 
 	return {
