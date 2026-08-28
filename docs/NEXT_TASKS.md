@@ -22,6 +22,7 @@
 - Each bug also has three explicit saved preset slots: Build 1, Build 2, and Build 3. Presets are snapshots and are not automatically overwritten while experimenting.
 - Three preset slots are a prototype starting point, not a product limit. Preset count should become config-driven so we can expand to 6+ saved builds per bug without changing the persistence model or rebuilding the UI.
 - Available DNA is spendable currency. Lifetime DNA is permanent level/title progression and never decreases when DNA is spent.
+- DNA cosmetic purchases require an explicit Buy / Cancel confirmation showing cost, current balance, and post-purchase balance. Equipping already-owned cosmetics remains instant.
 - Exit Round rolls back both available and lifetime DNA earned during the forfeited round.
 - Cosmetic visual definitions are separated from commerce metadata so prices, rarity, availability, achievements, and future Robux products can evolve independently.
 - PlayerDataService has one GrantCosmetic path for future DNA, achievement, event, and Robux entitlements.
@@ -30,11 +31,11 @@
 - Grass is interactive: some blades fall when touched and occasional nearby blades can coil and flick an active bug during a round.
 - Crumbs and DNA have distinct pickup sounds; phase, hazard, impact, and elimination prototype audio is centralized for later replacement.
 - Any real health loss during a round now produces proportional red screen feedback plus a centralized hit sound, independent of the damage source.
-- Backyard hazards now include Shoe Stomp, Sprinkler Burst, Bird Shadow, a moving Rolling Ball, and a falling Giant Raindrop with a visible splash landing zone.
+- Backyard hazards now include Shoe Stomp, Sprinkler Burst, Bird Shadow, moving Rolling Ball, falling Giant Raindrop, and non-damaging Wind Gust that physically pushes caught bugs.
 
 ## Next mechanics / player-identity pass
 
-1. Continue adding genuinely different hazard motion patterns: gusts, leaf sweeps, rake passes, and similar readable backyard events. The Raindrop fall behavior can later be reused for acorns in Fall Backyard.
+1. Continue adding genuinely different hazard motion patterns: leaf sweeps, rake passes, and similar readable backyard events. The Raindrop fall behavior can later be reused for acorns in Fall Backyard, and Wind Gust provides the displacement pattern for windier maps.
 2. Make saved-build preset count config-driven, then expand beyond the current three slots once the final customization breadth is clearer.
 3. Test the Builds tab on desktop and iPad, including save, overwrite, load, species switching, and empty-slot behavior.
 4. Test the Awards tab and achievement unlock pacing, then expand with skill-based achievements such as critical-health recovery, bug-specific survival, and streaks.
@@ -64,6 +65,7 @@ Treat audio as part of the core experience rather than final-launch decoration.
 - Keep gameplay power earnable and separate from cosmetic monetization.
 - Allow standard cosmetics to be earned with DNA; many can later offer an alternate Robux purchase path.
 - Keep a small number of achievement cosmetics exclusive so some looks communicate accomplishment rather than spending.
+- Any spendable action should require explicit player confirmation. Future custom Robux store UX should preserve this rule in addition to Roblox's platform purchase prompt.
 - Configure actual Roblox Developer Product IDs only after products are created. Current catalog IDs remain disabled placeholders.
 - Robux receipts should grant through the same permanent cosmetic ownership system as DNA and achievements.
 - Do not grant purchases from client purchase-finished events.
