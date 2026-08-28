@@ -65,6 +65,6 @@ HazardService.Init(remotes, PlayerDataService)
 RoundService.Init(remotes, PlayerDataService, RewardService, HazardService, ArenaService, LobbyService)
 AbilityService.Init(remotes, PlayerDataService)
 EnvironmentHazardService.Init(PlayerDataService)
-InteractiveFoliageService.Init()
+InteractiveFoliageService.Init(remotes)
 
 print("[Build a Bug] Server initialized")
