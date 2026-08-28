@@ -16,7 +16,7 @@ local bannerToken = 0
 local phaseDescriptions = {
 	Scavenge = "Grab food and DNA while the yard is calm.",
 	Trouble = "Hazards are faster now. Stay alert.",
-	Chaos = "Danger targets bugs directly. Keep moving!",
+	Chaos = "The backyard is getting wild. Keep moving!",
 }
 
 local phaseColors = {
@@ -25,18 +25,6 @@ local phaseColors = {
 	Chaos = Color3.fromRGB(160, 55, 48),
 	Final = Color3.fromRGB(150, 55, 100),
 	Event = Color3.fromRGB(72, 92, 130),
-}
-
-local hazardColors = {
-	ShoeStomp = Color3.fromRGB(178, 53, 44),
-	SprinklerBurst = Color3.fromRGB(45, 125, 174),
-	BirdShadow = Color3.fromRGB(58, 58, 76),
-}
-
-local hazardFallback = {
-	ShoeStomp = "MOVE OUT OF THE STOMP ZONE!",
-	SprinklerBurst = "GET OUT OF THE WATER LANE!",
-	BirdShadow = "RUN OUT OF THE SHADOW!",
 }
 
 local function ensureGui()
@@ -102,6 +90,7 @@ local function showBanner(title: string, subtitle: string, duration: number?, co
 	local token = bannerToken
 
 	frame.BackgroundColor3 = color or phaseColors.Event
+	frame.BackgroundTransparency = 0.20
 	titleLabel.Text = title
 	subtitleLabel.Text = subtitle or ""
 	titleLabel.TextTransparency = 1
@@ -117,15 +106,15 @@ local function showBanner(title: string, subtitle: string, duration: number?, co
 	TweenService:Create(titleLabel, TweenInfo.new(0.16), { TextTransparency = 0 }):Play()
 	TweenService:Create(subtitleLabel, TweenInfo.new(0.22), { TextTransparency = 0 }):Play()
 
-	task.delay(duration or 2.4, function()
+	task.delay(duration or 2.2, function()
 		if token ~= bannerToken or not frame then
 			return
 		end
 
-		TweenService:Create(titleLabel, TweenInfo.new(0.28), { TextTransparency = 1 }):Play()
-		TweenService:Create(subtitleLabel, TweenInfo.new(0.28), { TextTransparency = 1 }):Play()
-		TweenService:Create(frame, TweenInfo.new(0.28), { BackgroundTransparency = 1 }):Play()
-		task.delay(0.3, function()
+		TweenService:Create(titleLabel, TweenInfo.new(0.24), { TextTransparency = 1 }):Play()
+		TweenService:Create(subtitleLabel, TweenInfo.new(0.24), { TextTransparency = 1 }):Play()
+		TweenService:Create(frame, TweenInfo.new(0.24), { BackgroundTransparency = 1 }):Play()
+		task.delay(0.26, function()
 			if token == bannerToken and frame then
 				frame.Visible = false
 				frame.BackgroundTransparency = 0.20
@@ -144,13 +133,13 @@ function RoundEventController.Init(remotes)
 			showBanner(
 				payload.displayName or "NEW PHASE!",
 				phaseDescriptions[phaseId] or "The backyard is changing.",
-				2.5,
+				2.0,
 				phaseColors[phaseId] or phaseColors.Event
 			)
 		elseif state == "RoundEvent" then
-			showBanner(payload.displayName or "SURPRISE!", payload.description or "Something is happening!", 2.6, phaseColors.Event)
+			showBanner(payload.displayName or "SURPRISE!", payload.description or "Something is happening!", 2.1, phaseColors.Event)
 		elseif state == "FinalScramble" then
-			showBanner(payload.displayName or "FINAL SCRAMBLE!", payload.description or "10 seconds!", 3, phaseColors.Final)
+			showBanner(payload.displayName or "FINAL SCRAMBLE!", payload.description or "10 seconds!", 2.4, phaseColors.Final)
 		elseif state == "Ended" or state == "Eliminated" then
 			bannerToken += 1
 			if frame then
@@ -159,18 +148,8 @@ function RoundEventController.Init(remotes)
 		end
 	end)
 
-	remotes.HazardWarning.OnClientEvent:Connect(function(payload)
-		payload = payload or {}
-		if player:GetAttribute("InRound") ~= true or (payload.stage or "Warning") ~= "Warning" then
-			return
-		end
-
-		local hazardId = payload.id or ""
-		local title = string.upper(payload.displayName or "HAZARD") .. "!"
-		local instruction = payload.instruction or hazardFallback[hazardId] or "MOVE OUT OF THE DANGER ZONE!"
-		local duration = math.min(2.2, math.max(1.0, payload.warningSeconds or 2))
-		showBanner(title, instruction, duration, hazardColors[hazardId] or phaseColors.Chaos)
-	end)
+	-- Hazard warnings intentionally do not take over the center of the screen.
+	-- Their physical world cue, audio cue, and compact HUD label carry the message.
 end
 
 return RoundEventController
