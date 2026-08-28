@@ -94,6 +94,43 @@ local BugArchetypes = {
 			cooldownSeconds = 14,
 		},
 	},
+
+	Dragonfly = {
+		id = "Dragonfly",
+		displayName = "Dragonfly",
+		description = "A lightning-fast aerial bug built for repositioning and risky escapes.",
+		unlockCost = 6000,
+		movementSpeed = 20,
+		jumpPower = 62,
+		maxHealth = 100,
+		hungerDrainPerSecond = 1.45,
+		ability = {
+			id = "AirDash",
+			displayName = "Air Dash",
+			description = "Surges forward and slightly upward in a fast wing-powered dash.",
+			cooldownSeconds = 15,
+		},
+	},
+
+	Pillbug = {
+		id = "Pillbug",
+		displayName = "Pillbug",
+		description = "A slow little tank that can roll away from danger in a short armored burst.",
+		unlockCost = 12000,
+		movementSpeed = 13,
+		jumpPower = 32,
+		maxHealth = 100,
+		hungerDrainPerSecond = 1.05,
+		damageReduction = 0.18,
+		ability = {
+			id = "RollAway",
+			displayName = "Roll Away",
+			description = "Curls up and rockets forward for a short protected escape.",
+			cooldownSeconds = 17,
+			durationSeconds = 2.4,
+			boostSpeed = 24,
+		},
+	},
 }
 
 return BugArchetypes
