@@ -48,6 +48,7 @@ local remotesFolder = getOrCreateFolder(ReplicatedStorage, RemoteNames.FolderNam
 local remotes = {
 	SelectBug = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SelectBug),
 	SelectBugLoadout = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SelectBugLoadout),
+	BuildPreset = getOrCreateRemoteEvent(remotesFolder, RemoteNames.BuildPreset),
 	SetCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SetCosmetic),
 	PurchaseCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.PurchaseCosmetic),
 	StartRoundRequest = getOrCreateRemoteEvent(remotesFolder, RemoteNames.StartRoundRequest),
