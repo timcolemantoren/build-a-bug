@@ -16,20 +16,23 @@
 - Starter bugs use articulated visual rigs over the reliable Roblox Humanoid controller.
 - Ant, Beetle, and Grasshopper have different silhouettes, movement profiles, abilities, and play styles.
 - Player identity tags show name, level/title, bug, rounds played, and best survival.
-- Lobby Profile / Customize hub uses scalable tabs for Stats, Colors, Eyes, and Patterns.
+- Lobby Profile / Customize hub uses scalable tabs for Stats, Colors, Eyes, Patterns, and Awards.
 - Body Color, Eyes, and Patterns are functional cosmetic slots.
 - Cosmetic unlocks are account-wide and cosmetic-only.
 - Available DNA is spendable currency. Lifetime DNA is permanent level/title progression and never decreases when DNA is spent.
 - Exit Round rolls back both available and lifetime DNA earned during the forfeited round.
 - Cosmetic visual definitions are separated from commerce metadata so prices, rarity, availability, achievements, and future Robux products can evolve independently.
 - PlayerDataService has one GrantCosmetic path for future DNA, achievement, event, and Robux entitlements.
-- Grass is interactive: some blades fall when touched and occasional nearby blades can now coil and flick an active bug during a round.
+- Starter Awards track full-round survival, rounds played, food collected, and Lifetime DNA, with achievement-only cosmetic rewards.
+- Achievement unlocks have their own reward banner and audio cue.
+- Grass is interactive: some blades fall when touched and occasional nearby blades can coil and flick an active bug during a round.
+- Crumbs and DNA have distinct pickup sounds; phase, hazard, impact, and elimination prototype audio is centralized for later replacement.
 
 ## Next mechanics / player-identity pass
 
-1. Test the tabbed Profile / Customize UI on desktop and iPad, especially the two-column cosmetic grids.
-2. Tune Body Color, Eyes, and Pattern prices against actual DNA earned per two-minute round.
-3. Add achievement/special-reward cosmetics alongside DNA-purchased cosmetics.
+1. Add more hazard motion patterns rather than simply increasing hazard frequency: rolling objects, falling drops/acorns, gusts, leaf sweeps, and similar readable backyard events.
+2. Test the Awards tab and achievement unlock pacing, then expand with skill-based achievements such as critical-health recovery, bug-specific survival, and streaks.
+3. Tune Body Color, Eyes, and Pattern prices against actual DNA earned per two-minute round.
 4. Add additional cosmetic slots: shell/wing treatment, antenna accents, and trails.
 5. Refine overhead identity readability at different distances and player counts.
 6. Continue multiplayer testing with 2-4 Studio clients and verify queue/lock/elimination/results behavior.
@@ -54,6 +57,7 @@ Treat audio as part of the core experience rather than final-launch decoration.
 
 - Keep gameplay power earnable and separate from cosmetic monetization.
 - Allow standard cosmetics to be earned with DNA; many can later offer an alternate Robux purchase path.
+- Keep a small number of achievement cosmetics exclusive so some looks communicate accomplishment rather than spending.
 - Configure actual Roblox Developer Product IDs only after products are created. Current catalog IDs remain disabled placeholders.
 - Robux receipts should grant through the same permanent cosmetic ownership system as DNA and achievements.
 - Do not grant purchases from client purchase-finished events.
