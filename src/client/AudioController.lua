@@ -153,6 +153,8 @@ local function playHazardCue(payload)
 			playPingSequence({ 0.92, 1.02, 1.12 }, 0.15, 0.50)
 		elseif hazardId == "Raindrop" then
 			playPingSequence({ 1.62, 1.44, 1.26 }, 0.16, 0.50)
+		elseif hazardId == "WindGust" then
+			playPingSequence({ 0.92, 1.04, 1.18, 1.34 }, 0.10, 0.42)
 		end
 	elseif stage == "Impact" then
 		if hazardId == "ShoeStomp" then
@@ -166,6 +168,9 @@ local function playHazardCue(payload)
 			playPingSequence({ 0.78, 0.88, 0.98, 1.08 }, 0.11, 0.38)
 		elseif hazardId == "Raindrop" then
 			playOneShot(SOUND.Water, 0.82, 1.28, 3)
+		elseif hazardId == "WindGust" then
+			playOneShot(SOUND.Bass, 0.34, 1.72, 2)
+			playPingSequence({ 1.35, 1.18, 1.02, 0.90 }, 0.08, 0.38)
 		end
 	end
 end
