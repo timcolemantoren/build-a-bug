@@ -21,6 +21,7 @@ local InteractiveFoliageService = require(script.Parent.InteractiveFoliageServic
 local EnvironmentStyleService = require(script.Parent.EnvironmentStyleService)
 local BugAvatarService = require(script.Parent.BugAvatarService)
 local ExtendedBugAvatarService = require(script.Parent.ExtendedBugAvatarService)
+local AdditionalBugAvatarService = require(script.Parent.AdditionalBugAvatarService)
 
 local function getOrCreateFolder(parent: Instance, name: string): Folder
 	local folder = parent:FindFirstChild(name)
@@ -73,6 +74,7 @@ BugUnlockService.Init(PlayerDataService, remotes)
 AchievementService.Init(PlayerDataService, remotes)
 BugAvatarService.Init(PlayerDataService)
 ExtendedBugAvatarService.Init()
+AdditionalBugAvatarService.Init()
 RewardService.Init(PlayerDataService, AchievementService)
 HazardService.Init(remotes, PlayerDataService)
 RoundService.Init(remotes, PlayerDataService, RewardService, HazardService, ArenaService, LobbyService)
