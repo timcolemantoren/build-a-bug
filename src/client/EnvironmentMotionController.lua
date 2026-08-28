@@ -168,17 +168,23 @@ local function applyWindGust(payload)
 	end
 
 	local duration = math.clamp(tonumber(payload.duration) or 0.85, 0.25, 1.5)
+	local gust = Vector3.new(velocity.X, 0, velocity.Z) * 1.35
 	local startedAt = os.clock()
 
-	-- Wind should push rather than launch. Repeatedly bias the owning client's
-	-- horizontal velocity toward the gust so movement input can still resist it.
+	-- Give the gust a clear initial shove on the client that owns the character.
+	-- This makes entering the wind immediately readable instead of relying on a
+	-- series of tiny velocity nudges that normal movement can erase.
+	root:ApplyImpulse(gust * root.AssemblyMass * 0.22)
+
+	-- Sustain a strong crosswind while preserving vertical motion and enough of
+	-- the player's own horizontal velocity that they can still fight the gust.
 	task.spawn(function()
 		while root.Parent and humanoid.Health > 0 and player:GetAttribute("InRound") == true and os.clock() - startedAt < duration do
 			local current = root.AssemblyLinearVelocity
-			local target = Vector3.new(velocity.X, current.Y, velocity.Z)
-			root.AssemblyLinearVelocity = current:Lerp(target, 0.26)
-			root:ApplyImpulse(Vector3.new(velocity.X, 0, velocity.Z) * root.AssemblyMass * 0.025)
-			task.wait(0.06)
+			local target = Vector3.new(gust.X, current.Y, gust.Z)
+			root.AssemblyLinearVelocity = current:Lerp(target, 0.58)
+			root:ApplyImpulse(gust * root.AssemblyMass * 0.045)
+			task.wait(0.05)
 		end
 	end)
 end
