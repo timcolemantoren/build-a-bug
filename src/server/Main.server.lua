@@ -6,6 +6,7 @@ local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local RemoteNames = require(BuildABugShared.Remotes.RemoteNames)
 
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local BugLoadoutService = require(script.Parent.BugLoadoutService)
 local AchievementService = require(script.Parent.AchievementService)
 local RewardService = require(script.Parent.RewardService)
 local HazardService = require(script.Parent.HazardService)
@@ -46,6 +47,7 @@ local remotesFolder = getOrCreateFolder(ReplicatedStorage, RemoteNames.FolderNam
 
 local remotes = {
 	SelectBug = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SelectBug),
+	SelectBugLoadout = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SelectBugLoadout),
 	SetCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SetCosmetic),
 	PurchaseCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.PurchaseCosmetic),
 	StartRoundRequest = getOrCreateRemoteEvent(remotesFolder, RemoteNames.StartRoundRequest),
@@ -60,6 +62,7 @@ ArenaService.BuildArena()
 EnvironmentStyleService.Init()
 LobbyService.Build()
 PlayerDataService.Init(remotes)
+BugLoadoutService.Init(PlayerDataService, remotes)
 AchievementService.Init(PlayerDataService, remotes)
 BugAvatarService.Init(PlayerDataService)
 RewardService.Init(PlayerDataService, AchievementService)
