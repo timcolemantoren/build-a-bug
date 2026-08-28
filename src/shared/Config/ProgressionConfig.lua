@@ -2,9 +2,9 @@
 
 local ProgressionConfig = {}
 
--- Early prototype levels arrived too quickly in one or two rounds. Keep level 10
--- at the original 10k long-term target, but widen the steps substantially so
--- titles feel earned and later levels become real multi-session goals.
+-- Early prototype levels arrived too quickly in one or two rounds. Keep the first
+-- ten levels readable for younger players, then widen the late-game gaps so
+-- long-term titles remain meaningful after the initial collection is underway.
 ProgressionConfig.Levels = {
 	{ level = 1, dnaRequired = 0, title = "Fresh Hatchling" },
 	{ level = 2, dnaRequired = 150, title = "Tiny Forager" },
@@ -16,6 +16,11 @@ ProgressionConfig.Levels = {
 	{ level = 8, dnaRequired = 6000, title = "Yard Champion" },
 	{ level = 9, dnaRequired = 8000, title = "Backyard Beast" },
 	{ level = 10, dnaRequired = 10000, title = "Legendary Bug" },
+	{ level = 11, dnaRequired = 15000, title = "Garden Guardian" },
+	{ level = 12, dnaRequired = 22000, title = "Tiny Titan" },
+	{ level = 13, dnaRequired = 32000, title = "Yard Myth" },
+	{ level = 14, dnaRequired = 45000, title = "Insect Icon" },
+	{ level = 15, dnaRequired = 60000, title = "Backyard Legend" },
 }
 
 function ProgressionConfig.GetLevelForDna(dna: number)
