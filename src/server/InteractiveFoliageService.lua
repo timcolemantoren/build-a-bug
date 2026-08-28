@@ -1,5 +1,6 @@
 --!nonstrict
 
+local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
@@ -11,9 +12,13 @@ local grassBlades = {}
 local nextFlickAtByUserId = {}
 local random = Random.new()
 
-local FLICK_SEARCH_RADIUS = 22
-local FLICK_MIN_INTERVAL = 18
-local FLICK_MAX_INTERVAL = 34
+-- Intentionally noticeable during testing. Once the feel is proven we can tune
+-- these intervals down without changing the mechanic.
+local FLICK_SEARCH_RADIUS = 36
+local FLICK_FALLBACK_RADIUS = 52
+local FLICK_MIN_INTERVAL = 7
+local FLICK_MAX_INTERVAL = 13
+local FLICK_RETRY_SECONDS = 2.5
 local FLICK_DAMAGE = 6
 local FLICK_HORIZONTAL_SPEED = 48
 local FLICK_UP_SPEED = 20
@@ -84,7 +89,6 @@ local function getHorizontalDirection(fromPosition: Vector3, toPosition: Vector3
 end
 
 local function getPivotedCFrame(originalCFrame: CFrame, height: number, direction: Vector3, angleDegrees: number): CFrame
-	local basePosition = originalCFrame:PointToWorldSpace(Vector3.new(0, -height / 2, 0))
 	local localDirection = originalCFrame:VectorToObjectSpace(direction)
 	local axis = Vector3.new(-localDirection.Z, 0, localDirection.X)
 	if axis.Magnitude < 0.05 then
@@ -96,6 +100,18 @@ local function getPivotedCFrame(originalCFrame: CFrame, height: number, directio
 	local rotation = CFrame.fromAxisAngle(axis, math.rad(angleDegrees))
 	local baseFrame = originalCFrame * CFrame.new(0, -height / 2, 0)
 	return baseFrame * rotation * CFrame.new(0, height / 2, 0)
+end
+
+local function playFlickSound(blade: BasePart)
+	local sound = Instance.new("Sound")
+	sound.Name = "GrassFlick"
+	sound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+	sound.Volume = 0.6
+	sound.PlaybackSpeed = 1.65
+	sound.RollOffMaxDistance = 55
+	sound.Parent = blade
+	sound:Play()
+	Debris:AddItem(sound, 2)
 end
 
 local function flickBladeAtPlayer(blade: BasePart, player: Player)
@@ -111,7 +127,7 @@ local function flickBladeAtPlayer(blade: BasePart, player: Player)
 	end
 
 	local distance = (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(blade.Position.X, 0, blade.Position.Z)).Magnitude
-	if distance > FLICK_SEARCH_RADIUS + 4 then
+	if distance > FLICK_FALLBACK_RADIUS + 4 then
 		return false
 	end
 
@@ -122,15 +138,13 @@ local function flickBladeAtPlayer(blade: BasePart, player: Player)
 	local towardPlayer = getHorizontalDirection(blade.Position, root.Position)
 	local awayFromPlayer = -towardPlayer
 
-	-- A short visible coil gives the player just enough warning that the flick feels
-	-- like a backyard event rather than invisible random physics.
-	local coilCFrame = getPivotedCFrame(originalCFrame, height, awayFromPlayer, 16)
-	local snapCFrame = getPivotedCFrame(originalCFrame, height, towardPlayer, 24)
-	local warningColor = originalColor:Lerp(Color3.fromRGB(155, 210, 85), 0.42)
+	-- A visible coil plus color shift gives a brief, readable warning.
+	local coilCFrame = getPivotedCFrame(originalCFrame, height, awayFromPlayer, 22)
+	local warningColor = originalColor:Lerp(Color3.fromRGB(190, 235, 92), 0.58)
 
 	local coilTween = TweenService:Create(
 		blade,
-		TweenInfo.new(0.34, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{ CFrame = coilCFrame, Color = warningColor }
 	)
 	coilTween:Play()
@@ -156,12 +170,14 @@ local function flickBladeAtPlayer(blade: BasePart, player: Player)
 	end
 
 	local snapDirection = getHorizontalDirection(blade.Position, currentRoot.Position)
+	local snapCFrame = getPivotedCFrame(originalCFrame, height, snapDirection, 34)
 	local snapTween = TweenService:Create(
 		blade,
-		TweenInfo.new(0.11, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		TweenInfo.new(0.10, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 		{ CFrame = snapCFrame, Color = originalColor }
 	)
 	snapTween:Play()
+	playFlickSound(blade)
 
 	currentRoot.AssemblyLinearVelocity = currentRoot.AssemblyLinearVelocity
 		+ snapDirection * FLICK_HORIZONTAL_SPEED
@@ -174,7 +190,7 @@ local function flickBladeAtPlayer(blade: BasePart, player: Player)
 		end
 		local settleTween = TweenService:Create(
 			blade,
-			TweenInfo.new(0.48, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
+			TweenInfo.new(0.52, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
 			{ CFrame = originalCFrame, Color = originalColor }
 		)
 		settleTween:Play()
@@ -195,24 +211,38 @@ local function findNearbyFlickBlade(player: Player): BasePart?
 		return nil
 	end
 
-	local candidates = {}
+	local nearby = {}
+	local fallback = {}
 	for _, blade in ipairs(grassBlades) do
-		if blade and blade.Parent and not blade:GetAttribute("Fallen") and not blade:GetAttribute("Flicking") then
+		if blade and blade.Parent and not blade:GetAttribute("Fallen") and not blade:GetAttribute("Flicking") and blade.Size.Y >= 8 then
 			local horizontalDistance = (Vector3.new(blade.Position.X, 0, blade.Position.Z) - Vector3.new(root.Position.X, 0, root.Position.Z)).Magnitude
-			if horizontalDistance >= 4 and horizontalDistance <= FLICK_SEARCH_RADIUS and blade.Size.Y >= 12 then
-				table.insert(candidates, blade)
+			if horizontalDistance >= 1.5 and horizontalDistance <= FLICK_SEARCH_RADIUS then
+				table.insert(nearby, { blade = blade, distance = horizontalDistance })
+			elseif horizontalDistance <= FLICK_FALLBACK_RADIUS then
+				table.insert(fallback, { blade = blade, distance = horizontalDistance })
 			end
 		end
 	end
 
+	local candidates = #nearby > 0 and nearby or fallback
 	if #candidates == 0 then
 		return nil
 	end
-	return candidates[random:NextInteger(1, #candidates)]
+
+	-- Prefer blades that are close enough for the snap to be visually understandable.
+	table.sort(candidates, function(a, b)
+		return a.distance < b.distance
+	end)
+	local sampleCount = math.min(#candidates, 8)
+	return candidates[random:NextInteger(1, sampleCount)].blade
 end
 
-local function scheduleNextFlick(player: Player)
-	nextFlickAtByUserId[player.UserId] = os.clock() + random:NextNumber(FLICK_MIN_INTERVAL, FLICK_MAX_INTERVAL)
+local function scheduleNextFlick(player: Player, retrySoon: boolean?)
+	if retrySoon then
+		nextFlickAtByUserId[player.UserId] = os.clock() + FLICK_RETRY_SECONDS
+	else
+		nextFlickAtByUserId[player.UserId] = os.clock() + random:NextNumber(FLICK_MIN_INTERVAL, FLICK_MAX_INTERVAL)
+	end
 end
 
 local function startFlickLoop()
@@ -228,14 +258,18 @@ local function startFlickLoop()
 						local blade = findNearbyFlickBlade(player)
 						if blade then
 							task.spawn(flickBladeAtPlayer, blade, player)
+							scheduleNextFlick(player)
+						else
+							-- Do not silently wait another half minute just because the player
+							-- happened to be in an open patch when the timer fired.
+							scheduleNextFlick(player, true)
 						end
-						scheduleNextFlick(player)
 					end
 				else
 					nextFlickAtByUserId[player.UserId] = nil
 				end
 			end
-			task.wait(0.75)
+			task.wait(0.5)
 		end
 	end)
 end
