@@ -8,6 +8,7 @@ local RemoteNames = require(BuildABugShared.Remotes.RemoteNames)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 local BugLoadoutService = require(script.Parent.BugLoadoutService)
 local BugUnlockService = require(script.Parent.BugUnlockService)
+local PremiumSkinService = require(script.Parent.PremiumSkinService)
 local StudioTestBoostService = require(script.Parent.StudioTestBoostService)
 local AchievementService = require(script.Parent.AchievementService)
 local RewardService = require(script.Parent.RewardService)
@@ -22,6 +23,7 @@ local EnvironmentStyleService = require(script.Parent.EnvironmentStyleService)
 local BugAvatarService = require(script.Parent.BugAvatarService)
 local ExtendedBugAvatarService = require(script.Parent.ExtendedBugAvatarService)
 local AdditionalBugAvatarService = require(script.Parent.AdditionalBugAvatarService)
+local SkinVisualService = require(script.Parent.SkinVisualService)
 
 local function getOrCreateFolder(parent: Instance, name: string): Folder
 	local folder = parent:FindFirstChild(name)
@@ -56,6 +58,7 @@ local remotes = {
 	BuildPreset = getOrCreateRemoteEvent(remotesFolder, RemoteNames.BuildPreset),
 	SetCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SetCosmetic),
 	PurchaseCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.PurchaseCosmetic),
+	SetPremiumSkin = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SetPremiumSkin),
 	StartRoundRequest = getOrCreateRemoteEvent(remotesFolder, RemoteNames.StartRoundRequest),
 	ExitRoundRequest = getOrCreateRemoteEvent(remotesFolder, RemoteNames.ExitRoundRequest),
 	RoundStateChanged = getOrCreateRemoteEvent(remotesFolder, RemoteNames.RoundStateChanged),
@@ -71,10 +74,12 @@ PlayerDataService.Init(remotes)
 StudioTestBoostService.Init(PlayerDataService)
 BugLoadoutService.Init(PlayerDataService, remotes)
 BugUnlockService.Init(PlayerDataService, remotes)
+PremiumSkinService.Init(PlayerDataService, remotes)
 AchievementService.Init(PlayerDataService, remotes)
 BugAvatarService.Init(PlayerDataService)
 ExtendedBugAvatarService.Init()
 AdditionalBugAvatarService.Init()
+SkinVisualService.Init()
 RewardService.Init(PlayerDataService, AchievementService)
 HazardService.Init(remotes, PlayerDataService)
 RoundService.Init(remotes, PlayerDataService, RewardService, HazardService, ArenaService, LobbyService)
