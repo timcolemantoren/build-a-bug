@@ -63,21 +63,23 @@ local function snapshotCurrentLoadout(player: Player)
 	})
 end
 
-local function applyLoadout(player: Player, bugId: string)
+local function prepareLoadout(player: Player, bugId: string)
 	local data = PlayerDataService and PlayerDataService.GetData(player)
 	if not data then
-		return
+		return nil
 	end
 
 	local loadouts = getLoadoutTable(data)
 	local loadout = sanitizeLoadout(player, loadouts[bugId] or DEFAULT_LOADOUT)
 	loadouts[bugId] = copyLoadout(loadout)
 
-	-- Use the same validated equip path as the Profile UI so ownership rules stay
-	-- centralized in PlayerDataService.
-	PlayerDataService.SetCosmetic(player, "BodyColor", loadout.bodyColor)
-	PlayerDataService.SetCosmetic(player, "Eyes", loadout.eyes)
-	PlayerDataService.SetCosmetic(player, "Pattern", loadout.pattern)
+	-- Put the validated appearance into the shared data before SelectBug publishes.
+	-- This lets BugAvatarService rebuild the new species once with its final look.
+	data.cosmetics = data.cosmetics or {}
+	data.cosmetics.bodyColor = loadout.bodyColor
+	data.cosmetics.eyes = loadout.eyes
+	data.cosmetics.pattern = loadout.pattern
+	return loadout
 end
 
 function BugLoadoutService.SaveCurrentLoadout(player: Player)
@@ -96,6 +98,9 @@ function BugLoadoutService.SelectBug(player: Player, bugId: string): boolean
 	if player:GetAttribute("InRound") == true then
 		return false
 	end
+	if not data.unlockedBugs or not data.unlockedBugs[bugId] then
+		return false
+	end
 
 	if data.selectedBug == bugId then
 		snapshotCurrentLoadout(player)
@@ -105,12 +110,12 @@ function BugLoadoutService.SelectBug(player: Player, bugId: string): boolean
 	-- Save the species being left before changing the selected bug.
 	snapshotCurrentLoadout(player)
 
+	-- A species with no saved appearance starts from a clean default slate.
+	prepareLoadout(player, bugId)
 	if not PlayerDataService.SelectBug(player, bugId) then
 		return false
 	end
 
-	-- A species with no saved appearance starts from a clean default slate.
-	applyLoadout(player, bugId)
 	snapshotCurrentLoadout(player)
 	return true
 end
