@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
@@ -11,6 +12,12 @@ local CosmeticStyles = require(BuildABugShared.Config.CosmeticStyles)
 local CosmeticCatalog = require(BuildABugShared.Config.CosmeticCatalog)
 
 local DATASTORE_NAME = "BuildABug_PlayerData_v1"
+
+-- Temporary testing convenience. Studio players receive a spendable DNA wallet
+-- without inflating Lifetime DNA / level progression. Studio test state is never
+-- written back to DataStore while this flag is enabled.
+local ENABLE_STUDIO_TEST_DNA = true
+local STUDIO_TEST_STARTING_DNA = 1000
 
 local store = nil
 local dataStoreEnabled = false
@@ -141,6 +148,16 @@ local function normalizeData(data)
 	end
 	data.stats.lifetimeDna = math.max(data.stats.lifetimeDna, data.currency.dna)
 
+	return data
+end
+
+local function applyStudioTestWallet(data)
+	if not ENABLE_STUDIO_TEST_DNA or not RunService:IsStudio() then
+		return data
+	end
+
+	data.currency = data.currency or {}
+	data.currency.dna = math.max(data.currency.dna or 0, STUDIO_TEST_STARTING_DNA)
 	return data
 end
 
@@ -408,7 +425,7 @@ function PlayerDataService.LoadPlayer(player: Player)
 	local defaultData = makeDefaultData()
 
 	if not dataStoreEnabled or not store then
-		playerDataByUserId[player.UserId] = normalizeData(defaultData)
+		playerDataByUserId[player.UserId] = applyStudioTestWallet(normalizeData(defaultData))
 		publish(player)
 		return
 	end
@@ -418,20 +435,28 @@ function PlayerDataService.LoadPlayer(player: Player)
 	end)
 
 	if success and type(savedData) == "table" then
-		playerDataByUserId[player.UserId] = normalizeData(savedData)
+		playerDataByUserId[player.UserId] = applyStudioTestWallet(normalizeData(savedData))
 	else
 		if not success then
 			warn("Failed to load player data for", player.Name, savedData)
 		end
-		playerDataByUserId[player.UserId] = normalizeData(defaultData)
+		playerDataByUserId[player.UserId] = applyStudioTestWallet(normalizeData(defaultData))
 	end
 
+	if ENABLE_STUDIO_TEST_DNA and RunService:IsStudio() then
+		print(string.format("[Build a Bug] Studio test wallet: %s starts with at least %s available DNA", player.Name, STUDIO_TEST_STARTING_DNA))
+	end
 	publish(player)
 end
 
 function PlayerDataService.SavePlayer(player: Player)
 	local data = playerDataByUserId[player.UserId]
 	if not data then
+		return
+	end
+
+	-- Never persist the temporary Studio wallet into production player data.
+	if ENABLE_STUDIO_TEST_DNA and RunService:IsStudio() then
 		return
 	end
 
