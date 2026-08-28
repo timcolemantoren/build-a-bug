@@ -5,7 +5,10 @@ local RunService = game:GetService("RunService")
 
 local StudioTestBoostService = {}
 
-local STUDIO_AVAILABLE_DNA = 3500
+-- Studio-only test wallet. This is intentionally large enough to unlock the
+-- current bug roster and premium-priced DNA cosmetics in a single session.
+-- It does not increase Lifetime DNA and is never a live economy grant.
+local STUDIO_AVAILABLE_DNA = 15000
 
 function StudioTestBoostService.Init(PlayerDataService)
 	if not RunService:IsStudio() then
