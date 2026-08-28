@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
 local CosmeticStyles = require(BuildABugShared.Config.CosmeticStyles)
+local BuildPresetConfig = require(BuildABugShared.Config.BuildPresetConfig)
 
 local BugLoadoutService = {}
 local PlayerDataService = nil
@@ -15,12 +16,6 @@ local DEFAULT_LOADOUT = {
 	bodyColor = "Natural",
 	eyes = "Default",
 	pattern = "None",
-}
-
-local VALID_PRESETS = {
-	Build1 = true,
-	Build2 = true,
-	Build3 = true,
 }
 
 local function copyLoadout(loadout)
@@ -115,7 +110,7 @@ function BugLoadoutService.SaveCurrentLoadout(player: Player)
 end
 
 function BugLoadoutService.SavePreset(player: Player, presetId: string): boolean
-	if not PlayerDataService or not VALID_PRESETS[presetId] then
+	if not PlayerDataService or not BuildPresetConfig.IsValid(presetId) then
 		return false
 	end
 	if player:GetAttribute("InRound") == true then
@@ -135,7 +130,7 @@ function BugLoadoutService.SavePreset(player: Player, presetId: string): boolean
 end
 
 function BugLoadoutService.LoadPreset(player: Player, presetId: string): boolean
-	if not PlayerDataService or not VALID_PRESETS[presetId] then
+	if not PlayerDataService or not BuildPresetConfig.IsValid(presetId) then
 		return false
 	end
 	if player:GetAttribute("InRound") == true then
