@@ -6,4 +6,6 @@ return {
 	"Ant",
 	"Beetle",
 	"Grasshopper",
+	"Ladybug",
+	"Mantis",
 }
