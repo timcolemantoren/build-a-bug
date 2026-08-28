@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local CosmeticStyles = require(BuildABugShared.Config.CosmeticStyles)
 local CosmeticCatalog = require(BuildABugShared.Config.CosmeticCatalog)
+local AchievementConfig = require(BuildABugShared.Config.AchievementConfig)
 
 local ProfileController = {}
 
@@ -23,6 +24,7 @@ local selectedEyes = player:GetAttribute("EyeStyle") or "Default"
 local selectedPattern = player:GetAttribute("PatternStyle") or "None"
 
 local cosmeticCards = {}
+local achievementCards = {}
 local tabButtons = {}
 local tabPages = {}
 
@@ -37,9 +39,11 @@ local shopStatusLabel = nil
 local DEFAULT_CARD = Color3.fromRGB(55, 62, 58)
 local SELECTED_CARD = Color3.fromRGB(74, 103, 76)
 local LOCKED_CARD = Color3.fromRGB(48, 49, 48)
+local ACHIEVED_CARD = Color3.fromRGB(78, 92, 61)
 local OWNED_STROKE = Color3.fromRGB(91, 99, 93)
 local SELECTED_STROKE = Color3.fromRGB(143, 181, 137)
 local LOCKED_STROKE = Color3.fromRGB(72, 72, 72)
+local ACHIEVED_STROKE = Color3.fromRGB(218, 190, 87)
 local TAB_IDLE = Color3.fromRGB(58, 65, 61)
 local TAB_ACTIVE = Color3.fromRGB(82, 109, 83)
 
@@ -79,12 +83,15 @@ local function isOwned(slot: string, styleId: string): boolean
 	if not item then
 		return false
 	end
-	if (item.dnaCost or 0) <= 0 then
-		return true
-	end
 
 	local data = currentData or {}
 	local unlocked = data.unlockedCosmetics or {}
+	if item.unlockType == "achievement" then
+		return unlocked[CosmeticCatalog.GetUnlockKey(slot, styleId)] == true
+	end
+	if (item.dnaCost or 0) <= 0 then
+		return true
+	end
 	return unlocked[CosmeticCatalog.GetUnlockKey(slot, styleId)] == true
 end
 
@@ -128,10 +135,39 @@ local function refreshCosmeticCards()
 			card.button.BackgroundColor3 = LOCKED_CARD
 			card.stroke.Color = LOCKED_STROKE
 			card.stroke.Thickness = 1
-			if card.item.availability == "always" then
+			if card.item.unlockType == "achievement" then
+				card.label.Text = string.format("%s\nEarn in Awards\n%s", card.item.displayName, rarity)
+			elseif card.item.availability == "always" then
 				card.label.Text = string.format("%s\n%s DNA\n%s", card.item.displayName, tostring(cost), rarity)
 			else
 				card.label.Text = string.format("%s\nNot in stock\n%s", card.item.displayName, rarity)
+			end
+		end
+	end
+end
+
+local function refreshAchievementCards()
+	local data = currentData or {}
+	local achievements = data.achievements or {}
+
+	for achievementId, card in pairs(achievementCards) do
+		local achievement = AchievementConfig.Get(achievementId)
+		if achievement then
+			local complete = achievements[achievementId] == true
+			local progress = math.min(achievement.target or 1, AchievementConfig.GetProgress(achievement, data))
+			local target = achievement.target or 1
+			if complete then
+				card.frame.BackgroundColor3 = ACHIEVED_CARD
+				card.stroke.Color = ACHIEVED_STROKE
+				card.stroke.Thickness = 2
+				card.progress.Text = "COMPLETE  •  " .. achievement.rewardName
+				card.progress.TextColor3 = Color3.fromRGB(255, 224, 121)
+			else
+				card.frame.BackgroundColor3 = LOCKED_CARD
+				card.stroke.Color = LOCKED_STROKE
+				card.stroke.Thickness = 1
+				card.progress.Text = string.format("%s / %s  •  Reward: %s", tostring(progress), tostring(target), achievement.rewardName)
+				card.progress.TextColor3 = Color3.fromRGB(205, 215, 205)
 			end
 		end
 	end
@@ -150,6 +186,12 @@ local function useCosmetic(remotes, slot: string, styleId: string)
 	if isOwned(slot, styleId) then
 		remotes.SetCosmetic:FireServer(slot, styleId)
 		setShopStatus("Equipping " .. item.displayName .. "...", false)
+		return
+	end
+
+	if item.unlockType == "achievement" then
+		local achievement = item.achievementId and AchievementConfig.Get(item.achievementId) or nil
+		setShopStatus(achievement and ("Earn " .. achievement.displayName .. " to unlock " .. item.displayName .. ".") or "This cosmetic is earned from an achievement.", true)
 		return
 	end
 
@@ -175,6 +217,7 @@ local function refreshProfile()
 	local stats = data.stats or {}
 	local progression = data.progression or {}
 	local current = progression.current or {}
+	local achievements = data.achievements or {}
 
 	local level = current.level or player:GetAttribute("BugLevel") or 1
 	local title = current.title or player:GetAttribute("BugTitle") or "Fresh Hatchling"
@@ -182,9 +225,17 @@ local function refreshProfile()
 	local lifetimeDna = progression.lifetimeDna or stats.lifetimeDna or player:GetAttribute("LifetimeDna") or dna
 	local crumbs = currency.crumbs or player:GetAttribute("TotalCrumbs") or 0
 	local rounds = stats.roundsPlayed or player:GetAttribute("RoundsPlayed") or 0
+	local fullSurvives = stats.fullRoundsSurvived or player:GetAttribute("FullRoundsSurvived") or 0
 	local best = stats.longestSurvival or player:GetAttribute("BestSurvival") or 0
 	local food = stats.foodCollected or player:GetAttribute("FoodCollected") or 0
 	local bugId = data.selectedBug or player:GetAttribute("SelectedBug") or "Ant"
+	local completedCount = 0
+	for _, value in pairs(achievements) do
+		if value == true then
+			completedCount += 1
+		end
+	end
+
 	local cosmetics = data.cosmetics or {}
 	selectedBodyColor = cosmetics.bodyColor or player:GetAttribute("BodyColor") or selectedBodyColor
 	selectedEyes = cosmetics.eyes or player:GetAttribute("EyeStyle") or selectedEyes
@@ -203,13 +254,14 @@ local function refreshProfile()
 		currencyLabel.Text = string.format("Available DNA: %s\nLifetime DNA: %s\nCrumbs: %s", tostring(dna), tostring(lifetimeDna), tostring(crumbs))
 	end
 	if statsLabel then
-		statsLabel.Text = string.format("Rounds played: %s\nBest survival: %s\nFood collected: %s", tostring(rounds), formatTime(best), tostring(food))
+		statsLabel.Text = string.format("Rounds played: %s\nFull rounds survived: %s\nBest survival: %s\nFood collected: %s\nAwards: %s / %s", tostring(rounds), tostring(fullSurvives), formatTime(best), tostring(food), tostring(completedCount), tostring(#AchievementConfig.Order))
 	end
 	if bugLabel then
 		bugLabel.Text = string.format("Current bug: %s\nColor: %s    Eyes: %s\nPattern: %s", tostring(bugId), tostring(selectedBodyColor), tostring(selectedEyes), tostring(selectedPattern))
 	end
 
 	refreshCosmeticCards()
+	refreshAchievementCards()
 end
 
 local function applyTab()
@@ -235,20 +287,22 @@ end
 local function createTabButton(parent: Instance, tabId: string, text: string, order: number)
 	local button = Instance.new("TextButton")
 	button.Name = tabId .. "Tab"
-	button.Size = UDim2.new(0.25, -5, 1, 0)
+	button.Size = UDim2.new(0.2, -5, 1, 0)
 	button.LayoutOrder = order
 	button.BackgroundColor3 = TAB_IDLE
 	button.BackgroundTransparency = 0.02
 	button.Text = text
 	button.TextColor3 = Color3.fromRGB(255, 255, 255)
 	button.Font = Enum.Font.GothamBold
-	button.TextSize = 13
+	button.TextSize = 12
 	button.AutoButtonColor = false
 	button.Parent = parent
 	button.MouseButton1Click:Connect(function()
 		activeTab = tabId
-		if tabId ~= "Stats" then
-			setShopStatus("Tap a locked cosmetic to buy it with DNA. Robux purchase support is catalog-ready for later activation.", false)
+		if tabId == "Awards" then
+			setShopStatus("Complete Awards to unlock cosmetics that cannot be bought with DNA.", false)
+		elseif tabId ~= "Stats" then
+			setShopStatus("Tap a locked cosmetic to buy it with DNA. Award cosmetics must be earned.", false)
 		end
 		applyTab()
 	end)
@@ -369,6 +423,57 @@ local function createCosmeticPage(parent: Instance, remotes, tabId: string, slot
 	end
 end
 
+local function createAwardsPage(parent: Instance)
+	local page = createPage(parent, "Awards")
+	makeText(page, "Intro", "Awards", UDim2.fromOffset(16, 8), UDim2.new(1, -32, 0, 28), 17, true)
+
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "AwardsScroll"
+	scroll.Position = UDim2.fromOffset(12, 42)
+	scroll.Size = UDim2.new(1, -24, 1, -50)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 4
+	scroll.CanvasSize = UDim2.fromOffset(0, #AchievementConfig.Order * 92 + 8)
+	scroll.Parent = page
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = scroll
+
+	for index, achievementId in ipairs(AchievementConfig.Order) do
+		local achievement = AchievementConfig.Get(achievementId)
+		if achievement then
+			local card = Instance.new("Frame")
+			card.Name = achievementId
+			card.Size = UDim2.new(1, -8, 0, 84)
+			card.LayoutOrder = index
+			card.BackgroundColor3 = LOCKED_CARD
+			card.BackgroundTransparency = 0.02
+			card.Parent = scroll
+
+			local stroke = Instance.new("UIStroke")
+			stroke.Color = LOCKED_STROKE
+			stroke.Thickness = 1
+			stroke.Parent = card
+
+			local title = makeText(card, "Title", achievement.displayName, UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 22), 14, true)
+			title.TextColor3 = Color3.fromRGB(250, 250, 245)
+			local desc = makeText(card, "Description", achievement.description, UDim2.fromOffset(12, 28), UDim2.new(1, -24, 0, 22), 12, false)
+			desc.TextColor3 = Color3.fromRGB(218, 222, 216)
+			local progress = makeText(card, "Progress", "0 / 1", UDim2.fromOffset(12, 52), UDim2.new(1, -24, 0, 25), 11, true)
+			progress.TextColor3 = Color3.fromRGB(205, 215, 205)
+
+			achievementCards[achievementId] = {
+				frame = card,
+				stroke = stroke,
+				progress = progress,
+			}
+		end
+	end
+end
+
 local function ensureGui(remotes)
 	if gui then
 		return
@@ -449,6 +554,7 @@ local function ensureGui(remotes)
 	createTabButton(tabs, "Colors", "Colors", 2)
 	createTabButton(tabs, "Eyes", "Eyes", 3)
 	createTabButton(tabs, "Patterns", "Patterns", 4)
+	createTabButton(tabs, "Awards", "Awards", 5)
 
 	local content = Instance.new("Frame")
 	content.Name = "TabContent"
@@ -460,13 +566,14 @@ local function ensureGui(remotes)
 	local statsPage = createPage(content, "Stats")
 	nameLabel = makeText(statsPage, "PlayerName", player.DisplayName, UDim2.fromOffset(18, 8), UDim2.new(1, -36, 0, 34), 20, true)
 	progressLabel = makeText(statsPage, "Progress", "Level 1 • Fresh Hatchling", UDim2.fromOffset(18, 46), UDim2.new(1, -36, 0, 30), 16, true)
-	currencyLabel = makeText(statsPage, "Currency", "Available DNA: 0\nLifetime DNA: 0\nCrumbs: 0", UDim2.fromOffset(18, 88), UDim2.new(1, -36, 0, 74), 14, false)
-	statsLabel = makeText(statsPage, "Stats", "Rounds played: 0\nBest survival: --\nFood collected: 0", UDim2.fromOffset(18, 172), UDim2.new(1, -36, 0, 74), 14, false)
-	bugLabel = makeText(statsPage, "Bug", "Current bug: Ant\nColor: Natural    Eyes: Default\nPattern: None", UDim2.fromOffset(18, 258), UDim2.new(1, -36, 0, 78), 14, true)
+	currencyLabel = makeText(statsPage, "Currency", "Available DNA: 0\nLifetime DNA: 0\nCrumbs: 0", UDim2.fromOffset(18, 86), UDim2.new(1, -36, 0, 70), 14, false)
+	statsLabel = makeText(statsPage, "Stats", "Rounds played: 0\nFull rounds survived: 0\nBest survival: --\nFood collected: 0\nAwards: 0 / 4", UDim2.fromOffset(18, 158), UDim2.new(1, -36, 0, 108), 13, false)
+	bugLabel = makeText(statsPage, "Bug", "Current bug: Ant\nColor: Natural    Eyes: Default\nPattern: None", UDim2.fromOffset(18, 270), UDim2.new(1, -36, 0, 72), 13, true)
 
 	createCosmeticPage(content, remotes, "Colors", "BodyColor")
 	createCosmeticPage(content, remotes, "Eyes", "Eyes")
 	createCosmeticPage(content, remotes, "Patterns", "Pattern")
+	createAwardsPage(content)
 
 	shopStatusLabel = makeText(panel, "ShopStatus", "Cosmetics are visual only. Gameplay power comes from your bug choice.", UDim2.fromOffset(18, -42), UDim2.new(1, -36, 0, 30), 11, true)
 	shopStatusLabel.AnchorPoint = Vector2.new(0, 1)
@@ -503,11 +610,13 @@ function ProfileController.Init(remotes)
 		"BugLevel",
 		"BugTitle",
 		"RoundsPlayed",
+		"FullRoundsSurvived",
 		"BestSurvival",
 		"FoodCollected",
 		"LifetimeDna",
 		"TotalDna",
 		"TotalCrumbs",
+		"AchievementsUnlocked",
 		"SelectedBug",
 	}) do
 		player:GetAttributeChangedSignal(attributeName):Connect(refreshProfile)
