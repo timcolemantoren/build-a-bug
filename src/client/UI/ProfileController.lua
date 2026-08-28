@@ -7,6 +7,7 @@ local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local CosmeticStyles = require(BuildABugShared.Config.CosmeticStyles)
 local CosmeticCatalog = require(BuildABugShared.Config.CosmeticCatalog)
 local AchievementConfig = require(BuildABugShared.Config.AchievementConfig)
+local BuildPresetConfig = require(BuildABugShared.Config.BuildPresetConfig)
 local PurchaseConfirmController = require(script.Parent.PurchaseConfirmController)
 
 local ProfileController = {}
@@ -51,12 +52,6 @@ local TAB_IDLE = Color3.fromRGB(58, 65, 61)
 local TAB_ACTIVE = Color3.fromRGB(82, 109, 83)
 local BUILD_FILLED = Color3.fromRGB(61, 73, 65)
 local BUILD_EMPTY = Color3.fromRGB(46, 51, 48)
-
-local BUILD_PRESETS = {
-	{ id = "Build1", name = "Build 1" },
-	{ id = "Build2", name = "Build 2" },
-	{ id = "Build3", name = "Build 3" },
-}
 
 local function formatTime(seconds: number): string
 	seconds = math.max(0, math.floor(seconds or 0))
@@ -396,7 +391,7 @@ local function createTabButton(parent: Instance, tabId: string, text: string, or
 		if tabId == "Awards" then
 			setShopStatus("Complete Awards to unlock cosmetics that cannot be bought with DNA.", false)
 		elseif tabId == "Builds" then
-			setShopStatus("Save favorite looks for the current bug. Each species has its own three build slots.", false)
+			setShopStatus(string.format("Save favorite looks for the current bug. Each species has %s build slots.", tostring(BuildPresetConfig.Count)), false)
 		elseif tabId ~= "Stats" then
 			setShopStatus("Tap a locked cosmetic to review its DNA purchase. Award cosmetics must be earned.", false)
 		end
@@ -423,15 +418,30 @@ local function createBuildsPage(parent: Instance, remotes)
 	local note = makeText(page, "Note", "Your current look is remembered automatically. Save favorite snapshots here.", UDim2.fromOffset(16, 30), UDim2.new(1, -32, 0, 38), 11, false)
 	note.TextColor3 = Color3.fromRGB(205, 215, 205)
 
-	for index, presetInfo in ipairs(BUILD_PRESETS) do
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "BuildsScroll"
+	scroll.Position = UDim2.fromOffset(12, 72)
+	scroll.Size = UDim2.new(1, -24, 1, -80)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 4
+	scroll.CanvasSize = UDim2.fromOffset(0, (#BuildPresetConfig.Order * 92) + 4)
+	scroll.Parent = page
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = scroll
+
+	for index, presetInfo in ipairs(BuildPresetConfig.Order) do
 		local presetId = presetInfo.id
 		local card = Instance.new("Frame")
 		card.Name = presetId
-		card.Size = UDim2.new(1, -24, 0, 84)
-		card.Position = UDim2.fromOffset(12, 72 + ((index - 1) * 92))
+		card.Size = UDim2.new(1, -8, 0, 84)
+		card.LayoutOrder = index
 		card.BackgroundColor3 = BUILD_EMPTY
 		card.BackgroundTransparency = 0.02
-		card.Parent = page
+		card.Parent = scroll
 
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = OWNED_STROKE
