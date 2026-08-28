@@ -120,6 +120,16 @@ local function dripLoop(arena: Instance)
 	end)
 end
 
+local function getCharacterMotionParts()
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not root or not root:IsA("BasePart") or not humanoid or humanoid.Health <= 0 then
+		return nil, nil
+	end
+	return root, humanoid
+end
+
 local function applyGrassFlick(payload)
 	payload = payload or {}
 	local velocity = payload.velocity
@@ -127,10 +137,8 @@ local function applyGrassFlick(payload)
 		return
 	end
 
-	local character = player.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart")
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not root or not root:IsA("BasePart") or not humanoid or humanoid.Health <= 0 then
+	local root, humanoid = getCharacterMotionParts()
+	if not root or not humanoid then
 		return
 	end
 
@@ -147,6 +155,34 @@ local function applyGrassFlick(payload)
 	end)
 end
 
+local function applyWindGust(payload)
+	payload = payload or {}
+	local velocity = payload.velocity
+	if typeof(velocity) ~= "Vector3" then
+		return
+	end
+
+	local root, humanoid = getCharacterMotionParts()
+	if not root or not humanoid or player:GetAttribute("InRound") ~= true then
+		return
+	end
+
+	local duration = math.clamp(tonumber(payload.duration) or 0.85, 0.25, 1.5)
+	local startedAt = os.clock()
+
+	-- Wind should push rather than launch. Repeatedly bias the owning client's
+	-- horizontal velocity toward the gust so movement input can still resist it.
+	task.spawn(function()
+		while root.Parent and humanoid.Health > 0 and player:GetAttribute("InRound") == true and os.clock() - startedAt < duration do
+			local current = root.AssemblyLinearVelocity
+			local target = Vector3.new(velocity.X, current.Y, velocity.Z)
+			root.AssemblyLinearVelocity = current:Lerp(target, 0.26)
+			root:ApplyImpulse(Vector3.new(velocity.X, 0, velocity.Z) * root.AssemblyMass * 0.025)
+			task.wait(0.06)
+		end
+	end)
+end
+
 function EnvironmentMotionController.Init(remotes)
 	local arena = Workspace:FindFirstChild("BuildABugArena") or Workspace:WaitForChild("BuildABugArena", 10)
 	if arena then
@@ -158,6 +194,8 @@ function EnvironmentMotionController.Init(remotes)
 		remotes.RoundStateChanged.OnClientEvent:Connect(function(state, payload)
 			if state == "GrassFlick" then
 				applyGrassFlick(payload)
+			elseif state == "WindGustPush" then
+				applyWindGust(payload)
 			end
 		end)
 	end
