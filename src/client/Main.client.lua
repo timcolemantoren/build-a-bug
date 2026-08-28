@@ -14,6 +14,7 @@ local remotes = {
 	BuildPreset = remotesFolder:WaitForChild(RemoteNames.BuildPreset),
 	SetCosmetic = remotesFolder:WaitForChild(RemoteNames.SetCosmetic),
 	PurchaseCosmetic = remotesFolder:WaitForChild(RemoteNames.PurchaseCosmetic),
+	SetPremiumSkin = remotesFolder:WaitForChild(RemoteNames.SetPremiumSkin),
 	StartRoundRequest = remotesFolder:WaitForChild(RemoteNames.StartRoundRequest),
 	ExitRoundRequest = remotesFolder:WaitForChild(RemoteNames.ExitRoundRequest),
 	RoundStateChanged = remotesFolder:WaitForChild(RemoteNames.RoundStateChanged),
@@ -26,6 +27,7 @@ local clientRoot = script.Parent
 local HUDController = require(clientRoot.UI.HUDController)
 local BugSelectController = require(clientRoot.UI.BugSelectController)
 local ProfileController = require(clientRoot.UI.ProfileController)
+local PremiumSkinController = require(clientRoot.UI.PremiumSkinController)
 local RoundEndController = require(clientRoot.UI.RoundEndController)
 local AbilityController = require(clientRoot.UI.AbilityController)
 local RoundEventController = require(clientRoot.UI.RoundEventController)
@@ -38,6 +40,7 @@ local AudioController = require(clientRoot.AudioController)
 HUDController.Init(remotes)
 BugSelectController.Init(remotes)
 ProfileController.Init(remotes)
+PremiumSkinController.Init(remotes)
 RoundEndController.Init(remotes)
 AbilityController.Init(remotes)
 RoundEventController.Init(remotes)
