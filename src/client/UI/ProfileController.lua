@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local CosmeticStyles = require(BuildABugShared.Config.CosmeticStyles)
+local CosmeticCatalog = require(BuildABugShared.Config.CosmeticCatalog)
 
 local ProfileController = {}
 
@@ -15,10 +16,17 @@ local panel = nil
 local inRound = false
 local expanded = false
 local currentData = nil
+local activeTab = "Stats"
+
 local selectedBodyColor = player:GetAttribute("BodyColor") or "Natural"
 local selectedEyes = player:GetAttribute("EyeStyle") or "Default"
-local cosmeticCards = {}
+local selectedPattern = player:GetAttribute("PatternStyle") or "None"
 
+local cosmeticCards = {}
+local tabButtons = {}
+local tabPages = {}
+
+local headerSummary = nil
 local nameLabel = nil
 local progressLabel = nil
 local currencyLabel = nil
@@ -32,6 +40,8 @@ local LOCKED_CARD = Color3.fromRGB(48, 49, 48)
 local OWNED_STROKE = Color3.fromRGB(91, 99, 93)
 local SELECTED_STROKE = Color3.fromRGB(143, 181, 137)
 local LOCKED_STROKE = Color3.fromRGB(72, 72, 72)
+local TAB_IDLE = Color3.fromRGB(58, 65, 61)
+local TAB_ACTIVE = Color3.fromRGB(82, 109, 83)
 
 local function formatTime(seconds: number): string
 	seconds = math.max(0, math.floor(seconds or 0))
@@ -65,17 +75,17 @@ local function getAvailableDna(): number
 end
 
 local function isOwned(slot: string, styleId: string): boolean
-	local item = CosmeticStyles.GetItem(slot, styleId)
+	local item = CosmeticCatalog.GetItem(slot, styleId)
 	if not item then
 		return false
 	end
-	if (item.cost or 0) <= 0 then
+	if (item.dnaCost or 0) <= 0 then
 		return true
 	end
 
 	local data = currentData or {}
 	local unlocked = data.unlockedCosmetics or {}
-	return unlocked[CosmeticStyles.GetUnlockKey(slot, styleId)] == true
+	return unlocked[CosmeticCatalog.GetUnlockKey(slot, styleId)] == true
 end
 
 local function isSelected(slot: string, styleId: string): boolean
@@ -83,33 +93,10 @@ local function isSelected(slot: string, styleId: string): boolean
 		return styleId == selectedBodyColor
 	elseif slot == "Eyes" then
 		return styleId == selectedEyes
+	elseif slot == "Pattern" then
+		return styleId == selectedPattern
 	end
 	return false
-end
-
-local function refreshCosmeticCards()
-	for _, card in pairs(cosmeticCards) do
-		local owned = isOwned(card.slot, card.styleId)
-		local selected = isSelected(card.slot, card.styleId)
-		local cost = card.item.cost or 0
-
-		if selected then
-			card.button.BackgroundColor3 = SELECTED_CARD
-			card.stroke.Color = SELECTED_STROKE
-			card.stroke.Thickness = 2
-			card.label.Text = "SELECTED\n" .. card.item.displayName
-		elseif owned then
-			card.button.BackgroundColor3 = DEFAULT_CARD
-			card.stroke.Color = OWNED_STROKE
-			card.stroke.Thickness = 1
-			card.label.Text = "OWNED\n" .. card.item.displayName
-		else
-			card.button.BackgroundColor3 = LOCKED_CARD
-			card.stroke.Color = LOCKED_STROKE
-			card.stroke.Thickness = 1
-			card.label.Text = string.format("%s\n%s DNA", card.item.displayName, tostring(cost))
-		end
-	end
 end
 
 local function setShopStatus(text: string, isWarning: boolean?)
@@ -120,12 +107,42 @@ local function setShopStatus(text: string, isWarning: boolean?)
 	shopStatusLabel.TextColor3 = isWarning and Color3.fromRGB(255, 205, 145) or Color3.fromRGB(195, 225, 190)
 end
 
+local function refreshCosmeticCards()
+	for _, card in pairs(cosmeticCards) do
+		local owned = isOwned(card.slot, card.styleId)
+		local selected = isSelected(card.slot, card.styleId)
+		local cost = card.item.dnaCost or 0
+		local rarity = card.item.rarity or "Common"
+
+		if selected then
+			card.button.BackgroundColor3 = SELECTED_CARD
+			card.stroke.Color = SELECTED_STROKE
+			card.stroke.Thickness = 2
+			card.label.Text = string.format("SELECTED\n%s\n%s", card.item.displayName, rarity)
+		elseif owned then
+			card.button.BackgroundColor3 = DEFAULT_CARD
+			card.stroke.Color = OWNED_STROKE
+			card.stroke.Thickness = 1
+			card.label.Text = string.format("OWNED\n%s\n%s", card.item.displayName, rarity)
+		else
+			card.button.BackgroundColor3 = LOCKED_CARD
+			card.stroke.Color = LOCKED_STROKE
+			card.stroke.Thickness = 1
+			if card.item.availability == "always" then
+				card.label.Text = string.format("%s\n%s DNA\n%s", card.item.displayName, tostring(cost), rarity)
+			else
+				card.label.Text = string.format("%s\nNot in stock\n%s", card.item.displayName, rarity)
+			end
+		end
+	end
+end
+
 local function useCosmetic(remotes, slot: string, styleId: string)
 	if inRound then
 		return
 	end
 
-	local item = CosmeticStyles.GetItem(slot, styleId)
+	local item = CosmeticCatalog.GetItem(slot, styleId)
 	if not item then
 		return
 	end
@@ -136,7 +153,12 @@ local function useCosmetic(remotes, slot: string, styleId: string)
 		return
 	end
 
-	local cost = item.cost or 0
+	if item.availability ~= "always" then
+		setShopStatus(item.displayName .. " is not currently in stock.", true)
+		return
+	end
+
+	local cost = item.dnaCost or 0
 	local dna = getAvailableDna()
 	if dna < cost then
 		setShopStatus(string.format("Need %s more DNA to unlock %s.", tostring(cost - dna), item.displayName), true)
@@ -166,7 +188,11 @@ local function refreshProfile()
 	local cosmetics = data.cosmetics or {}
 	selectedBodyColor = cosmetics.bodyColor or player:GetAttribute("BodyColor") or selectedBodyColor
 	selectedEyes = cosmetics.eyes or player:GetAttribute("EyeStyle") or selectedEyes
+	selectedPattern = cosmetics.pattern or player:GetAttribute("PatternStyle") or selectedPattern
 
+	if headerSummary then
+		headerSummary.Text = string.format("Lv %s • %s    DNA %s", tostring(level), tostring(title), tostring(dna))
+	end
 	if nameLabel then
 		nameLabel.Text = player.DisplayName
 	end
@@ -174,16 +200,27 @@ local function refreshProfile()
 		progressLabel.Text = string.format("Level %s • %s", tostring(level), tostring(title))
 	end
 	if currencyLabel then
-		currencyLabel.Text = string.format("DNA: %s available • %s lifetime    Crumbs: %s", tostring(dna), tostring(lifetimeDna), tostring(crumbs))
+		currencyLabel.Text = string.format("Available DNA: %s\nLifetime DNA: %s\nCrumbs: %s", tostring(dna), tostring(lifetimeDna), tostring(crumbs))
 	end
 	if statsLabel then
-		statsLabel.Text = string.format("Rounds: %s    Best: %s    Food: %s", tostring(rounds), formatTime(best), tostring(food))
+		statsLabel.Text = string.format("Rounds played: %s\nBest survival: %s\nFood collected: %s", tostring(rounds), formatTime(best), tostring(food))
 	end
 	if bugLabel then
-		bugLabel.Text = "Current bug: " .. tostring(bugId)
+		bugLabel.Text = string.format("Current bug: %s\nColor: %s    Eyes: %s\nPattern: %s", tostring(bugId), tostring(selectedBodyColor), tostring(selectedEyes), tostring(selectedPattern))
 	end
 
 	refreshCosmeticCards()
+end
+
+local function applyTab()
+	for tabId, page in pairs(tabPages) do
+		page.Visible = tabId == activeTab
+	end
+	for tabId, button in pairs(tabButtons) do
+		local active = tabId == activeTab
+		button.BackgroundColor3 = active and TAB_ACTIVE or TAB_IDLE
+		button.TextTransparency = active and 0 or 0.08
+	end
 end
 
 local function applyVisibility()
@@ -195,25 +232,78 @@ local function applyVisibility()
 	end
 end
 
-local function createCosmeticGrid(parent: Instance, remotes, slot: string, order, styles, y: number)
-	local frame = Instance.new("Frame")
-	frame.Name = slot .. "Grid"
-	frame.Position = UDim2.fromOffset(18, y)
-	frame.Size = UDim2.new(1, -36, 0, 140)
-	frame.BackgroundTransparency = 1
-	frame.Parent = parent
+local function createTabButton(parent: Instance, tabId: string, text: string, order: number)
+	local button = Instance.new("TextButton")
+	button.Name = tabId .. "Tab"
+	button.Size = UDim2.new(0.25, -5, 1, 0)
+	button.LayoutOrder = order
+	button.BackgroundColor3 = TAB_IDLE
+	button.BackgroundTransparency = 0.02
+	button.Text = text
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 13
+	button.AutoButtonColor = false
+	button.Parent = parent
+	button.MouseButton1Click:Connect(function()
+		activeTab = tabId
+		if tabId ~= "Stats" then
+			setShopStatus("Tap a locked cosmetic to buy it with DNA. Robux purchase support is catalog-ready for later activation.", false)
+		end
+		applyTab()
+	end)
+	tabButtons[tabId] = button
+end
+
+local function createPage(parent: Instance, tabId: string): Frame
+	local page = Instance.new("Frame")
+	page.Name = tabId .. "Page"
+	page.Position = UDim2.fromOffset(0, 0)
+	page.Size = UDim2.fromScale(1, 1)
+	page.BackgroundTransparency = 1
+	page.Visible = false
+	page.Parent = parent
+	tabPages[tabId] = page
+	return page
+end
+
+local function createCosmeticPage(parent: Instance, remotes, tabId: string, slot: string)
+	local page = createPage(parent, tabId)
+	local slotConfig = CosmeticCatalog.GetSlot(slot)
+	local order = slotConfig and slotConfig.order or {}
+	local slotItems = CosmeticCatalog.Items[slot] or {}
+
+	local intro = makeText(page, "Intro", (slotConfig and slotConfig.displayName or slot) .. " Collection", UDim2.fromOffset(16, 8), UDim2.new(1, -32, 0, 28), 17, true)
+	intro.TextColor3 = Color3.fromRGB(245, 247, 245)
+
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = slot .. "Scroll"
+	scroll.Position = UDim2.fromOffset(12, 42)
+	scroll.Size = UDim2.new(1, -24, 1, -50)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.CanvasSize = UDim2.fromOffset(0, math.max(150, math.ceil(#order / 2) * 82 + 12))
+	scroll.ScrollBarThickness = 4
+	scroll.Parent = page
+
+	local gridFrame = Instance.new("Frame")
+	gridFrame.Name = "Grid"
+	gridFrame.Size = UDim2.new(1, -8, 0, math.ceil(#order / 2) * 82)
+	gridFrame.BackgroundTransparency = 1
+	gridFrame.Parent = scroll
 
 	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.new(0.5, -4, 0, 64)
+	grid.CellSize = UDim2.new(0.5, -5, 0, 74)
 	grid.CellPadding = UDim2.fromOffset(8, 8)
 	grid.FillDirectionMaxCells = 2
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
-	grid.Parent = frame
+	grid.Parent = gridFrame
 
 	for index, styleId in ipairs(order) do
 		local currentStyleId = styleId
-		local item = styles[currentStyleId]
-		if item then
+		local item = slotItems[currentStyleId]
+		local style = CosmeticStyles.GetStyle(slot, currentStyleId)
+		if item and style then
 			local button = Instance.new("TextButton")
 			button.Name = currentStyleId .. slot
 			button.LayoutOrder = index
@@ -221,7 +311,7 @@ local function createCosmeticGrid(parent: Instance, remotes, slot: string, order
 			button.BackgroundTransparency = 0.02
 			button.Text = ""
 			button.AutoButtonColor = false
-			button.Parent = frame
+			button.Parent = gridFrame
 
 			local stroke = Instance.new("UIStroke")
 			stroke.Color = OWNED_STROKE
@@ -229,23 +319,40 @@ local function createCosmeticGrid(parent: Instance, remotes, slot: string, order
 			stroke.Parent = button
 
 			local swatch = Instance.new("Frame")
-			swatch.Size = UDim2.fromOffset(38, 32)
-			swatch.Position = UDim2.fromOffset(10, 16)
-			swatch.BackgroundColor3 = item.previewColor
+			swatch.Size = UDim2.fromOffset(38, 38)
+			swatch.Position = UDim2.fromOffset(9, 18)
+			swatch.BackgroundColor3 = style.previewColor or Color3.fromRGB(120, 120, 120)
 			swatch.BorderSizePixel = 0
 			swatch.Parent = button
 
-			if slot == "Eyes" and item.kind == "googly" then
+			if slot == "Eyes" and style.kind == "googly" then
 				local pupil = Instance.new("Frame")
 				pupil.Size = UDim2.fromOffset(12, 12)
 				pupil.Position = UDim2.new(0.5, -2, 0.5, -2)
-				pupil.BackgroundColor3 = item.pupilColor or Color3.fromRGB(18, 18, 20)
+				pupil.BackgroundColor3 = style.pupilColor or Color3.fromRGB(18, 18, 20)
 				pupil.BorderSizePixel = 0
 				pupil.Parent = swatch
+			elseif slot == "Pattern" and style.kind == "stripe" then
+				for _, y in ipairs({ 10, 24 }) do
+					local stripe = Instance.new("Frame")
+					stripe.Size = UDim2.new(1, 0, 0, 5)
+					stripe.Position = UDim2.fromOffset(0, y)
+					stripe.BackgroundColor3 = Color3.fromRGB(55, 55, 45)
+					stripe.BorderSizePixel = 0
+					stripe.Parent = swatch
+				end
+			elseif slot == "Pattern" and style.kind == "speckles" then
+				for _, pos in ipairs({ Vector2.new(7, 8), Vector2.new(23, 7), Vector2.new(14, 23), Vector2.new(28, 27) }) do
+					local dot = Instance.new("Frame")
+					dot.Size = UDim2.fromOffset(6, 6)
+					dot.Position = UDim2.fromOffset(pos.X, pos.Y)
+					dot.BackgroundColor3 = Color3.fromRGB(70, 70, 65)
+					dot.BorderSizePixel = 0
+					dot.Parent = swatch
+				end
 			end
 
-			local label = makeText(button, "Label", item.displayName, UDim2.fromOffset(56, 4), UDim2.new(1, -64, 1, -8), 12, true)
-
+			local label = makeText(button, "Label", item.displayName, UDim2.fromOffset(54, 4), UDim2.new(1, -60, 1, -8), 11, true)
 			button.MouseButton1Click:Connect(function()
 				useCosmetic(remotes, slot, currentStyleId)
 			end)
@@ -260,8 +367,6 @@ local function createCosmeticGrid(parent: Instance, remotes, slot: string, order
 			}
 		end
 	end
-
-	return frame
 end
 
 local function ensureGui(remotes)
@@ -291,7 +396,6 @@ local function ensureGui(remotes)
 			return
 		end
 		expanded = true
-		setShopStatus("Spend DNA on cosmetics without losing level progress.", false)
 		refreshProfile()
 		applyVisibility()
 	end)
@@ -299,18 +403,20 @@ local function ensureGui(remotes)
 	panel = Instance.new("Frame")
 	panel.Name = "ProfilePanel"
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Size = UDim2.new(0.90, 0, 0.86, 0)
+	panel.Size = UDim2.new(0.92, 0, 0.88, 0)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(31, 37, 34)
-	panel.BackgroundTransparency = 0.04
+	panel.BackgroundTransparency = 0.03
 	panel.Parent = gui
 
 	local sizeConstraint = Instance.new("UISizeConstraint")
-	sizeConstraint.MaxSize = Vector2.new(500, 500)
-	sizeConstraint.MinSize = Vector2.new(320, 300)
+	sizeConstraint.MaxSize = Vector2.new(560, 520)
+	sizeConstraint.MinSize = Vector2.new(320, 320)
 	sizeConstraint.Parent = panel
 
-	makeText(panel, "Title", "Profile / Customize", UDim2.fromOffset(18, 8), UDim2.new(1, -118, 0, 38), 20, true)
+	makeText(panel, "Title", "Profile / Customize", UDim2.fromOffset(18, 8), UDim2.new(1, -118, 0, 32), 20, true)
+	headerSummary = makeText(panel, "Summary", "Lv 1 • Fresh Hatchling    DNA 0", UDim2.fromOffset(18, 38), UDim2.new(1, -36, 0, 24), 12, false)
+	headerSummary.TextColor3 = Color3.fromRGB(205, 225, 205)
 
 	local closeButton = Instance.new("TextButton")
 	closeButton.Size = UDim2.fromOffset(76, 34)
@@ -326,35 +432,49 @@ local function ensureGui(remotes)
 		applyVisibility()
 	end)
 
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Name = "ProfileScroll"
-	scroll.Position = UDim2.fromOffset(0, 50)
-	scroll.Size = UDim2.new(1, 0, 1, -58)
-	scroll.BackgroundTransparency = 1
-	scroll.BorderSizePixel = 0
-	scroll.CanvasSize = UDim2.fromOffset(0, 650)
-	scroll.ScrollBarThickness = 4
-	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
-	scroll.Parent = panel
+	local tabs = Instance.new("Frame")
+	tabs.Name = "Tabs"
+	tabs.Position = UDim2.fromOffset(14, 70)
+	tabs.Size = UDim2.new(1, -28, 0, 38)
+	tabs.BackgroundTransparency = 1
+	tabs.Parent = panel
 
-	nameLabel = makeText(scroll, "PlayerName", player.DisplayName, UDim2.fromOffset(18, 0), UDim2.new(1, -36, 0, 30), 18, true)
-	progressLabel = makeText(scroll, "Progress", "Level 1 • Fresh Hatchling", UDim2.fromOffset(18, 28), UDim2.new(1, -36, 0, 26), 14, true)
-	currencyLabel = makeText(scroll, "Currency", "DNA: 0 available • 0 lifetime    Crumbs: 0", UDim2.fromOffset(18, 56), UDim2.new(1, -36, 0, 30), 12, false)
-	statsLabel = makeText(scroll, "Stats", "Rounds: 0    Best: --    Food: 0", UDim2.fromOffset(18, 86), UDim2.new(1, -36, 0, 28), 13, false)
-	bugLabel = makeText(scroll, "Bug", "Current bug: Ant", UDim2.fromOffset(18, 116), UDim2.new(1, -36, 0, 28), 14, true)
+	local tabLayout = Instance.new("UIListLayout")
+	tabLayout.FillDirection = Enum.FillDirection.Horizontal
+	tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	tabLayout.Padding = UDim.new(0, 6)
+	tabLayout.Parent = tabs
 
-	shopStatusLabel = makeText(scroll, "ShopStatus", "Spend DNA on cosmetics without losing level progress.", UDim2.fromOffset(18, 146), UDim2.new(1, -36, 0, 36), 12, true)
+	createTabButton(tabs, "Stats", "Stats", 1)
+	createTabButton(tabs, "Colors", "Colors", 2)
+	createTabButton(tabs, "Eyes", "Eyes", 3)
+	createTabButton(tabs, "Patterns", "Patterns", 4)
+
+	local content = Instance.new("Frame")
+	content.Name = "TabContent"
+	content.Position = UDim2.fromOffset(12, 116)
+	content.Size = UDim2.new(1, -24, 1, -164)
+	content.BackgroundTransparency = 1
+	content.Parent = panel
+
+	local statsPage = createPage(content, "Stats")
+	nameLabel = makeText(statsPage, "PlayerName", player.DisplayName, UDim2.fromOffset(18, 8), UDim2.new(1, -36, 0, 34), 20, true)
+	progressLabel = makeText(statsPage, "Progress", "Level 1 • Fresh Hatchling", UDim2.fromOffset(18, 46), UDim2.new(1, -36, 0, 30), 16, true)
+	currencyLabel = makeText(statsPage, "Currency", "Available DNA: 0\nLifetime DNA: 0\nCrumbs: 0", UDim2.fromOffset(18, 88), UDim2.new(1, -36, 0, 74), 14, false)
+	statsLabel = makeText(statsPage, "Stats", "Rounds played: 0\nBest survival: --\nFood collected: 0", UDim2.fromOffset(18, 172), UDim2.new(1, -36, 0, 74), 14, false)
+	bugLabel = makeText(statsPage, "Bug", "Current bug: Ant\nColor: Natural    Eyes: Default\nPattern: None", UDim2.fromOffset(18, 258), UDim2.new(1, -36, 0, 78), 14, true)
+
+	createCosmeticPage(content, remotes, "Colors", "BodyColor")
+	createCosmeticPage(content, remotes, "Eyes", "Eyes")
+	createCosmeticPage(content, remotes, "Patterns", "Pattern")
+
+	shopStatusLabel = makeText(panel, "ShopStatus", "Cosmetics are visual only. Gameplay power comes from your bug choice.", UDim2.fromOffset(18, -42), UDim2.new(1, -36, 0, 30), 11, true)
+	shopStatusLabel.AnchorPoint = Vector2.new(0, 1)
+	shopStatusLabel.Position = UDim2.new(0, 18, 1, -8)
 	shopStatusLabel.TextColor3 = Color3.fromRGB(195, 225, 190)
 
-	makeText(scroll, "BodyColorTitle", "Body Color", UDim2.fromOffset(18, 190), UDim2.fromOffset(240, 28), 17, true)
-	createCosmeticGrid(scroll, remotes, "BodyColor", CosmeticStyles.BodyColorOrder, CosmeticStyles.BodyColors, 222)
-
-	makeText(scroll, "EyeTitle", "Eyes", UDim2.fromOffset(18, 372), UDim2.fromOffset(240, 28), 17, true)
-	createCosmeticGrid(scroll, remotes, "Eyes", CosmeticStyles.EyeStyleOrder, CosmeticStyles.EyeStyles, 404)
-
-	makeText(scroll, "FutureSlots", "Next slots: patterns, shell or wing details, antenna accents, and trails.", UDim2.fromOffset(18, 570), UDim2.new(1, -36, 0, 44), 12, false)
-
 	refreshProfile()
+	applyTab()
 	applyVisibility()
 end
 
@@ -376,7 +496,20 @@ function ProfileController.Init(remotes)
 		applyVisibility()
 	end)
 
-	for _, attributeName in ipairs({ "BodyColor", "EyeStyle", "BugLevel", "BugTitle", "RoundsPlayed", "BestSurvival", "FoodCollected", "LifetimeDna", "TotalDna", "TotalCrumbs", "SelectedBug" }) do
+	for _, attributeName in ipairs({
+		"BodyColor",
+		"EyeStyle",
+		"PatternStyle",
+		"BugLevel",
+		"BugTitle",
+		"RoundsPlayed",
+		"BestSurvival",
+		"FoodCollected",
+		"LifetimeDna",
+		"TotalDna",
+		"TotalCrumbs",
+		"SelectedBug",
+	}) do
 		player:GetAttributeChangedSignal(attributeName):Connect(refreshProfile)
 	end
 end
