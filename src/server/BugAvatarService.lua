@@ -301,8 +301,67 @@ local function buildGrasshopper(model: Model, root: BasePart, c, eyeStyle)
 	createAntenna(model, root, head, 1, -2.00, -3.40, c.dark)
 end
 
-local function createPatternPiece(model: Model, target: BasePart, name: string, size: Vector3, localCFrame: CFrame, color: Color3, material, shape)
-	local piece = createPart(model, name, shape or Enum.PartType.Block, size, target.CFrame * localCFrame, color, material or Enum.Material.SmoothPlastic)
+-- Pattern marks are flattened ellipsoids that conform to the curved surface of
+-- the target body part. Keeping most of each mark just under the surface makes
+-- the result read like pigmentation rather than beads or stickers resting on top.
+local function getEllipsoidSurface(target: BasePart, xScale: number, zScale: number)
+	local radiusX = math.max(0.01, target.Size.X * 0.5)
+	local radiusY = math.max(0.01, target.Size.Y * 0.5)
+	local radiusZ = math.max(0.01, target.Size.Z * 0.5)
+
+	xScale = math.clamp(xScale, -0.82, 0.82)
+	zScale = math.clamp(zScale, -0.82, 0.82)
+	local x = radiusX * xScale
+	local z = radiusZ * zScale
+	local inside = 1 - (x * x) / (radiusX * radiusX) - (z * z) / (radiusZ * radiusZ)
+	local y = radiusY * math.sqrt(math.max(0.025, inside))
+	local normal = Vector3.new(
+		x / (radiusX * radiusX),
+		y / (radiusY * radiusY),
+		z / (radiusZ * radiusZ)
+	).Unit
+
+	return Vector3.new(x, y, z), normal
+end
+
+local function getSurfaceFrame(target: BasePart, xScale: number, zScale: number, sinkAmount: number, rotationDegrees: number?)
+	local position, normal = getEllipsoidSurface(target, xScale, zScale)
+	local reference = Vector3.zAxis
+	if math.abs(normal:Dot(reference)) > 0.92 then
+		reference = Vector3.xAxis
+	end
+
+	local right = normal:Cross(reference).Unit
+	local back = right:Cross(normal).Unit
+	local localFrame = CFrame.fromMatrix(position - normal * sinkAmount, right, normal, back)
+	if rotationDegrees then
+		localFrame *= CFrame.Angles(0, math.rad(rotationDegrees), 0)
+	end
+	return target.CFrame * localFrame
+end
+
+local function createSurfaceMark(
+	model: Model,
+	target: BasePart,
+	name: string,
+	xScale: number,
+	zScale: number,
+	width: number,
+	depth: number,
+	color: Color3,
+	material,
+	rotationDegrees: number?
+)
+	local thickness = 0.045
+	local piece = createPart(
+		model,
+		name,
+		Enum.PartType.Ball,
+		Vector3.new(width, thickness, depth),
+		getSurfaceFrame(target, xScale, zScale, thickness * 0.30, rotationDegrees),
+		color,
+		material or Enum.Material.SmoothPlastic
+	)
 	piece.CastShadow = false
 	createStaticWeld(target, piece)
 	return piece
@@ -318,58 +377,96 @@ local function applyPattern(model: Model, patternStyle)
 		return
 	end
 
-	local topY = target.Size.Y * 0.49 + 0.04
 	local color = patternStyle.color or Color3.fromRGB(230, 220, 170)
 	local material = patternStyle.material or Enum.Material.SmoothPlastic
 
 	if patternStyle.kind == "stripe" then
-		for _, zScale in ipairs({ -0.18, 0.18 }) do
-			createPatternPiece(
-				model,
-				target,
-				"PatternStripe",
-				Vector3.new(target.Size.X * 0.72, 0.09, math.max(0.18, target.Size.Z * 0.12)),
-				CFrame.new(0, topY, target.Size.Z * zScale),
-				color,
-				material
-			)
+		-- Build each band from several flush marks so it follows the shell curve.
+		for _, zScale in ipairs({ -0.19, 0.19 }) do
+			for _, xScale in ipairs({ -0.54, -0.27, 0, 0.27, 0.54 }) do
+				createSurfaceMark(
+					model,
+					target,
+					"PatternStripe",
+					xScale,
+					zScale,
+					target.Size.X * 0.20,
+					math.max(0.16, target.Size.Z * 0.11),
+					color,
+					material,
+					0
+				)
+			end
 		end
 	elseif patternStyle.kind == "speckles" then
 		local offsets = {
-			Vector2.new(-0.23, -0.20),
-			Vector2.new(0.22, -0.13),
-			Vector2.new(-0.12, 0.08),
-			Vector2.new(0.26, 0.19),
-			Vector2.new(-0.28, 0.26),
+			Vector2.new(-0.44, -0.24),
+			Vector2.new(-0.10, -0.31),
+			Vector2.new(0.34, -0.20),
+			Vector2.new(-0.28, 0.02),
+			Vector2.new(0.18, 0.08),
+			Vector2.new(-0.06, 0.31),
+			Vector2.new(0.42, 0.27),
 		}
-		for _, offset in ipairs(offsets) do
-			local diameter = math.max(0.16, math.min(target.Size.X, target.Size.Z) * 0.16)
-			createPatternPiece(
+		local baseDiameter = math.max(0.15, math.min(target.Size.X, target.Size.Z) * 0.14)
+		for index, offset in ipairs(offsets) do
+			local scale = (index % 3 == 0) and 0.78 or ((index % 2 == 0) and 0.90 or 1)
+			createSurfaceMark(
 				model,
 				target,
 				"PatternSpeckle",
-				Vector3.new(diameter, 0.10, diameter),
-				CFrame.new(target.Size.X * offset.X, topY, target.Size.Z * offset.Y),
+				offset.X,
+				offset.Y,
+				baseDiameter * scale,
+				baseDiameter * scale,
 				color,
 				material,
-				Enum.PartType.Ball
+				(index * 23) % 90
 			)
 		end
 	elseif patternStyle.kind == "sunmark" then
-		local mark = createPatternPiece(
+		local mark = createSurfaceMark(
 			model,
 			target,
 			"PatternSunmark",
-			Vector3.new(target.Size.X * 0.42, 0.10, target.Size.Z * 0.30),
-			CFrame.new(0, topY, 0) * CFrame.Angles(0, math.rad(45), 0),
+			0,
+			0,
+			target.Size.X * 0.38,
+			target.Size.Z * 0.25,
 			color,
-			material
+			material,
+			45
 		)
+
+		for _, ray in ipairs({
+			{ -0.34, 0, 90 },
+			{ 0.34, 0, 90 },
+			{ 0, -0.28, 0 },
+			{ 0, 0.28, 0 },
+			{ -0.25, -0.20, 45 },
+			{ 0.25, -0.20, -45 },
+			{ -0.25, 0.20, -45 },
+			{ 0.25, 0.20, 45 },
+		}) do
+			createSurfaceMark(
+				model,
+				target,
+				"PatternSunRay",
+				ray[1],
+				ray[2],
+				target.Size.X * 0.12,
+				target.Size.Z * 0.08,
+				color,
+				material,
+				ray[3]
+			)
+		end
+
 		local light = Instance.new("PointLight")
 		light.Name = "PatternGlow"
 		light.Color = color
-		light.Brightness = 0.25
-		light.Range = 2.5
+		light.Brightness = 0.16
+		light.Range = 2.2
 		light.Parent = mark
 	end
 end
@@ -482,7 +579,7 @@ local function buildVisual(player: Player)
 	local model = Instance.new("Model")
 	model.Name = VISUAL_MODEL_NAME
 	model:SetAttribute("BugId", selectedBug)
-	model:SetAttribute("RigVersion", 3)
+	model:SetAttribute("RigVersion", 4)
 	model.Parent = character
 
 	if selectedBug == "Beetle" then
