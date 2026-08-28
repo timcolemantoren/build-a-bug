@@ -43,6 +43,11 @@ local HAZARD_VISUALS = {
 		impactColor = Color3.fromRGB(255, 122, 38),
 		instruction = "GET OUT OF THE BALL'S PATH!",
 	},
+	Raindrop = {
+		warningColor = Color3.fromRGB(82, 190, 255),
+		impactColor = Color3.fromRGB(145, 230, 255),
+		instruction = "MOVE OFF THE BLUE SPLASH ZONE!",
+	},
 }
 
 local function getHazardsFolder(): Folder
@@ -124,6 +129,11 @@ local function makeZone(hazardId: string, requestedCenter: Vector3?)
 			size = Vector3.new(120, 0.25, 22),
 			rollDirection = math.random() < 0.5 and -1 or 1,
 		}
+	elseif hazardId == "Raindrop" then
+		return {
+			center = center,
+			size = Vector3.new(22, 0.25, 22),
+		}
 	else
 		return {
 			center = center,
@@ -180,6 +190,11 @@ local function createWarningPart(hazard, zone)
 	part.Transparency = hazard.id == "BirdShadow" and 0.50 or 0.30
 	part.Color = visual.warningColor
 	part.Material = hazard.id == "BirdShadow" and Enum.Material.SmoothPlastic or Enum.Material.Neon
+	if hazard.id == "Raindrop" then
+		part.Shape = Enum.PartType.Ball
+		part.Size = Vector3.new(zone.size.X, 0.22, zone.size.Z)
+		part.Transparency = 0.38
+	end
 	part.Parent = getHazardsFolder()
 	addWorldLabel(part, hazard, visual)
 
@@ -190,11 +205,11 @@ local function createWarningPart(hazard, zone)
 			{ Position = zone.center + Vector3.new(8, 0, 0) }
 		)
 		driftTween:Play()
-	elseif hazard.id == "RollingBall" then
+	elseif hazard.id == "RollingBall" or hazard.id == "Raindrop" then
 		local pulseTween = TweenService:Create(
 			part,
 			TweenInfo.new(0.32, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-			{ Transparency = 0.52 }
+			{ Transparency = 0.58 }
 		)
 		pulseTween:Play()
 	end
@@ -242,6 +257,83 @@ local function createShoeVisual(zone, warningSeconds: number)
 	soleTween:Play()
 
 	return { shoe, sole }
+end
+
+local function createRaindropVisual(zone, warningSeconds: number)
+	local drop = Instance.new("Part")
+	drop.Name = "FallingRaindrop"
+	drop.Shape = Enum.PartType.Ball
+	drop.Size = Vector3.new(8, 15, 8)
+	drop.Position = zone.center + Vector3.new(0, 58, 0)
+	drop.Anchored = true
+	drop.CanCollide = false
+	drop.CanTouch = false
+	drop.CanQuery = false
+	drop.Color = Color3.fromRGB(105, 214, 255)
+	drop.Material = Enum.Material.Glass
+	drop.Transparency = 0.14
+	drop.Parent = getHazardsFolder()
+
+	local glow = Instance.new("PointLight")
+	glow.Name = "DropGlow"
+	glow.Color = Color3.fromRGB(125, 220, 255)
+	glow.Brightness = 0.8
+	glow.Range = 14
+	glow.Parent = drop
+
+	TweenService:Create(
+		drop,
+		TweenInfo.new(math.max(0.3, warningSeconds), Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Position = zone.center + Vector3.new(0, 7, 0) }
+	):Play()
+
+	return { drop }
+end
+
+local function createRaindropImpact(zone)
+	local splash = Instance.new("Part")
+	splash.Name = "RaindropSplash"
+	splash.Shape = Enum.PartType.Ball
+	splash.Size = Vector3.new(18, 1.0, 18)
+	splash.Position = zone.center + Vector3.new(0, 0.65, 0)
+	splash.Anchored = true
+	splash.CanCollide = false
+	splash.CanTouch = false
+	splash.CanQuery = false
+	splash.Color = Color3.fromRGB(125, 225, 255)
+	splash.Material = Enum.Material.Glass
+	splash.Transparency = 0.25
+	splash.Parent = getHazardsFolder()
+
+	TweenService:Create(splash, TweenInfo.new(0.34, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(32, 0.28, 32),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(splash, 0.38)
+
+	for index = 1, 6 do
+		local angle = (index / 6) * math.pi * 2
+		local bead = Instance.new("Part")
+		bead.Name = "SplashDroplet"
+		bead.Shape = Enum.PartType.Ball
+		bead.Size = Vector3.new(1.8, 1.8, 1.8)
+		bead.Position = zone.center + Vector3.new(0, 1.2, 0)
+		bead.Anchored = true
+		bead.CanCollide = false
+		bead.CanTouch = false
+		bead.CanQuery = false
+		bead.Color = Color3.fromRGB(150, 235, 255)
+		bead.Material = Enum.Material.Glass
+		bead.Transparency = 0.18
+		bead.Parent = getHazardsFolder()
+
+		local target = zone.center + Vector3.new(math.cos(angle) * 10, 4.5, math.sin(angle) * 10)
+		TweenService:Create(bead, TweenInfo.new(0.32, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = target,
+			Transparency = 1,
+		}):Play()
+		Debris:AddItem(bead, 0.36)
+	end
 end
 
 local function createSprinklerImpact(zone)
@@ -344,8 +436,6 @@ local function createRollingBallImpact(zone, damage: number, myGeneration: numbe
 	ball.Material = Enum.Material.SmoothPlastic
 	ball.Parent = getHazardsFolder()
 
-	-- A contrasting patch makes the rotation readable instead of looking like a
-	-- colored sphere sliding across the ground.
 	local patch = Instance.new("Part")
 	patch.Name = "BallPatch"
 	patch.Shape = Enum.PartType.Ball
@@ -454,6 +544,8 @@ function HazardService.WarnHazard(hazardId: string, options)
 
 	if hazardId == "ShoeStomp" then
 		extraVisuals = createShoeVisual(zone, warningSeconds)
+	elseif hazardId == "Raindrop" then
+		extraVisuals = createRaindropVisual(zone, warningSeconds)
 	end
 
 	announceHazard(hazard, "Warning", zone, warningSeconds)
@@ -478,7 +570,7 @@ function HazardService.WarnHazard(hazardId: string, options)
 		end
 
 		if warningPart and warningPart.Parent then
-			warningPart.Transparency = 0.05
+			warningPart.Transparency = hazardId == "Raindrop" and 0.45 or 0.05
 			warningPart.Color = visual.impactColor
 		end
 
@@ -486,6 +578,8 @@ function HazardService.WarnHazard(hazardId: string, options)
 			createSprinklerImpact(zone)
 		elseif hazardId == "BirdShadow" then
 			createBirdImpact(zone)
+		elseif hazardId == "Raindrop" then
+			createRaindropImpact(zone)
 		end
 
 		announceHazard(hazard, "Impact", zone, warningSeconds)
@@ -493,11 +587,19 @@ function HazardService.WarnHazard(hazardId: string, options)
 
 		for _, part in ipairs(extraVisuals) do
 			if part and part.Parent then
-				TweenService:Create(part, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					Position = part.Position + Vector3.new(0, 28, 0),
-					Transparency = 0.55,
-				}):Play()
-				Debris:AddItem(part, 0.34)
+				if hazardId == "Raindrop" then
+					TweenService:Create(part, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Transparency = 1,
+						Size = Vector3.new(10, 3, 10),
+					}):Play()
+					Debris:AddItem(part, 0.20)
+				else
+					TweenService:Create(part, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Position = part.Position + Vector3.new(0, 28, 0),
+						Transparency = 0.55,
+					}):Play()
+					Debris:AddItem(part, 0.34)
+				end
 			end
 		end
 
