@@ -1,6 +1,6 @@
 --!strict
 
--- Permanent achievements and their cosmetic rewards.
+-- Permanent achievements and their cosmetic or badge rewards.
 -- Conditions are evaluated server-side by AchievementService. The client uses
 -- the same definitions to explain progress and rewards in Profile.
 
@@ -15,6 +15,14 @@ AchievementConfig.Order = {
 	"YardVeteran",
 	"CrumbChampion",
 	"DnaLegend",
+	"SurvivalStreak",
+	"BackyardFixture",
+	"PantryRaider",
+	"DnaHoarder",
+	"UnstoppableBug",
+	"CenturyClub",
+	"CrumbLegend",
+	"DnaMaster",
 }
 
 AchievementConfig.Items = {
@@ -97,6 +105,74 @@ AchievementConfig.Items = {
 		rewardSlot = "BodyColor",
 		rewardId = "Royal",
 		rewardName = "Royal Purple Body Color",
+	},
+
+	-- Longer-range badge milestones intentionally widen out after the first
+	-- cosmetic rewards. These give returning players something visible to chase
+	-- without flooding the inventory with a reward every few rounds.
+	SurvivalStreak = {
+		id = "SurvivalStreak",
+		displayName = "Still Standing",
+		description = "Survive 25 full rounds.",
+		kind = "fullRoundsSurvived",
+		target = 25,
+		rewardName = "Badge: Still Standing",
+	},
+	BackyardFixture = {
+		id = "BackyardFixture",
+		displayName = "Backyard Fixture",
+		description = "Play 50 rounds.",
+		kind = "roundsPlayed",
+		target = 50,
+		rewardName = "Badge: Backyard Fixture",
+	},
+	PantryRaider = {
+		id = "PantryRaider",
+		displayName = "Pantry Raider",
+		description = "Collect 1,000 food.",
+		kind = "foodCollected",
+		target = 1000,
+		rewardName = "Badge: Pantry Raider",
+	},
+	DnaHoarder = {
+		id = "DnaHoarder",
+		displayName = "DNA Hoarder",
+		description = "Earn 7,500 Lifetime DNA.",
+		kind = "lifetimeDna",
+		target = 7500,
+		rewardName = "Badge: DNA Hoarder",
+	},
+	UnstoppableBug = {
+		id = "UnstoppableBug",
+		displayName = "Unstoppable Bug",
+		description = "Survive 50 full rounds.",
+		kind = "fullRoundsSurvived",
+		target = 50,
+		rewardName = "Badge: Unstoppable Bug",
+	},
+	CenturyClub = {
+		id = "CenturyClub",
+		displayName = "Century Club",
+		description = "Play 100 rounds.",
+		kind = "roundsPlayed",
+		target = 100,
+		rewardName = "Badge: Century Club",
+	},
+	CrumbLegend = {
+		id = "CrumbLegend",
+		displayName = "Crumb Legend",
+		description = "Collect 2,500 food.",
+		kind = "foodCollected",
+		target = 2500,
+		rewardName = "Badge: Crumb Legend",
+	},
+	DnaMaster = {
+		id = "DnaMaster",
+		displayName = "DNA Master",
+		description = "Earn 20,000 Lifetime DNA.",
+		kind = "lifetimeDna",
+		target = 20000,
+		rewardName = "Badge: DNA Master",
 	},
 }
 
