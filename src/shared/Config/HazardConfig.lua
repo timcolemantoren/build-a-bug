@@ -1,31 +1,30 @@
 --!strict
 
--- MVP hazards should be readable, funny, and easy to understand quickly.
--- These are definitions only; server-side behavior lives in HazardService.
-
+-- MVP hazards should be readable, funny, and dodgeable.
+-- The world can feel chaotic without every mistake being brutally punishing.
 local HazardConfig = {
 	BirdShadow = {
 		id = "BirdShadow",
 		displayName = "Bird Shadow",
 		warningSeconds = 3,
-		damage = 35,
-		description = "A dark bird shadow sweeps over the yard. Get out of the shadow before it strikes.",
+		damage = 24,
+		description = "A bird shadow sweeps across the backyard. Run out of the shadow.",
 	},
 
 	SprinklerBurst = {
 		id = "SprinklerBurst",
 		displayName = "Sprinkler Burst",
-		warningSeconds = 2,
-		damage = 25,
-		description = "A blue water lane appears before the sprinkler blasts through it. Get out of the lane.",
+		warningSeconds = 2.2,
+		damage = 18,
+		description = "Water blasts across part of the map. Get out of the lane.",
 	},
 
 	ShoeStomp = {
 		id = "ShoeStomp",
 		displayName = "Shoe Stomp",
-		warningSeconds = 2.5,
-		damage = 60,
-		description = "A giant shoe drops toward the marked stomp zone. Move before it lands.",
+		warningSeconds = 2.7,
+		damage = 42,
+		description = "A giant shoe lands after the stomp zone appears.",
 	},
 }
 
