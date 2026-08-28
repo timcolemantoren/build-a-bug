@@ -25,6 +25,7 @@ local phaseColors = {
 	Chaos = Color3.fromRGB(160, 55, 48),
 	Final = Color3.fromRGB(150, 55, 100),
 	Event = Color3.fromRGB(72, 92, 130),
+	Achievement = Color3.fromRGB(154, 119, 39),
 }
 
 local function ensureGui()
@@ -140,6 +141,13 @@ function RoundEventController.Init(remotes)
 			showBanner(payload.displayName or "SURPRISE!", payload.description or "Something is happening!", 2.1, phaseColors.Event)
 		elseif state == "FinalScramble" then
 			showBanner(payload.displayName or "FINAL SCRAMBLE!", payload.description or "10 seconds!", 2.4, phaseColors.Final)
+		elseif state == "AchievementUnlocked" then
+			showBanner(
+				"AWARD UNLOCKED!",
+				string.format("%s  •  %s", payload.displayName or "Achievement", payload.rewardName or "New cosmetic"),
+				3.2,
+				phaseColors.Achievement
+			)
 		elseif state == "Ended" or state == "Eliminated" then
 			bannerToken += 1
 			if frame then
