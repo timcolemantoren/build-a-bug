@@ -1,6 +1,7 @@
 --!nonstrict
 
 -- A round should have an arc rather than feeling like one flat timer.
+-- The yard gets busier by phase, but survival should remain achievable for kids.
 -- Phase times are elapsed seconds from round start.
 local RoundEventConfig = {
 	Phases = {
@@ -8,28 +9,28 @@ local RoundEventConfig = {
 			id = "Scavenge",
 			displayName = "SCAVENGE!",
 			startsAt = 0,
-			hazardMinSeconds = 12,
-			hazardMaxSeconds = 17,
-			eventMinSeconds = 20,
-			eventMaxSeconds = 27,
+			hazardMinSeconds = 14,
+			hazardMaxSeconds = 18,
+			eventMinSeconds = 24,
+			eventMaxSeconds = 30,
 		},
 		{
 			id = "Trouble",
 			displayName = "TROUBLE'S COMING!",
 			startsAt = 30,
-			hazardMinSeconds = 8,
-			hazardMaxSeconds = 12,
-			eventMinSeconds = 15,
-			eventMaxSeconds = 22,
+			hazardMinSeconds = 10,
+			hazardMaxSeconds = 14,
+			eventMinSeconds = 18,
+			eventMaxSeconds = 24,
 		},
 		{
 			id = "Chaos",
 			displayName = "BACKYARD CHAOS!",
 			startsAt = 75,
-			hazardMinSeconds = 5,
-			hazardMaxSeconds = 9,
-			eventMinSeconds = 10,
-			eventMaxSeconds = 16,
+			hazardMinSeconds = 7,
+			hazardMaxSeconds = 11,
+			eventMinSeconds = 13,
+			eventMaxSeconds = 18,
 		},
 	},
 
@@ -38,19 +39,19 @@ local RoundEventConfig = {
 			id = "CrumbShower",
 			displayName = "CRUMB SHOWER!",
 			description = "Food is falling everywhere!",
-			weight = 4,
+			weight = 5,
 		},
 		{
 			id = "DnaBurst",
 			displayName = "DNA BURST!",
 			description = "Glowing DNA has appeared!",
-			weight = 3,
+			weight = 4,
 		},
 		{
 			id = "DoubleTrouble",
 			displayName = "DOUBLE TROUBLE!",
 			description = "Two hazards are coming!",
-			weight = 3,
+			weight = 2,
 		},
 	},
 }
