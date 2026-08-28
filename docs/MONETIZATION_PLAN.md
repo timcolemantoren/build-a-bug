@@ -5,20 +5,21 @@
 Monetization must not sell survival power.
 
 - Bug archetypes determine movement, defense, abilities, and gameplay style.
-- Cosmetics change appearance only.
-- Nearly every standard cosmetic should be earnable through play with DNA or achievements.
-- Robux can provide an alternate acquisition path without creating stronger bugs.
+- Cosmetics and premium Skins change appearance only.
+- Standard cosmetics should usually be earnable through play with DNA or achievements.
+- Premium full-body Skins are a separate Robux-only collection category.
+- Unlockable gameplay bugs remain progression sidegrades rather than paid power.
 
 ## Cosmetic economy
 
 Two DNA values remain intentionally separate:
 
-- **Available DNA** is spendable on cosmetic unlocks.
+- **Available DNA** is spendable on cosmetic and bug unlocks.
 - **Lifetime DNA** is permanent progression used for levels and titles.
 
 Spending DNA never lowers level or title.
 
-Cosmetic ownership is account-wide. Once a player unlocks a cosmetic, it can be equipped on any compatible bug without repurchasing it.
+Standard cosmetic ownership is account-wide. Once a player unlocks a cosmetic, it can be equipped on any compatible bug without repurchasing it. Equipped appearance and saved Builds remain per bug species.
 
 ## Catalog architecture
 
@@ -29,8 +30,10 @@ Cosmetic ownership is account-wide. Once a player unlocks a cosmetic, it can be 
 - DNA cost
 - rarity
 - current shop availability
-- Robux eligibility
-- future Roblox Developer Product ID
+- achievement ownership
+- optional standard-cosmetic Robux eligibility
+- future Developer Product ID where appropriate
+- premium Skin Pass ID
 - future rotation eligibility
 
 This keeps prices and availability independent from rendering.
@@ -39,24 +42,43 @@ Current availability values:
 
 - `always`: visible in the normal DNA shop.
 - `rotation`: reserved for a future featured/limited-stock store.
+- `achievement`: earned through gameplay only.
+- `robux`: premium Skin, never purchasable for DNA.
 
-Current Robux product IDs remain `0` until real Roblox Developer Products are created. Do not ship fake IDs.
+All current Roblox product/pass IDs remain `0` until real items are created. Do not ship fake IDs or fake purchase buttons.
 
-## Robux purchase path
+## Premium Skins
 
-When real Developer Product IDs are configured:
+Skins are full-body visual treatments rather than mix-and-match parts. They are Robux-only and never affect movement, health, damage, rewards, or abilities.
 
-1. The client can offer a Robux purchase option for an eligible catalog item.
-2. Fetch live product information from Roblox rather than hard-coding the displayed Robux price.
-3. Prompt the purchase with MarketplaceService.
-4. Grant ownership only from the server receipt-processing path.
-5. The receipt handler grants the cosmetic through `PlayerDataService.GrantCosmetic()` so DNA, achievement, and Robux unlocks all converge on one ownership system.
-6. Receipt processing must be idempotent and persist the processed receipt before acknowledging the purchase.
-7. Do not use purchase-finished UI events as proof that the player paid.
+First concept set:
+
+- Neon Circuit
+- Candy Pop
+- Ember
+
+Because Skins are intended as permanent one-time entitlements, use Roblox Passes for them rather than repeatable Developer Products. The Skin catalog already has `robuxPassId` placeholders and can map a real Pass ID back to the permanent entitlement once configured.
+
+The client may show a Skin collection/preview before commerce is live, but must not show a fake purchasable price or imply a purchase can complete until a valid Pass ID exists.
+
+## Standard cosmetic Robux path
+
+Standard colors, eyes, patterns, and future mix-and-match cosmetics remain primarily earnable through DNA or achievements. Some may later have an optional Robux shortcut.
+
+For any repeatable Developer Product purchase path:
+
+1. Fetch live product information from Roblox rather than hard-coding the displayed Robux price.
+2. Prompt the purchase with MarketplaceService.
+3. Grant ownership only from the server receipt-processing path.
+4. The receipt handler grants through the same permanent cosmetic ownership system used by DNA and achievements.
+5. Receipt processing must be idempotent.
+6. Do not use purchase-finished UI events as proof that the player paid.
+
+For premium Skin Passes, ownership should be checked/granted through the Pass entitlement path instead of Developer Product receipts.
 
 ## Future featured store, likely v2
 
-A rotating store can borrow the useful engagement pattern of collectible-stock games without making cosmetics Robux-exclusive.
+A rotating store can borrow the useful engagement pattern of collectible-stock games without making standard cosmetics Robux-exclusive.
 
 Possible structure:
 
@@ -65,25 +87,29 @@ Possible structure:
 - Featured stock changes on a predictable schedule.
 - Players can return regularly to see what is available.
 - Most rotating cosmetics should eventually be earnable for DNA when in stock.
-- Eligible cosmetics may also have an always-available Robux purchase path even when their DNA stock is absent.
-- Achievement and event cosmetics can remain outside the normal shop entirely.
+- Eligible standard cosmetics may also have an always-available Robux shortcut even when DNA stock is absent.
+- Achievement cosmetics remain outside the normal shop.
+- Premium Skins remain their own Robux-only collection and do not depend on rotating DNA stock.
 
 The rotation should create anticipation, not punish missed logins. Avoid extremely short windows or progression advantages tied to rare stock.
 
-## Future cosmetic categories
+## Cosmetic categories
 
-Current:
+Current functional mix-and-match categories:
 
 - Body Color
 - Eyes
 - Patterns
+
+Premium architecture:
+
+- Skins
 
 Planned:
 
 - Shell / wing treatment
 - Antenna accents
 - Trails
-- Achievement cosmetics
 - Seasonal cosmetics
 - Map/event cosmetics
 
@@ -94,15 +120,17 @@ Profile / Customize should scale through tabs rather than one long scrolling lis
 Current tabs:
 
 - Stats
+- Builds
 - Colors
 - Eyes
 - Patterns
+- Awards
 
 Potential later tabs:
 
+- Skins
 - Store
 - Featured
-- Achievements
 - Trails
 - Limited / Seasonal
 
@@ -113,5 +141,7 @@ The player should always be able to distinguish:
 - locked
 - DNA price
 - rarity
+- achievement requirement
 - whether an item is currently in stock
-- Robux option, when configured
+- Robux-only Skin status
+- live Robux option only when a valid Roblox item is actually configured
