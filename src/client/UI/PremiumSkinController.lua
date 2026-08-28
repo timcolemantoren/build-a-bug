@@ -143,7 +143,7 @@ local function ensureGui(remotes)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 5
-	scroll.CanvasSize = UDim2.fromOffset(0, 4 * 116)
+	scroll.CanvasSize = UDim2.fromOffset(0, #CosmeticCatalog.Slots.Skin.order * 116)
 	scroll.Parent = panel
 
 	local y = 0
@@ -185,7 +185,13 @@ local function ensureGui(remotes)
 			detail.Size = UDim2.new(1, -230, 0, 44)
 			detail.Position = UDim2.fromOffset(92, 39)
 			detail.BackgroundTransparency = 1
-			detail.Text = currentStyleId == "None" and "Use your normal mix-and-match cosmetics." or "Premium • Robux only • visual effect"
+			if currentStyleId == "None" then
+				detail.Text = "Use your normal mix-and-match cosmetics."
+			elseif style.kind == "character" then
+				detail.Text = "Premium character skin • custom silhouette and accessories"
+			else
+				detail.Text = "Premium • Robux only • full-body visual treatment"
+			end
 			detail.TextColor3 = Color3.fromRGB(211, 205, 220)
 			detail.Font = Enum.Font.Gotham
 			detail.TextSize = 12
