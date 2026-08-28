@@ -19,6 +19,7 @@
 - Lobby Profile / Customize hub uses scalable tabs for Stats, Colors, Eyes, Patterns, and Awards.
 - Body Color, Eyes, and Patterns are functional cosmetic slots.
 - Cosmetic unlocks are account-wide and cosmetic-only.
+- Equipped appearance is saved per bug species. A bug with no saved appearance starts Natural / Classic Eyes / No Pattern, while returning to a previously customized species restores its own look.
 - Available DNA is spendable currency. Lifetime DNA is permanent level/title progression and never decreases when DNA is spent.
 - Exit Round rolls back both available and lifetime DNA earned during the forfeited round.
 - Cosmetic visual definitions are separated from commerce metadata so prices, rarity, availability, achievements, and future Robux products can evolve independently.
@@ -34,12 +35,13 @@
 2. Test the Awards tab and achievement unlock pacing, then expand with skill-based achievements such as critical-health recovery, bug-specific survival, and streaks.
 3. Tune Body Color, Eyes, and Pattern prices against actual DNA earned per two-minute round.
 4. Add additional cosmetic slots: shell/wing treatment, antenna accents, and trails.
-5. Refine overhead identity readability at different distances and player counts.
-6. Continue multiplayer testing with 2-4 Studio clients and verify queue/lock/elimination/results behavior.
-7. Test pickup competition with multiple players and decide whether some collectibles should become player-specific.
-8. Add insect unlock pricing after round economy is better understood.
-9. Add map voting after the shared-match loop and player progression are stable.
-10. Consider a lobby leaderboard or showcase once progression has enough history to make it interesting.
+5. Add explicit multi-preset saved builds once cosmetic variety makes multiple looks per species useful. Automatic per-species appearance remains the default simple experience.
+6. Refine overhead identity readability at different distances and player counts.
+7. Continue multiplayer testing with 2-4 Studio clients and verify queue/lock/elimination/results behavior.
+8. Test pickup competition with multiple players and decide whether some collectibles should become player-specific.
+9. Add insect unlock pricing after round economy is better understood.
+10. Add map voting after the shared-match loop and player progression are stable.
+11. Consider a lobby leaderboard or showcase once progression has enough history to make it interesting.
 
 ## Audio / music roadmap
 
