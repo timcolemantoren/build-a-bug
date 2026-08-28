@@ -189,6 +189,30 @@ local function applyWindGust(payload)
 	end)
 end
 
+local function applyRakeHit(payload)
+	payload = payload or {}
+	local velocity = payload.velocity
+	if typeof(velocity) ~= "Vector3" then
+		return
+	end
+
+	local root, humanoid = getCharacterMotionParts()
+	if not root or not humanoid or player:GetAttribute("InRound") ~= true then
+		return
+	end
+
+	-- A rake hit should feel like the moving head actually caught the bug. Give a
+	-- short knock in the sweep direction without turning it into a giant launch.
+	humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+	local current = root.AssemblyLinearVelocity
+	root.AssemblyLinearVelocity = Vector3.new(
+		current.X + velocity.X * 0.72,
+		math.max(current.Y, velocity.Y),
+		current.Z + velocity.Z * 0.72
+	)
+	root:ApplyImpulse(velocity * root.AssemblyMass * 0.32)
+end
+
 function EnvironmentMotionController.Init(remotes)
 	local arena = Workspace:FindFirstChild("BuildABugArena") or Workspace:WaitForChild("BuildABugArena", 10)
 	if arena then
@@ -202,6 +226,8 @@ function EnvironmentMotionController.Init(remotes)
 				applyGrassFlick(payload)
 			elseif state == "WindGustPush" then
 				applyWindGust(payload)
+			elseif state == "RakeHit" then
+				applyRakeHit(payload)
 			end
 		end)
 	end
