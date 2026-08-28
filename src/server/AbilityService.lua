@@ -213,20 +213,40 @@ local function usePillbugRollAway(player: Player, bug)
 		return
 	end
 
-	local duration = bug.ability and bug.ability.durationSeconds or 2.4
-	local boostSpeed = bug.ability and bug.ability.boostSpeed or 24
-	local forward = rootPart.CFrame.LookVector
+	local duration = bug.ability and bug.ability.durationSeconds or 1.55
+	local rollSpeed = bug.ability and bug.ability.rollSpeed or 72
+	local forward = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z)
+	if forward.Magnitude < 0.01 then
+		forward = Vector3.new(0, 0, -1)
+	else
+		forward = forward.Unit
+	end
 
-	-- Reuse the existing protected-window attribute so hazard damage respects the
-	-- armored roll without adding a second damage-reduction implementation.
+	-- HazardService already understands ShellBlockUntil, so the curled shell gets
+	-- the same strong protected window as Beetle without creating a parallel rule.
 	player:SetAttribute("ShellBlockUntil", os.clock() + duration)
-	humanoid.WalkSpeed = boostSpeed
-	rootPart.AssemblyLinearVelocity = Vector3.new(forward.X * 46, 12, forward.Z * 46)
+
+	-- Replicated roll metadata lets every client animate the shell while the owning
+	-- client sustains the actual physics. GetServerTimeNow is synchronized enough
+	-- for a short visual ability and avoids comparing unrelated os.clock values.
+	local now = workspace:GetServerTimeNow()
+	player:SetAttribute("PillbugRollStartedAt", now)
+	player:SetAttribute("PillbugRollUntil", now + duration)
+	player:SetAttribute("PillbugRollDirX", forward.X)
+	player:SetAttribute("PillbugRollDirZ", forward.Z)
+	player:SetAttribute("PillbugRollSpeed", rollSpeed)
+	player:SetAttribute("PillbugRollNonce", (player:GetAttribute("PillbugRollNonce") or 0) + 1)
+
+	-- The server gives the first shove immediately. The local motion controller then
+	-- keeps the client-owned character moving at roll speed for the whole burst.
+	humanoid.WalkSpeed = 0
+	humanoid.AutoRotate = false
+	rootPart.AssemblyLinearVelocity = Vector3.new(forward.X * rollSpeed, math.max(rootPart.AssemblyLinearVelocity.Y, 6), forward.Z * rollSpeed)
 	glowCharacter(player, Color3.fromRGB(188, 164, 128), duration, "PillbugRollGlow")
 	burstAtRoot(player, Color3.fromRGB(188, 164, 128))
 
 	task.delay(duration, function()
-		if player.Parent ~= Players or player:GetAttribute("InRound") ~= true then
+		if player.Parent ~= Players then
 			return
 		end
 		local currentId, currentBug = getBugForPlayer(player)
@@ -234,7 +254,9 @@ local function usePillbugRollAway(player: Player, bug)
 		local currentHumanoid = currentCharacter and currentCharacter:FindFirstChildOfClass("Humanoid")
 		if currentId == "Pillbug" and currentBug and currentHumanoid then
 			currentHumanoid.WalkSpeed = currentBug.movementSpeed or 13
+			currentHumanoid.AutoRotate = true
 		end
+		player:SetAttribute("PillbugRollUntil", 0)
 	end)
 end
 
