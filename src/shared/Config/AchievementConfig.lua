@@ -11,10 +11,12 @@ AchievementConfig.Order = {
 	"YardRegular",
 	"SnackStack",
 	"DnaCollector",
+	"BugCollector",
 	"SeasonedSurvivor",
 	"YardVeteran",
 	"CrumbChampion",
 	"DnaLegend",
+	"FullBugBox",
 	"SurvivalStreak",
 	"BackyardFixture",
 	"PantryRaider",
@@ -66,6 +68,14 @@ AchievementConfig.Items = {
 		rewardId = "Electric",
 		rewardName = "Electric Body Color",
 	},
+	BugCollector = {
+		id = "BugCollector",
+		displayName = "Bug Collector",
+		description = "Unlock 5 different bugs.",
+		kind = "bugsUnlocked",
+		target = 5,
+		rewardName = "Badge: Bug Collector",
+	},
 	SeasonedSurvivor = {
 		id = "SeasonedSurvivor",
 		displayName = "Seasoned Survivor",
@@ -105,6 +115,14 @@ AchievementConfig.Items = {
 		rewardSlot = "BodyColor",
 		rewardId = "Royal",
 		rewardName = "Royal Purple Body Color",
+	},
+	FullBugBox = {
+		id = "FullBugBox",
+		displayName = "Full Bug Box",
+		description = "Unlock all 7 bugs in the current collection.",
+		kind = "bugsUnlocked",
+		target = 7,
+		rewardName = "Badge: Full Bug Box",
 	},
 
 	-- Longer-range badge milestones intentionally widen out after the first
@@ -197,6 +215,14 @@ function AchievementConfig.GetProgress(achievement, data, context)
 		return stats.foodCollected or 0
 	elseif achievement.kind == "lifetimeDna" then
 		return stats.lifetimeDna or 0
+	elseif achievement.kind == "bugsUnlocked" then
+		local count = 0
+		for _, unlocked in pairs(data.unlockedBugs or {}) do
+			if unlocked == true then
+				count += 1
+			end
+		end
+		return count
 	end
 
 	return 0
