@@ -22,6 +22,12 @@ local overallText = nil
 local categoryLabels = {}
 local bugLabels = {}
 
+local STARTER_BUGS = {
+	Ant = true,
+	Beetle = true,
+	Grasshopper = true,
+}
+
 local function makeText(parent: Instance, text: string, size: UDim2, position: UDim2, textSize: number, bold: boolean?): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Size = size
@@ -38,10 +44,17 @@ local function makeText(parent: Instance, text: string, size: UDim2, position: U
 	return label
 end
 
+local function bugOwned(data, bugId: string): boolean
+	if data.unlockedBugs then
+		return data.unlockedBugs[bugId] == true
+	end
+	return STARTER_BUGS[bugId] == true
+end
+
 local function countUnlockedBugs(data): number
 	local count = 0
 	for _, bugId in ipairs(BugOrder) do
-		if data.unlockedBugs and data.unlockedBugs[bugId] == true then
+		if bugOwned(data, bugId) then
 			count += 1
 		end
 	end
@@ -125,7 +138,7 @@ local function refresh()
 	for _, bugId in ipairs(BugOrder) do
 		local label = bugLabels[bugId]
 		if label then
-			local owned = data.unlockedBugs and data.unlockedBugs[bugId] == true
+			local owned = bugOwned(data, bugId)
 			label.Text = (owned and "OWNED   " or "LOCKED   ") .. bugId
 			label.TextColor3 = owned and Color3.fromRGB(195, 232, 190) or Color3.fromRGB(170, 174, 170)
 		end
