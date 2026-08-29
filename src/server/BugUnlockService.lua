@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BuildABugShared = ReplicatedStorage:WaitForChild("BuildABug")
 local BugArchetypes = require(BuildABugShared.Config.BugArchetypes)
 local BugLoadoutService = require(script.Parent.BugLoadoutService)
+local AchievementService = require(script.Parent.AchievementService)
 
 local BugUnlockService = {}
 local PlayerDataService = nil
@@ -14,6 +15,12 @@ local function sendResult(player: Player, payload)
 	if remotes and remotes.BugUnlockResult then
 		remotes.BugUnlockResult:FireClient(player, payload)
 	end
+end
+
+local function evaluateCollectionAwards(player: Player)
+	task.defer(function()
+		AchievementService.Evaluate(player)
+	end)
 end
 
 function BugUnlockService.Purchase(player: Player, bugId: string): boolean
@@ -45,6 +52,7 @@ function BugUnlockService.Purchase(player: Player, bugId: string): boolean
 			cost = 0,
 			balance = data.currency and data.currency.dna or 0,
 		})
+		evaluateCollectionAwards(player)
 		return true
 	end
 
@@ -85,6 +93,7 @@ function BugUnlockService.Purchase(player: Player, bugId: string): boolean
 		cost = cost,
 		balance = data.currency.dna or 0,
 	})
+	evaluateCollectionAwards(player)
 	return true
 end
 
