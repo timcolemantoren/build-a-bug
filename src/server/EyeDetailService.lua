@@ -18,7 +18,7 @@ local function clearDetails(model: Model)
 	end
 end
 
-local function createDetailPart(model: Model, eye: BasePart, name: string, size: Vector3, offset: CFrame, color: Color3, shape?)
+local function createDetailPart(model: Model, eye: BasePart, name: string, size: Vector3, offset: CFrame, color: Color3, shape)
 	local part = Instance.new("Part")
 	part.Name = DETAIL_PREFIX .. name
 	part.Shape = shape or Enum.PartType.Block
