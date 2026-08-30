@@ -62,6 +62,7 @@ local remotes = {
 	SetCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SetCosmetic),
 	PurchaseCosmetic = getOrCreateRemoteEvent(remotesFolder, RemoteNames.PurchaseCosmetic),
 	SetPremiumSkin = getOrCreateRemoteEvent(remotesFolder, RemoteNames.SetPremiumSkin),
+	PreviewPremiumSkin = getOrCreateRemoteEvent(remotesFolder, RemoteNames.PreviewPremiumSkin),
 	StartRoundRequest = getOrCreateRemoteEvent(remotesFolder, RemoteNames.StartRoundRequest),
 	ExitRoundRequest = getOrCreateRemoteEvent(remotesFolder, RemoteNames.ExitRoundRequest),
 	RoundStateChanged = getOrCreateRemoteEvent(remotesFolder, RemoteNames.RoundStateChanged),
