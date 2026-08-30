@@ -8,6 +8,7 @@ local player = Players.LocalPlayer
 local gui = nil
 local panel = nil
 local toggleButton = nil
+local musicButton = nil
 local statusLabel = nil
 local dataLabel = nil
 local progressLabel = nil
@@ -54,19 +55,29 @@ local function formatTime(seconds: number): string
 	return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
+local function updateMusicButton()
+	if not musicButton then
+		return
+	end
+	local enabled = player:GetAttribute("MusicEnabled") ~= false
+	musicButton.Text = enabled and "Music: On" or "Music: Off"
+	musicButton.BackgroundColor3 = enabled and Color3.fromRGB(71, 104, 95) or Color3.fromRGB(68, 74, 76)
+end
+
 local function applyLayout()
 	if not panel then
 		return
 	end
 
 	if expanded then
-		panel.Size = UDim2.fromOffset(320, 176)
+		panel.Size = UDim2.fromOffset(320, 214)
 		toggleButton.Text = "Hide"
 		statusLabel.Text = lastStatusText
 		dataLabel.Visible = true
 		progressLabel.Visible = true
 		statsLabel.Visible = true
 		hazardLabel.Visible = true
+		musicButton.Visible = true
 	else
 		panel.Size = UDim2.fromOffset(276, 46)
 		toggleButton.Text = "Info"
@@ -75,6 +86,7 @@ local function applyLayout()
 		progressLabel.Visible = false
 		statsLabel.Visible = false
 		hazardLabel.Visible = false
+		musicButton.Visible = false
 	end
 end
 
@@ -137,6 +149,24 @@ local function ensureGui()
 	hazardLabel.Font = Enum.Font.FredokaOne
 	hazardLabel.TextSize = 13
 	hazardLabel.TextStrokeTransparency = 0.84
+
+	musicButton = Instance.new("TextButton")
+	musicButton.Name = "MusicToggle"
+	musicButton.Size = UDim2.fromOffset(118, 30)
+	musicButton.Position = UDim2.fromOffset(12, 172)
+	musicButton.BackgroundColor3 = BUTTON_COLOR
+	musicButton.BackgroundTransparency = 0.04
+	musicButton.BorderSizePixel = 0
+	musicButton.TextColor3 = CREAM
+	musicButton.Font = Enum.Font.FredokaOne
+	musicButton.TextSize = 13
+	musicButton.Parent = panel
+	musicButton.MouseButton1Click:Connect(function()
+		local enabled = player:GetAttribute("MusicEnabled") ~= false
+		player:SetAttribute("MusicEnabled", not enabled)
+	end)
+	player:GetAttributeChangedSignal("MusicEnabled"):Connect(updateMusicButton)
+	updateMusicButton()
 
 	applyLayout()
 end
