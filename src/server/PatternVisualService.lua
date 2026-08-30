@@ -223,6 +223,7 @@ local function applyChecker(model: Model, target: BasePart, color: Color3, mater
 					table.insert(cells, { x, z })
 				end
 			end
+		end
 	end
 	for _, cell in ipairs(cells) do
 		mark(model, target, "PatternChecker", cell[1], cell[2], target.Size.X * (compact and 0.20 or 0.18), math.max(0.11, target.Size.Z * (compact and 0.18 or 0.14)), color, material, 45)
