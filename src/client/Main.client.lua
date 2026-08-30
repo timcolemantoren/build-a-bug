@@ -16,6 +16,7 @@ local remotes = {
 	SetCosmetic = remotesFolder:WaitForChild(RemoteNames.SetCosmetic),
 	PurchaseCosmetic = remotesFolder:WaitForChild(RemoteNames.PurchaseCosmetic),
 	SetPremiumSkin = remotesFolder:WaitForChild(RemoteNames.SetPremiumSkin),
+	PreviewPremiumSkin = remotesFolder:WaitForChild(RemoteNames.PreviewPremiumSkin),
 	StartRoundRequest = remotesFolder:WaitForChild(RemoteNames.StartRoundRequest),
 	ExitRoundRequest = remotesFolder:WaitForChild(RemoteNames.ExitRoundRequest),
 	RoundStateChanged = remotesFolder:WaitForChild(RemoteNames.RoundStateChanged),
@@ -34,6 +35,8 @@ local RoundEndController = require(clientRoot.UI.RoundEndController)
 local AbilityController = require(clientRoot.UI.AbilityController)
 local RoundEventController = require(clientRoot.UI.RoundEventController)
 local SurvivalController = require(clientRoot.UI.SurvivalController)
+local UIThemeController = require(clientRoot.UI.UIThemeController)
+local LobbyMenuCoordinator = require(clientRoot.UI.LobbyMenuCoordinator)
 local CameraController = require(clientRoot.Camera.CameraController)
 local BugMotionController = require(clientRoot.BugMotionController)
 local EnvironmentMotionController = require(clientRoot.EnvironmentMotionController)
@@ -48,6 +51,8 @@ RoundEndController.Init(remotes)
 AbilityController.Init(remotes)
 RoundEventController.Init(remotes)
 SurvivalController.Init(remotes)
+UIThemeController.Init()
+LobbyMenuCoordinator.Init()
 AudioController.Init(remotes)
 CameraController.Init()
 BugMotionController.Init()
