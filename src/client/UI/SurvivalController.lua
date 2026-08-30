@@ -24,6 +24,11 @@ local toastToken = 0
 local damageFlashToken = 0
 local lastHealth = nil
 
+local CREAM = Color3.fromRGB(250, 246, 232)
+local PANEL_COLOR = Color3.fromRGB(25, 43, 48)
+local BAR_BACK = Color3.fromRGB(52, 68, 66)
+local EXIT_COLOR = Color3.fromRGB(76, 84, 90)
+
 local function disconnectHealth()
 	if healthConnection then
 		healthConnection:Disconnect()
@@ -200,15 +205,16 @@ local function ensureGui(remotes)
 	healthPanel.Name = "HealthPanel"
 	healthPanel.Size = UDim2.fromOffset(300, 34)
 	healthPanel.Position = UDim2.new(0.5, -150, 1, -52)
-	healthPanel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-	healthPanel.BackgroundTransparency = 0.12
+	healthPanel.BackgroundColor3 = PANEL_COLOR
+	healthPanel.BackgroundTransparency = 0.08
+	healthPanel.BorderSizePixel = 0
 	healthPanel.Parent = gui
 
 	local barBackground = Instance.new("Frame")
 	barBackground.Name = "BarBackground"
 	barBackground.Size = UDim2.new(1, -8, 1, -8)
 	barBackground.Position = UDim2.fromOffset(4, 4)
-	barBackground.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	barBackground.BackgroundColor3 = BAR_BACK
 	barBackground.BorderSizePixel = 0
 	barBackground.Parent = healthPanel
 
@@ -224,10 +230,11 @@ local function ensureGui(remotes)
 	healthLabel.Size = UDim2.fromScale(1, 1)
 	healthLabel.BackgroundTransparency = 1
 	healthLabel.Text = "Health  100 / 100"
-	healthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	healthLabel.TextStrokeTransparency = 0.35
-	healthLabel.Font = Enum.Font.GothamBold
-	healthLabel.TextSize = 16
+	healthLabel.TextColor3 = CREAM
+	healthLabel.TextStrokeColor3 = Color3.fromRGB(12, 20, 22)
+	healthLabel.TextStrokeTransparency = 0.80
+	healthLabel.Font = Enum.Font.FredokaOne
+	healthLabel.TextSize = 15
 	healthLabel.ZIndex = 3
 	healthLabel.Parent = healthPanel
 
@@ -235,11 +242,13 @@ local function ensureGui(remotes)
 	exitButton.Name = "ExitRound"
 	exitButton.Size = UDim2.fromOffset(112, 36)
 	exitButton.Position = UDim2.new(1, -126, 0, 62)
-	exitButton.BackgroundTransparency = 0.12
+	exitButton.BackgroundColor3 = EXIT_COLOR
+	exitButton.BackgroundTransparency = 0.06
+	exitButton.BorderSizePixel = 0
 	exitButton.Text = "Exit Round"
-	exitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	exitButton.Font = Enum.Font.GothamBold
-	exitButton.TextSize = 15
+	exitButton.TextColor3 = CREAM
+	exitButton.Font = Enum.Font.FredokaOne
+	exitButton.TextSize = 14
 	exitButton.Parent = gui
 	exitButton.MouseButton1Click:Connect(function()
 		if not inRound then
@@ -252,26 +261,29 @@ local function ensureGui(remotes)
 
 	forfeitLabel = Instance.new("TextLabel")
 	forfeitLabel.Name = "ForfeitNote"
-	forfeitLabel.Size = UDim2.fromOffset(130, 22)
-	forfeitLabel.Position = UDim2.new(1, -135, 0, 98)
+	forfeitLabel.Size = UDim2.fromOffset(138, 22)
+	forfeitLabel.Position = UDim2.new(1, -141, 0, 98)
 	forfeitLabel.BackgroundTransparency = 1
 	forfeitLabel.Text = "forfeits round pickups"
-	forfeitLabel.TextColor3 = Color3.fromRGB(240, 220, 220)
-	forfeitLabel.TextStrokeTransparency = 0.55
-	forfeitLabel.Font = Enum.Font.Gotham
-	forfeitLabel.TextSize = 11
+	forfeitLabel.TextColor3 = Color3.fromRGB(232, 220, 211)
+	forfeitLabel.TextStrokeColor3 = Color3.fromRGB(12, 20, 22)
+	forfeitLabel.TextStrokeTransparency = 0.82
+	forfeitLabel.Font = Enum.Font.GothamMedium
+	forfeitLabel.TextSize = 10
 	forfeitLabel.Parent = gui
 
 	toastLabel = Instance.new("TextLabel")
 	toastLabel.Name = "ExitToast"
 	toastLabel.Size = UDim2.fromOffset(360, 76)
 	toastLabel.Position = UDim2.new(0.5, -180, 0.5, -38)
-	toastLabel.BackgroundTransparency = 0.18
-	toastLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	toastLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	toastLabel.TextStrokeTransparency = 0.4
-	toastLabel.Font = Enum.Font.GothamBold
-	toastLabel.TextSize = 20
+	toastLabel.BackgroundTransparency = 0.10
+	toastLabel.BackgroundColor3 = Color3.fromRGB(31, 48, 51)
+	toastLabel.BorderSizePixel = 0
+	toastLabel.TextColor3 = CREAM
+	toastLabel.TextStrokeColor3 = Color3.fromRGB(12, 20, 22)
+	toastLabel.TextStrokeTransparency = 0.82
+	toastLabel.Font = Enum.Font.FredokaOne
+	toastLabel.TextSize = 18
 	toastLabel.TextWrapped = true
 	toastLabel.Visible = false
 	toastLabel.Parent = gui
