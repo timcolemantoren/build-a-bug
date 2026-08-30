@@ -19,6 +19,9 @@ local readyAt = 0
 local feedbackToken = 0
 local inRound = false
 
+local CREAM = Color3.fromRGB(250, 246, 232)
+local ABILITY_COLOR = Color3.fromRGB(57, 91, 86)
+
 local function getAbilityName(): string
 	local bug = BugArchetypes[selectedBug]
 	if bug and bug.ability then
@@ -46,6 +49,10 @@ local function getFeedbackText(): string
 		return "Wing Burst!"
 	elseif selectedBug == "Mantis" then
 		return "Pounce!"
+	elseif selectedBug == "Dragonfly" then
+		return "Air Dash!"
+	elseif selectedBug == "Pillbug" then
+		return "Roll Away!"
 	end
 
 	return "Ability used"
@@ -89,8 +96,10 @@ local function refreshButton()
 	button.Text = getAbilityName()
 	if remaining > 0 then
 		cooldownLabel.Text = tostring(remaining) .. "s"
+		cooldownLabel.TextColor3 = Color3.fromRGB(229, 212, 157)
 	else
 		cooldownLabel.Text = "Ready"
+		cooldownLabel.TextColor3 = CREAM
 	end
 end
 
@@ -119,9 +128,11 @@ local function ensureGui(remotes)
 	button.Name = "AbilityButton"
 	button.Size = UDim2.fromOffset(150, 54)
 	button.Position = UDim2.new(1, -170, 1, -78)
-	button.BackgroundTransparency = 0.08
-	button.TextColor3 = Color3.fromRGB(255, 255, 255)
-	button.Font = Enum.Font.GothamBold
+	button.BackgroundColor3 = ABILITY_COLOR
+	button.BackgroundTransparency = 0.04
+	button.BorderSizePixel = 0
+	button.TextColor3 = CREAM
+	button.Font = Enum.Font.FredokaOne
 	button.TextSize = 17
 	button.Parent = gui
 	button.MouseButton1Click:Connect(function()
@@ -133,10 +144,11 @@ local function ensureGui(remotes)
 	cooldownLabel.Size = UDim2.fromOffset(150, 22)
 	cooldownLabel.Position = UDim2.new(1, -170, 1, -100)
 	cooldownLabel.BackgroundTransparency = 1
-	cooldownLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	cooldownLabel.TextStrokeTransparency = 0.45
-	cooldownLabel.Font = Enum.Font.GothamBold
-	cooldownLabel.TextSize = 14
+	cooldownLabel.TextColor3 = CREAM
+	cooldownLabel.TextStrokeColor3 = Color3.fromRGB(12, 20, 22)
+	cooldownLabel.TextStrokeTransparency = 0.82
+	cooldownLabel.Font = Enum.Font.GothamMedium
+	cooldownLabel.TextSize = 13
 	cooldownLabel.Parent = gui
 
 	feedbackLabel = Instance.new("TextLabel")
@@ -144,10 +156,11 @@ local function ensureGui(remotes)
 	feedbackLabel.Size = UDim2.fromOffset(190, 26)
 	feedbackLabel.Position = UDim2.new(1, -190, 1, -132)
 	feedbackLabel.BackgroundTransparency = 1
-	feedbackLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	feedbackLabel.TextStrokeTransparency = 0.4
-	feedbackLabel.Font = Enum.Font.GothamBold
-	feedbackLabel.TextSize = 16
+	feedbackLabel.TextColor3 = CREAM
+	feedbackLabel.TextStrokeColor3 = Color3.fromRGB(12, 20, 22)
+	feedbackLabel.TextStrokeTransparency = 0.76
+	feedbackLabel.Font = Enum.Font.FredokaOne
+	feedbackLabel.TextSize = 15
 	feedbackLabel.Visible = false
 	feedbackLabel.Parent = gui
 
