@@ -19,6 +19,11 @@ local activePlayersRemaining = nil
 local activePlayerCount = nil
 local activePhaseName = nil
 
+local PANEL_COLOR = Color3.fromRGB(25, 43, 48)
+local BUTTON_COLOR = Color3.fromRGB(71, 104, 95)
+local CREAM = Color3.fromRGB(250, 246, 232)
+local BODY_TEXT = Color3.fromRGB(225, 235, 229)
+
 local lastStatusText = "Build a Bug"
 local lastDataText = "DNA: 0 | Crumbs: 0 | Bug: Ant"
 local lastProgressText = "Lv 1 Fresh Hatchling | Lifetime DNA: 0 / 25"
@@ -28,12 +33,13 @@ local function makeLabel(parent: Instance, name: string, yOffset: number, height
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.Size = UDim2.fromOffset(280, height)
-	label.Position = UDim2.fromOffset(10, yOffset)
+	label.Position = UDim2.fromOffset(12, yOffset)
 	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.TextStrokeTransparency = 0.45
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 15
+	label.TextColor3 = BODY_TEXT
+	label.TextStrokeColor3 = Color3.fromRGB(12, 20, 22)
+	label.TextStrokeTransparency = 0.82
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 14
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.Parent = parent
@@ -62,7 +68,7 @@ local function applyLayout()
 		statsLabel.Visible = true
 		hazardLabel.Visible = true
 	else
-		panel.Size = UDim2.fromOffset(270, 44)
+		panel.Size = UDim2.fromOffset(276, 46)
 		toggleButton.Text = "Info"
 		statusLabel.Text = lastStatusText
 		dataLabel.Visible = false
@@ -85,21 +91,29 @@ local function ensureGui()
 	panel = Instance.new("Frame")
 	panel.Name = "CompactPanel"
 	panel.Position = UDim2.fromOffset(14, 14)
-	panel.BackgroundTransparency = 0.25
+	panel.BackgroundColor3 = PANEL_COLOR
+	panel.BackgroundTransparency = 0.12
+	panel.BorderSizePixel = 0
 	panel.Parent = gui
 
-	statusLabel = makeLabel(panel, "RoundStatus", 5, 34)
-	statusLabel.Size = UDim2.fromOffset(210, 34)
+	statusLabel = makeLabel(panel, "RoundStatus", 5, 36)
+	statusLabel.Size = UDim2.fromOffset(208, 36)
 	statusLabel.Text = lastStatusText
+	statusLabel.TextColor3 = CREAM
+	statusLabel.TextStrokeTransparency = 0.88
+	statusLabel.Font = Enum.Font.FredokaOne
+	statusLabel.TextSize = 14
 
 	toggleButton = Instance.new("TextButton")
 	toggleButton.Name = "ToggleDetails"
-	toggleButton.Size = UDim2.fromOffset(56, 28)
-	toggleButton.Position = UDim2.new(1, -64, 0, 8)
-	toggleButton.BackgroundTransparency = 0.1
-	toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	toggleButton.Font = Enum.Font.GothamBold
-	toggleButton.TextSize = 14
+	toggleButton.Size = UDim2.fromOffset(58, 30)
+	toggleButton.Position = UDim2.new(1, -66, 0, 8)
+	toggleButton.BackgroundColor3 = BUTTON_COLOR
+	toggleButton.BackgroundTransparency = 0.04
+	toggleButton.BorderSizePixel = 0
+	toggleButton.TextColor3 = CREAM
+	toggleButton.Font = Enum.Font.FredokaOne
+	toggleButton.TextSize = 13
 	toggleButton.Parent = panel
 	toggleButton.MouseButton1Click:Connect(function()
 		expanded = not expanded
@@ -111,15 +125,18 @@ local function ensureGui()
 
 	progressLabel = makeLabel(panel, "Progress", 72, 28)
 	progressLabel.Text = lastProgressText
-	progressLabel.TextSize = 13
+	progressLabel.TextSize = 12
 
 	statsLabel = makeLabel(panel, "Stats", 100, 28)
 	statsLabel.Text = lastStatsText
-	statsLabel.TextSize = 13
+	statsLabel.TextSize = 12
 
 	hazardLabel = makeLabel(panel, "HazardWarning", 132, 32)
 	hazardLabel.Text = ""
-	hazardLabel.TextColor3 = Color3.fromRGB(255, 205, 205)
+	hazardLabel.TextColor3 = Color3.fromRGB(255, 190, 174)
+	hazardLabel.Font = Enum.Font.FredokaOne
+	hazardLabel.TextSize = 13
+	hazardLabel.TextStrokeTransparency = 0.84
 
 	applyLayout()
 end
