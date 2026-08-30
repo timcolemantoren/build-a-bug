@@ -153,18 +153,47 @@ local function applySpeckles(model: Model, target: BasePart, color: Color3, mate
 end
 
 local function applyTiger(model: Model, target: BasePart, color: Color3, material, compact: boolean, variant: number)
-	local stripes = compact
-		and {
-			{ -0.38, -0.16, variant % 2 == 0 and 34 or -34 },
-			{ 0.04, 0.04, variant % 2 == 0 and -30 or 30 },
-			{ 0.40, 0.22, variant % 2 == 0 and 36 or -36 },
-		}
-		or {
-			{ -0.52, -0.34, 34 }, { -0.22, -0.20, -32 }, { 0.16, -0.30, 35 }, { 0.50, -0.10, -31 },
-			{ -0.40, 0.18, -35 }, { -0.02, 0.28, 32 }, { 0.38, 0.30, -36 },
-		}
+	-- Tiger Stripe should read as a body treatment from normal play distance, not
+	-- as a collection of tiny scratches. Multi-part bodies receive one broad,
+	-- alternating band per segment so the pattern continues down the whole bug.
+	if compact then
+		local flip = variant % 2 == 0 and 1 or -1
+		local zScale = ((variant - 1) % 3 - 1) * 0.10
+		mark(
+			model,
+			target,
+			"PatternTiger",
+			0.02 * flip,
+			zScale,
+			target.Size.X * 0.68,
+			math.max(0.14, target.Size.Z * 0.18),
+			color,
+			material,
+			22 * flip
+		)
+		return
+	end
+
+	local stripes = {
+		{ -0.12, -0.43, 24 },
+		{ 0.15, -0.20, -24 },
+		{ -0.14, 0.04, 23 },
+		{ 0.16, 0.27, -23 },
+		{ -0.10, 0.47, 21 },
+	}
 	for _, stripe in ipairs(stripes) do
-		mark(model, target, "PatternTiger", stripe[1], stripe[2], target.Size.X * (compact and 0.28 or 0.30), math.max(0.09, target.Size.Z * 0.07), color, material, stripe[3])
+		mark(
+			model,
+			target,
+			"PatternTiger",
+			stripe[1],
+			stripe[2],
+			target.Size.X * 0.64,
+			math.max(0.15, target.Size.Z * 0.13),
+			color,
+			material,
+			stripe[3]
+		)
 	end
 end
 
@@ -194,7 +223,6 @@ local function applyChecker(model: Model, target: BasePart, color: Color3, mater
 					table.insert(cells, { x, z })
 				end
 			end
-		end
 	end
 	for _, cell in ipairs(cells) do
 		mark(model, target, "PatternChecker", cell[1], cell[2], target.Size.X * (compact and 0.20 or 0.18), math.max(0.11, target.Size.Z * (compact and 0.18 or 0.14)), color, material, 45)
@@ -263,8 +291,8 @@ local function applyConfetti(model: Model, target: BasePart, style, material, co
 		{ -0.38, 0.04, 52 }, { 0.04, 0.10, -54 }, { 0.40, 0.18, 28 }, { -0.20, 0.34, -18 }, { 0.22, 0.36, 70 },
 	}
 	for index, piece in ipairs(pieces) do
-		local color = colors[((index + variant - 2) % #colors) + 1]
-		mark(model, target, "PatternConfetti", piece[1], piece[2], target.Size.X * (compact and 0.18 or 0.16), math.max(0.08, target.Size.Z * 0.07), color, material, piece[3])
+		local pieceColor = colors[((index + variant - 2) % #colors) + 1]
+		mark(model, target, "PatternConfetti", piece[1], piece[2], target.Size.X * (compact and 0.18 or 0.16), math.max(0.08, target.Size.Z * 0.07), pieceColor, material, piece[3])
 	end
 end
 
