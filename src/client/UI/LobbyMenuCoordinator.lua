@@ -50,8 +50,8 @@ function LobbyMenuCoordinator.Init()
 	local skinButton = findButton(skinGui, "SkinsButton")
 	local bugButton = findBugToggle(bugPanel)
 
-	-- A single, predictable launcher row. Bugs keeps the far-right slot because
-	-- its compact panel already owns that position.
+	-- One predictable launcher row. Bugs keeps the far-right slot because its
+	-- compact panel already owns that position and its launcher becomes Close.
 	if collectionButton then
 		collectionButton.Position = UDim2.new(1, -446, 0, 14)
 		collectionButton.Size = UDim2.fromOffset(112, 36)
@@ -81,14 +81,17 @@ function LobbyMenuCoordinator.Init()
 		local bugsOpen = isBugOpen()
 		local anyOpen = profileOpen or collectionOpen or skinsOpen or bugsOpen
 
+		-- Full menus have their own Close buttons, so launchers completely disappear
+		-- while any menu is open. Bugs is the exception because its launcher lives
+		-- inside the compact/expanded panel and becomes that panel's Close control.
 		if profileButton then
-			profileButton.Visible = not inRound and (not anyOpen or profileOpen)
+			profileButton.Visible = not inRound and not anyOpen
 		end
 		if collectionButton then
-			collectionButton.Visible = not inRound and (not anyOpen or collectionOpen)
+			collectionButton.Visible = not inRound and not anyOpen
 		end
 		if skinButton then
-			skinButton.Visible = not inRound and (not anyOpen or skinsOpen)
+			skinButton.Visible = not inRound and not anyOpen
 		end
 		if bugPanel then
 			bugPanel.Visible = not inRound and (not anyOpen or bugsOpen)
