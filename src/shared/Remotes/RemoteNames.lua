@@ -13,6 +13,7 @@ local RemoteNames = {
 	SetCosmetic = "SetCosmetic",
 	PurchaseCosmetic = "PurchaseCosmetic",
 	SetPremiumSkin = "SetPremiumSkin",
+	PreviewPremiumSkin = "PreviewPremiumSkin",
 	StartRoundRequest = "StartRoundRequest",
 	ExitRoundRequest = "ExitRoundRequest",
 	RoundStateChanged = "RoundStateChanged",
