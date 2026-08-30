@@ -41,8 +41,6 @@ local function findTargets(model: Model)
 	end
 
 	if bugId == "Pillbug" then
-		-- Pillbug is effectively one long articulated shell. Decorating only the
-		-- first ShellPlate leaves most of the bug blank, so every plate participates.
 		for _, descendant in ipairs(model:GetDescendants()) do
 			if descendant:IsA("BasePart") and descendant.Name == "ShellPlate" then
 				table.insert(targets, descendant)
@@ -63,7 +61,6 @@ local function findTargets(model: Model)
 		return targets
 	end
 
-	-- Compact/shelled bugs still read best with one coherent primary canvas.
 	for _, name in ipairs({ "Shell", "Abdomen", "Thorax", "Pronotum", "ShellPlate" }) do
 		local part = findPart(model, name)
 		if part then
@@ -84,11 +81,7 @@ local function ellipsoidSurface(target: BasePart, xScale: number, zScale: number
 	local z = radiusZ * zScale
 	local inside = 1 - (x * x) / (radiusX * radiusX) - (z * z) / (radiusZ * radiusZ)
 	local y = radiusY * math.sqrt(math.max(0.03, inside))
-	local normal = Vector3.new(
-		x / (radiusX * radiusX),
-		y / (radiusY * radiusY),
-		z / (radiusZ * radiusZ)
-	).Unit
+	local normal = Vector3.new(x / (radiusX * radiusX), y / (radiusY * radiusY), z / (radiusZ * radiusZ)).Unit
 	return Vector3.new(x, y, z), normal
 end
 
@@ -143,11 +136,9 @@ end
 local function applySpeckles(model: Model, target: BasePart, color: Color3, material, compact: boolean, variant: number)
 	local offsets
 	if compact then
-		if variant % 2 == 0 then
-			offsets = { Vector2.new(-0.42, -0.18), Vector2.new(0.18, -0.24), Vector2.new(-0.08, 0.22), Vector2.new(0.43, 0.18) }
-		else
-			offsets = { Vector2.new(-0.20, -0.28), Vector2.new(0.42, -0.14), Vector2.new(-0.43, 0.18), Vector2.new(0.14, 0.27) }
-		end
+		offsets = variant % 2 == 0
+			and { Vector2.new(-0.42, -0.18), Vector2.new(0.18, -0.24), Vector2.new(-0.08, 0.22), Vector2.new(0.43, 0.18) }
+			or { Vector2.new(-0.20, -0.28), Vector2.new(0.42, -0.14), Vector2.new(-0.43, 0.18), Vector2.new(0.14, 0.27) }
 	else
 		offsets = {
 			Vector2.new(-0.44, -0.24), Vector2.new(-0.10, -0.31), Vector2.new(0.34, -0.20),
@@ -158,6 +149,22 @@ local function applySpeckles(model: Model, target: BasePart, color: Color3, mate
 	for index, offset in ipairs(offsets) do
 		local scale = (index % 3 == 0) and 0.78 or ((index % 2 == 0) and 0.90 or 1)
 		mark(model, target, "PatternSpeckle", offset.X, offset.Y, base * scale, base * scale, color, material, (index * 23 + variant * 11) % 90)
+	end
+end
+
+local function applyTiger(model: Model, target: BasePart, color: Color3, material, compact: boolean, variant: number)
+	local stripes = compact
+		and {
+			{ -0.38, -0.16, variant % 2 == 0 and 34 or -34 },
+			{ 0.04, 0.04, variant % 2 == 0 and -30 or 30 },
+			{ 0.40, 0.22, variant % 2 == 0 and 36 or -36 },
+		}
+		or {
+			{ -0.52, -0.34, 34 }, { -0.22, -0.20, -32 }, { 0.16, -0.30, 35 }, { 0.50, -0.10, -31 },
+			{ -0.40, 0.18, -35 }, { -0.02, 0.28, 32 }, { 0.38, 0.30, -36 },
+		}
+	for _, stripe in ipairs(stripes) do
+		mark(model, target, "PatternTiger", stripe[1], stripe[2], target.Size.X * (compact and 0.28 or 0.30), math.max(0.09, target.Size.Z * 0.07), color, material, stripe[3])
 	end
 end
 
@@ -174,6 +181,26 @@ local function applySunmark(model: Model, target: BasePart, color: Color3, mater
 	end
 end
 
+local function applyChecker(model: Model, target: BasePart, color: Color3, material, compact: boolean, variant: number)
+	local cells = {}
+	if compact then
+		cells = variant % 2 == 0
+			and { { -0.42, -0.18 }, { 0.10, -0.18 }, { 0.38, 0.20 } }
+			or { { 0.42, -0.18 }, { -0.10, -0.18 }, { -0.38, 0.20 } }
+	else
+		for row, z in ipairs({ -0.34, 0, 0.34 }) do
+			for col, x in ipairs({ -0.48, -0.16, 0.16, 0.48 }) do
+				if (row + col) % 2 == 0 then
+					table.insert(cells, { x, z })
+				end
+			end
+		end
+	end
+	for _, cell in ipairs(cells) do
+		mark(model, target, "PatternChecker", cell[1], cell[2], target.Size.X * (compact and 0.20 or 0.18), math.max(0.11, target.Size.Z * (compact and 0.18 or 0.14)), color, material, 45)
+	end
+end
+
 local function applyBands(model: Model, target: BasePart, color: Color3, material, compact: boolean, variant: number)
 	local zScales = compact and { ((variant - 1) % 3 - 1) * 0.18 } or { -0.42, 0, 0.42 }
 	for _, zScale in ipairs(zScales) do
@@ -186,11 +213,9 @@ end
 local function applyDots(model: Model, target: BasePart, color: Color3, material, compact: boolean, variant: number)
 	local offsets
 	if compact then
-		if variant % 2 == 0 then
-			offsets = { Vector2.new(-0.42, -0.20), Vector2.new(0.32, -0.02), Vector2.new(-0.08, 0.27) }
-		else
-			offsets = { Vector2.new(0.42, -0.20), Vector2.new(-0.32, -0.02), Vector2.new(0.08, 0.27) }
-		end
+		offsets = variant % 2 == 0
+			and { Vector2.new(-0.42, -0.20), Vector2.new(0.32, -0.02), Vector2.new(-0.08, 0.27) }
+			or { Vector2.new(0.42, -0.20), Vector2.new(-0.32, -0.02), Vector2.new(0.08, 0.27) }
 	else
 		offsets = {
 			Vector2.new(-0.48, -0.32), Vector2.new(0, -0.35), Vector2.new(0.48, -0.32),
@@ -201,6 +226,14 @@ local function applyDots(model: Model, target: BasePart, color: Color3, material
 	local diameter = math.max(0.17, math.min(target.Size.X, target.Size.Z) * (compact and 0.24 or 0.18))
 	for _, offset in ipairs(offsets) do
 		mark(model, target, "PatternDot", offset.X, offset.Y, diameter, diameter, color, material, 0)
+	end
+end
+
+local function applyChevron(model: Model, target: BasePart, color: Color3, material, compact: boolean, variant: number)
+	local rows = compact and { ((variant - 1) % 3 - 1) * 0.18 } or { -0.34, 0, 0.34 }
+	for _, z in ipairs(rows) do
+		mark(model, target, "PatternChevron", -0.20, z, target.Size.X * 0.32, math.max(0.08, target.Size.Z * 0.06), color, material, -34)
+		mark(model, target, "PatternChevron", 0.20, z, target.Size.X * 0.32, math.max(0.08, target.Size.Z * 0.06), color, material, 34)
 	end
 end
 
@@ -217,14 +250,30 @@ local function applyWeb(model: Model, target: BasePart, color: Color3, material,
 	end
 end
 
+local function applyConfetti(model: Model, target: BasePart, style, material, compact: boolean, variant: number)
+	local colors = {
+		style.color or Color3.fromRGB(255, 112, 190),
+		style.secondaryColor or Color3.fromRGB(80, 221, 235),
+		style.tertiaryColor or Color3.fromRGB(255, 214, 73),
+	}
+	local pieces = compact and {
+		{ -0.38, -0.20, -28 }, { 0.05, 0.02, 32 }, { 0.38, 0.22, -40 },
+	} or {
+		{ -0.50, -0.30, -24 }, { -0.14, -0.34, 35 }, { 0.28, -0.26, 65 }, { 0.51, -0.04, -35 },
+		{ -0.38, 0.04, 52 }, { 0.04, 0.10, -54 }, { 0.40, 0.18, 28 }, { -0.20, 0.34, -18 }, { 0.22, 0.36, 70 },
+	}
+	for index, piece in ipairs(pieces) do
+		local color = colors[((index + variant - 2) % #colors) + 1]
+		mark(model, target, "PatternConfetti", piece[1], piece[2], target.Size.X * (compact and 0.18 or 0.16), math.max(0.08, target.Size.Z * 0.07), color, material, piece[3])
+	end
+end
+
 local function applyCircuit(model: Model, target: BasePart, color: Color3, material, compact: boolean, variant: number)
 	local lines
 	local nodes
 	if compact then
 		local flip = variant % 2 == 0 and 1 or -1
-		lines = {
-			{ -0.30 * flip, -0.22, 0 }, { 0.02, -0.02, 90 }, { 0.30 * flip, 0.20, 0 },
-		}
+		lines = { { -0.30 * flip, -0.22, 0 }, { 0.02, -0.02, 90 }, { 0.30 * flip, 0.20, 0 } }
 		nodes = { Vector2.new(-0.45 * flip, -0.22), Vector2.new(0.42 * flip, 0.20) }
 	else
 		lines = {
@@ -246,14 +295,22 @@ local function applyPatternToTarget(model: Model, target: BasePart, style, color
 		applyStripe(model, target, color, material, compact, variant)
 	elseif style.kind == "speckles" then
 		applySpeckles(model, target, color, material, compact, variant)
+	elseif style.kind == "tiger" then
+		applyTiger(model, target, color, material, compact, variant)
 	elseif style.kind == "sunmark" then
 		applySunmark(model, target, color, material, compact)
+	elseif style.kind == "checker" then
+		applyChecker(model, target, color, material, compact, variant)
 	elseif style.kind == "bands" then
 		applyBands(model, target, color, material, compact, variant)
 	elseif style.kind == "dots" then
 		applyDots(model, target, color, material, compact, variant)
+	elseif style.kind == "chevron" then
+		applyChevron(model, target, color, material, compact, variant)
 	elseif style.kind == "web" then
 		applyWeb(model, target, color, material, compact, variant)
+	elseif style.kind == "confetti" then
+		applyConfetti(model, target, style, material, compact, variant)
 	elseif style.kind == "circuit" then
 		applyCircuit(model, target, color, material, compact, variant)
 	end
