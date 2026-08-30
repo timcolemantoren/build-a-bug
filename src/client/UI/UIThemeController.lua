@@ -1,6 +1,7 @@
 --!nonstrict
 
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 local UIThemeController = {}
 local player = Players.LocalPlayer
@@ -12,6 +13,9 @@ local TARGET_GUIS = {
 	BuildABugPremiumSkins = true,
 	BuildABugPurchaseConfirm = true,
 	BuildABugRoundEnd = true,
+	BuildABugHUD = true,
+	BuildABugAbility = true,
+	BuildABugSurvival = true,
 }
 
 local CREAM = Color3.fromRGB(250, 246, 232)
@@ -23,6 +27,8 @@ local COLOR_MAP = {
 	["32,38,34"] = Color3.fromRGB(25, 43, 48),
 	["30,36,32"] = Color3.fromRGB(25, 43, 48),
 	["31,33,38"] = Color3.fromRGB(33, 38, 55),
+	["35,35,35"] = Color3.fromRGB(25, 43, 48),
+	["40,40,40"] = Color3.fromRGB(31, 48, 51),
 	["40,47,42"] = Color3.fromRGB(41, 65, 60),
 	["43,49,45"] = Color3.fromRGB(50, 72, 65),
 	["46,49,47"] = Color3.fromRGB(57, 61, 69),
@@ -37,6 +43,7 @@ local COLOR_MAP = {
 	["64,65,71"] = Color3.fromRGB(69, 76, 88),
 	["64,73,65"] = Color3.fromRGB(58, 91, 78),
 	["69,82,73"] = Color3.fromRGB(61, 101, 79),
+	["70,70,70"] = Color3.fromRGB(52, 68, 66),
 	["73,92,82"] = Color3.fromRGB(72, 119, 93),
 	["74,80,76"] = Color3.fromRGB(75, 88, 92),
 	["74,103,76"] = Color3.fromRGB(77, 137, 91),
@@ -50,6 +57,8 @@ local COLOR_MAP = {
 
 local bound = setmetatable({}, { __mode = "k" })
 local applyingColor = setmetatable({}, { __mode = "k" })
+local pressBound = setmetatable({}, { __mode = "k" })
+local pressTweens = setmetatable({}, { __mode = "k" })
 
 local function rgbKey(color: Color3): string
 	return string.format(
@@ -98,6 +107,51 @@ local function nearWhite(color: Color3): boolean
 	return color.R > 0.88 and color.G > 0.88 and color.B > 0.88
 end
 
+local function tweenScale(scale: UIScale, value: number, duration: number, easingStyle, easingDirection)
+	local current = pressTweens[scale]
+	if current then
+		current:Cancel()
+	end
+	local tween = TweenService:Create(
+		scale,
+		TweenInfo.new(duration, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out),
+		{ Scale = value }
+	)
+	pressTweens[scale] = tween
+	tween:Play()
+end
+
+local function bindButtonPress(button: TextButton)
+	if pressBound[button] then
+		return
+	end
+	pressBound[button] = true
+
+	local scale = button:FindFirstChild("BuildABugPressScale")
+	if not scale or not scale:IsA("UIScale") then
+		scale = Instance.new("UIScale")
+		scale.Name = "BuildABugPressScale"
+		scale.Scale = 1
+		scale.Parent = button
+	end
+
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			tweenScale(scale, 0.96, 0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		end
+	end)
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			tweenScale(scale, 1, 0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		end
+	end)
+	button.MouseLeave:Connect(function()
+		if scale.Scale < 0.999 then
+			tweenScale(scale, 1, 0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		end
+	end)
+end
+
 local function styleObject(object: Instance)
 	if not object:IsA("GuiObject") then
 		return
@@ -112,6 +166,7 @@ local function styleObject(object: Instance)
 		if object.BackgroundTransparency < 0.75 then
 			addStroke(object, false)
 		end
+		bindButtonPress(object)
 	elseif object:IsA("TextLabel") then
 		if object.Font == Enum.Font.GothamBold or object.Font == Enum.Font.GothamBlack or object.TextSize >= 17 then
 			object.Font = Enum.Font.FredokaOne
