@@ -12,11 +12,11 @@ local BugMotionController = {}
 
 local VISUAL_MODEL_NAME = "BuildABugVisual"
 local UPDATE_INTERVAL = 1 / 30
-local PILLBUG_TUCK_SECONDS = 0.30
-local PILLBUG_UNTUCK_SECONDS = 0.22
--- Roll Away lasts 1.55 seconds. After the 0.30 second tuck there are 1.25 seconds
--- left, so 864 degrees/second gives exactly three full rotations before uncurling.
-local PILLBUG_SPIN_DEGREES_PER_SECOND = 864
+local PILLBUG_TUCK_SECONDS = 0.34
+local PILLBUG_UNTUCK_SECONDS = 0.24
+-- Roll Away lasts 1.55 seconds. After the 0.34 second tuck there are 1.21 seconds
+-- left, so about 892.56 degrees/second gives exactly three full rotations.
+local PILLBUG_SPIN_DEGREES_PER_SECOND = 1080 / (1.55 - PILLBUG_TUCK_SECONDS)
 
 local tracked = setmetatable({}, { __mode = "k" })
 local accumulator = 0
@@ -65,7 +65,6 @@ local function trackVisual(player: Player, model: Model)
 		gaitCycle = 0,
 		lastUpdate = os.clock(),
 		wasRolling = false,
-		autoRotateBeforeRoll = true,
 		unrollStartedAt = nil,
 	}
 	tracked[model] = record
@@ -138,13 +137,12 @@ end
 
 local function bodyRootMotion(now: number, moving: boolean, grounded: boolean, cycle: number, bugId: string, verticalVelocity: number, airBlend: number, rolling: boolean, rollElapsed: number, curlAlpha: number): CFrame
 	if bugId == "Pillbug" and curlAlpha > 0.001 then
-		-- Curl first. The visible rig does not begin rotating until the tuck is nearly
-		-- complete, so Roll Away reads as an animal curling into a ball instead of an
-		-- intact bug suddenly somersaulting down the yard.
+		-- Curl first. The visible rig does not begin rotating until the tuck is
+		-- complete. Only this proxy motor spins; HumanoidRootPart never rotates.
 		local spinElapsed = math.max(0, rollElapsed - PILLBUG_TUCK_SECONDS)
 		local spin = rolling and -spinElapsed * math.rad(PILLBUG_SPIN_DEGREES_PER_SECOND) or 0
-		local settlePitch = math.rad(10 * curlAlpha)
-		return CFrame.new(0, 0.20 * curlAlpha, 0.15 * curlAlpha) * CFrame.Angles(spin + settlePitch, 0, 0)
+		local settlePitch = math.rad(18 * curlAlpha)
+		return CFrame.new(0, 0.30 * curlAlpha, 0.32 * curlAlpha) * CFrame.Angles(spin + settlePitch, 0, 0)
 	end
 
 	local bobAmplitude = 0.018
@@ -183,34 +181,33 @@ local function jointMotion(motor: Motor6D, now: number, moving: boolean, grounde
 	if role == "BodyRoot" then
 		return bodyRootMotion(now, moving, grounded, cycle, bugId, verticalVelocity, airBlend, rolling, rollElapsed, curlAlpha)
 	elseif bugId == "Pillbug" and curlAlpha > 0.001 and role == "LegUpper" then
-		-- Shift inward as well as rotate. Rotation alone still leaves a recognizable
-		-- six-legged silhouette sticking out of the rolling shell.
-		local target = CFrame.new(-side * 0.22, 0.18, 0.12)
-			* CFrame.Angles(math.rad(-78), math.rad(side * 14), math.rad(side * 76))
+		-- Pull the entire leg root inward and upward before rotating it flat against
+		-- the shell. Translation is intentionally stronger than the previous pass.
+		local target = CFrame.new(-side * 0.38, 0.34, 0.22)
+			* CFrame.Angles(math.rad(-96), math.rad(side * 10), math.rad(side * 92))
 		return curledTransform(target, curlAlpha)
 	elseif bugId == "Pillbug" and curlAlpha > 0.001 and role == "LegLower" then
-		local target = CFrame.new(-side * 0.10, 0.12, 0.10)
-			* CFrame.Angles(math.rad(104), 0, math.rad(side * -72))
+		local target = CFrame.new(-side * 0.20, 0.24, 0.18)
+			* CFrame.Angles(math.rad(126), 0, math.rad(side * -88))
 		return curledTransform(target, curlAlpha)
 	elseif bugId == "Pillbug" and curlAlpha > 0.001 and role == "Antenna" then
-		local target = CFrame.new(-side * 0.10, -0.03, 0.15)
-			* CFrame.Angles(math.rad(72), math.rad(side * -34), math.rad(side * -18))
+		local target = CFrame.new(-side * 0.16, -0.10, 0.24)
+			* CFrame.Angles(math.rad(94), math.rad(side * -42), math.rad(side * -24))
 		return curledTransform(target, curlAlpha)
 	elseif bugId == "Pillbug" and curlAlpha > 0.001 and role == "AntennaTip" then
-		local target = CFrame.new(-side * 0.08, -0.02, 0.10)
-			* CFrame.Angles(math.rad(62), math.rad(side * -24), 0)
+		local target = CFrame.new(-side * 0.12, -0.08, 0.16)
+			* CFrame.Angles(math.rad(84), math.rad(side * -30), math.rad(side * -8))
 		return curledTransform(target, curlAlpha)
 	elseif bugId == "Pillbug" and curlAlpha > 0.001 and role == "Head" then
-		local target = CFrame.new(0, -0.18, 0.24) * CFrame.Angles(math.rad(64), 0, 0)
+		local target = CFrame.new(0, -0.34, 0.44) * CFrame.Angles(math.rad(84), 0, 0)
 		return curledTransform(target, curlAlpha)
 	elseif role == "PillbugPlate" then
 		if curlAlpha > 0.001 then
 			local index = math.clamp(motor:GetAttribute("RollIndex") or 1, 1, 6)
-			local angles = { 13, 19, 25, 27, 23, 17 }
-			-- Each plate is parented to the previous plate. Small inward shifts and
-			-- cumulative bends turn the long segmented back into a compact arch before
-			-- the root starts spinning.
-			local target = CFrame.new(0, 0.025 * index, -0.022 * index)
+			local angles = { 18, 26, 34, 38, 32, 24 }
+			-- Shell plates are chained, so these bends accumulate into a much tighter
+			-- horseshoe/ball silhouette. Inward offsets shorten the body at full tuck.
+			local target = CFrame.new(0, 0.040 * index, -0.055 * index)
 				* CFrame.Angles(math.rad(angles[index]), 0, 0)
 			return curledTransform(target, curlAlpha)
 		end
@@ -311,11 +308,11 @@ local function sustainLocalRoll(record, rolling: boolean)
 	local root = record.root
 
 	if rolling then
-		if not record.wasRolling then
-			record.autoRotateBeforeRoll = humanoid.AutoRotate
-		end
 		humanoid.AutoRotate = false
 		humanoid.Jump = false
+		-- Keep the hidden physics root upright. Roll Away is a visible proxy rotation,
+		-- not a physical Humanoid tumble.
+		root.AssemblyAngularVelocity = Vector3.zero
 
 		local dx = record.player:GetAttribute("PillbugRollDirX") or 0
 		local dz = record.player:GetAttribute("PillbugRollDirZ") or 0
@@ -327,7 +324,11 @@ local function sustainLocalRoll(record, rolling: boolean)
 			root.AssemblyLinearVelocity = Vector3.new(direction.X * speed, current.Y, direction.Z * speed)
 		end
 	elseif record.wasRolling then
-		humanoid.AutoRotate = record.autoRotateBeforeRoll ~= false
+		-- Always restore ordinary movement facing after Roll Away. The old code tried
+		-- to remember AutoRotate after the server had already disabled it, which could
+		-- leave the character permanently facing sideways after alternating rolls.
+		humanoid.AutoRotate = true
+		root.AssemblyAngularVelocity = Vector3.zero
 	end
 
 	record.wasRolling = rolling
