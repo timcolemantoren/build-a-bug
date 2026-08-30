@@ -21,6 +21,7 @@ local TARGET_GUIS = {
 local CREAM = Color3.fromRGB(250, 246, 232)
 local PANEL_STROKE = Color3.fromRGB(117, 188, 151)
 local BUTTON_STROKE = Color3.fromRGB(230, 220, 187)
+local WORLD_TEXT_STROKE = Color3.fromRGB(12, 20, 22)
 
 local COLOR_MAP = {
 	["31,37,34"] = Color3.fromRGB(25, 43, 48),
@@ -59,6 +60,7 @@ local bound = setmetatable({}, { __mode = "k" })
 local applyingColor = setmetatable({}, { __mode = "k" })
 local pressBound = setmetatable({}, { __mode = "k" })
 local pressTweens = setmetatable({}, { __mode = "k" })
+local identityBound = setmetatable({}, { __mode = "k" })
 
 local function rgbKey(color: Color3): string
 	return string.format(
@@ -207,6 +209,57 @@ local function watchGui(gui: ScreenGui)
 	end)
 end
 
+local function styleIdentityTag(tag: BillboardGui)
+	if identityBound[tag] then
+		return
+	end
+	identityBound[tag] = true
+
+	local nameLabel = tag:FindFirstChild("PlayerName")
+	local progressLabel = tag:FindFirstChild("Progress")
+	local statsLabel = tag:FindFirstChild("Stats")
+
+	if nameLabel and nameLabel:IsA("TextLabel") then
+		nameLabel.Font = Enum.Font.FredokaOne
+		nameLabel.TextSize = 15
+		nameLabel.TextStrokeColor3 = WORLD_TEXT_STROKE
+		nameLabel.TextStrokeTransparency = 0.62
+	end
+	if progressLabel and progressLabel:IsA("TextLabel") then
+		progressLabel.Font = Enum.Font.GothamMedium
+		progressLabel.TextSize = 12
+		progressLabel.TextStrokeColor3 = WORLD_TEXT_STROKE
+		progressLabel.TextStrokeTransparency = 0.68
+	end
+	if statsLabel and statsLabel:IsA("TextLabel") then
+		statsLabel.Font = Enum.Font.GothamMedium
+		statsLabel.TextSize = 10
+		statsLabel.TextStrokeColor3 = WORLD_TEXT_STROKE
+		statsLabel.TextStrokeTransparency = 0.72
+	end
+end
+
+local function watchCharacter(character: Model)
+	local function consider(descendant: Instance)
+		if descendant:IsA("BillboardGui") and descendant.Name == "PlayerIdentity" then
+			task.defer(styleIdentityTag, descendant)
+		end
+	end
+	for _, descendant in ipairs(character:GetDescendants()) do
+		consider(descendant)
+	end
+	character.DescendantAdded:Connect(consider)
+end
+
+local function watchPlayerIdentity(otherPlayer: Player)
+	otherPlayer.CharacterAdded:Connect(function(character)
+		task.defer(watchCharacter, character)
+	end)
+	if otherPlayer.Character then
+		task.defer(watchCharacter, otherPlayer.Character)
+	end
+end
+
 function UIThemeController.Init()
 	local playerGui = player:WaitForChild("PlayerGui")
 	for _, child in ipairs(playerGui:GetChildren()) do
@@ -219,6 +272,11 @@ function UIThemeController.Init()
 			task.defer(watchGui, child)
 		end
 	end)
+
+	for _, otherPlayer in ipairs(Players:GetPlayers()) do
+		watchPlayerIdentity(otherPlayer)
+	end
+	Players.PlayerAdded:Connect(watchPlayerIdentity)
 end
 
 return UIThemeController
