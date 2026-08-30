@@ -18,9 +18,10 @@ local function clearDetails(model: Model)
 	end
 end
 
-local function createDetailPart(model: Model, eye: BasePart, name: string, size: Vector3, offset: CFrame, color: Color3)
+local function createDetailPart(model: Model, eye: BasePart, name: string, size: Vector3, offset: CFrame, color: Color3, shape?)
 	local part = Instance.new("Part")
 	part.Name = DETAIL_PREFIX .. name
+	part.Shape = shape or Enum.PartType.Block
 	part.Size = size
 	part.CFrame = eye.CFrame * offset
 	part.Color = color
@@ -44,16 +45,27 @@ local function applyCatEye(model: Model, style)
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") and descendant.Name == "Eye" then
 			local eye = descendant
-			local width = math.max(0.045, eye.Size.X * 0.16)
-			local height = math.max(0.10, eye.Size.Y * 0.72)
-			local depth = math.max(0.035, eye.Size.Z * 0.08)
+
+			-- Cat Eye is about contrast, not glow. Force a darker glossy iris surface
+			-- here as a final visual safeguard even if an older rig was built from a
+			-- brighter style definition.
+			eye.Material = Enum.Material.SmoothPlastic
+			eye.Color = style.color or Color3.fromRGB(145, 176, 52)
+
+			-- Make the slit substantially wider and move it just beyond the iris surface.
+			-- The stretched Ball shape gives a rounded feline pupil rather than a flat
+			-- rectangular sticker, and remains readable on the smaller Ant/Ladybug eyes.
+			local width = math.max(0.065, eye.Size.X * 0.26)
+			local height = math.max(0.13, eye.Size.Y * 0.82)
+			local depth = math.max(0.050, eye.Size.Z * 0.13)
 			createDetailPart(
 				model,
 				eye,
 				"CatSlit",
 				Vector3.new(width, height, depth),
-				CFrame.new(0, 0, -(eye.Size.Z * 0.49)),
-				style.pupilColor or Color3.fromRGB(18, 20, 16)
+				CFrame.new(0, 0, -(eye.Size.Z * 0.53)),
+				style.pupilColor or Color3.fromRGB(10, 12, 9),
+				Enum.PartType.Ball
 			)
 		end
 	end
