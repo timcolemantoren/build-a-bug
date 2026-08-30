@@ -33,7 +33,7 @@ CosmeticStyles.EyeStyles = {
 	Googly = { id = "Googly", displayName = "Googly", previewColor = Color3.fromRGB(235, 235, 228), kind = "googly", color = Color3.fromRGB(238, 238, 232), pupilColor = Color3.fromRGB(18, 18, 20), sizeMultiplier = 1.45, material = Enum.Material.SmoothPlastic },
 	Amber = { id = "Amber", displayName = "Amber", previewColor = Color3.fromRGB(226, 151, 45), kind = "solid", color = Color3.fromRGB(226, 151, 45), sizeMultiplier = 1.12, material = Enum.Material.Neon },
 	Pearl = { id = "Pearl", displayName = "Pearl", previewColor = Color3.fromRGB(238, 235, 222), kind = "solid", color = Color3.fromRGB(241, 238, 226), sizeMultiplier = 1.18, material = Enum.Material.SmoothPlastic },
-	CatEye = { id = "CatEye", displayName = "Cat Eye", previewColor = Color3.fromRGB(188, 222, 72), kind = "cat", color = Color3.fromRGB(190, 225, 74), pupilColor = Color3.fromRGB(18, 20, 16), sizeMultiplier = 1.24, material = Enum.Material.Neon },
+	CatEye = { id = "CatEye", displayName = "Cat Eye", previewColor = Color3.fromRGB(147, 180, 52), kind = "cat", color = Color3.fromRGB(145, 176, 52), pupilColor = Color3.fromRGB(9, 11, 8), sizeMultiplier = 1.28, material = Enum.Material.SmoothPlastic },
 	Neon = { id = "Neon", displayName = "Neon Blue", previewColor = Color3.fromRGB(73, 205, 255), kind = "glow", color = Color3.fromRGB(73, 205, 255), sizeMultiplier = 1.18, material = Enum.Material.Neon },
 	Emerald = { id = "Emerald", displayName = "Emerald", previewColor = Color3.fromRGB(83, 231, 132), kind = "glow", color = Color3.fromRGB(83, 231, 132), sizeMultiplier = 1.16, material = Enum.Material.Neon },
 	Crimson = { id = "Crimson", displayName = "Crimson", previewColor = Color3.fromRGB(247, 72, 81), kind = "glow", color = Color3.fromRGB(247, 72, 81), sizeMultiplier = 1.22, material = Enum.Material.Neon },
@@ -70,6 +70,21 @@ CosmeticStyles.SkinStyles = {
 	CandyPop = { id = "CandyPop", displayName = "Candy Pop", previewColor = Color3.fromRGB(255, 117, 194), kind = "glow", body = Color3.fromRGB(240, 99, 171), dark = Color3.fromRGB(85, 54, 116), accent = Color3.fromRGB(91, 224, 238), glowColor = Color3.fromRGB(255, 157, 218) },
 	Ember = { id = "Ember", displayName = "Ember", previewColor = Color3.fromRGB(255, 115, 45), kind = "glow", body = Color3.fromRGB(73, 44, 38), dark = Color3.fromRGB(27, 20, 21), accent = Color3.fromRGB(247, 91, 36), glowColor = Color3.fromRGB(255, 110, 40) },
 	SynthIdol = { id = "SynthIdol", displayName = "Synth Idol", previewColor = Color3.fromRGB(231, 75, 104), kind = "character", body = Color3.fromRGB(225, 222, 224), dark = Color3.fromRGB(44, 43, 51), accent = Color3.fromRGB(226, 65, 94), secondary = Color3.fromRGB(71, 218, 222), glowColor = Color3.fromRGB(71, 218, 222), accessory = "synthIdol" },
+	ToyboxSheriff = {
+		id = "ToyboxSheriff",
+		displayName = "Toybox Sheriff",
+		previewColor = Color3.fromRGB(159, 111, 62),
+		kind = "character",
+		body = Color3.fromRGB(154, 108, 62),
+		dark = Color3.fromRGB(38, 72, 78),
+		accent = Color3.fromRGB(179, 62, 45),
+		secondary = Color3.fromRGB(230, 184, 70),
+		accessory = "toyboxSheriff",
+		noGlow = true,
+		bodyMaterial = Enum.Material.Fabric,
+		darkMaterial = Enum.Material.SmoothPlastic,
+		wingMaterial = Enum.Material.Glass,
+	},
 }
 
 function CosmeticStyles.IsValidBodyColor(styleId: string): boolean
