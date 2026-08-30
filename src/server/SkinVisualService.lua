@@ -112,29 +112,9 @@ local function addSynthIdolAccessories(model: Model, style)
 	local secondary = style.secondary or Color3.fromRGB(71, 218, 222)
 	local dark = style.dark or Color3.fromRGB(44, 43, 51)
 
-	-- Headset ear pieces make the skin read as a character treatment even from
-	-- the low insect camera. They are intentionally chunky and toy-like.
 	for _, side in ipairs({ -1, 1 }) do
-		createAccessory(
-			model,
-			head,
-			side < 0 and "HeadsetLeft" or "HeadsetRight",
-			Enum.PartType.Ball,
-			Vector3.new(0.42, 0.52, 0.42),
-			CFrame.new(side * 0.68, 0.08, 0.02),
-			dark,
-			Enum.Material.SmoothPlastic
-		)
-		local glow = createAccessory(
-			model,
-			head,
-			side < 0 and "HeadsetGlowLeft" or "HeadsetGlowRight",
-			Enum.PartType.Ball,
-			Vector3.new(0.24, 0.34, 0.24),
-			CFrame.new(side * 0.75, 0.08, -0.06),
-			secondary,
-			Enum.Material.Neon
-		)
+		createAccessory(model, head, side < 0 and "HeadsetLeft" or "HeadsetRight", Enum.PartType.Ball, Vector3.new(0.42, 0.52, 0.42), CFrame.new(side * 0.68, 0.08, 0.02), dark, Enum.Material.SmoothPlastic)
+		local glow = createAccessory(model, head, side < 0 and "HeadsetGlowLeft" or "HeadsetGlowRight", Enum.PartType.Ball, Vector3.new(0.24, 0.34, 0.24), CFrame.new(side * 0.75, 0.08, -0.06), secondary, Enum.Material.Neon)
 		local light = Instance.new("PointLight")
 		light.Name = "PremiumSkinGlow"
 		light.Color = secondary
@@ -143,33 +123,64 @@ local function addSynthIdolAccessories(model: Model, style)
 		light.Parent = glow
 	end
 
-	-- Twin spiral ornaments borrow the playful virtual-idol silhouette without
-	-- reproducing a specific character. The shrinking beads create a drill/twirl
-	-- shape that stays readable across every bug head size.
 	for _, side in ipairs({ -1, 1 }) do
 		for index = 1, 5 do
 			local size = 0.46 - ((index - 1) * 0.055)
 			local x = side * (0.82 + (index * 0.13))
 			local y = 0.52 - ((index - 1) * 0.15)
 			local z = 0.20 + ((index - 1) * 0.13)
-			createAccessory(
-				model,
-				head,
-				(side < 0 and "TwirlL" or "TwirlR") .. tostring(index),
-				Enum.PartType.Ball,
-				Vector3.new(size, size * 0.82, size),
-				CFrame.new(x, y, z),
-				(index % 2 == 0) and secondary or accent,
-				index % 2 == 0 and Enum.Material.Neon or Enum.Material.SmoothPlastic
-			)
+			createAccessory(model, head, (side < 0 and "TwirlL" or "TwirlR") .. tostring(index), Enum.PartType.Ball, Vector3.new(size, size * 0.82, size), CFrame.new(x, y, z), (index % 2 == 0) and secondary or accent, index % 2 == 0 and Enum.Material.Neon or Enum.Material.SmoothPlastic)
 		end
 	end
 
-	-- Small chest bow/jewel gives the treatment a front-facing focal detail.
 	if body and body:IsA("BasePart") then
 		createAccessory(model, body, "BowLeft", Enum.PartType.Ball, Vector3.new(0.48, 0.24, 0.42), CFrame.new(-0.28, 0.56, -0.48) * CFrame.Angles(0, 0, math.rad(28)), accent, Enum.Material.SmoothPlastic)
 		createAccessory(model, body, "BowRight", Enum.PartType.Ball, Vector3.new(0.48, 0.24, 0.42), CFrame.new(0.28, 0.56, -0.48) * CFrame.Angles(0, 0, math.rad(-28)), accent, Enum.Material.SmoothPlastic)
 		createAccessory(model, body, "BowJewel", Enum.PartType.Ball, Vector3.new(0.22, 0.22, 0.22), CFrame.new(0, 0.58, -0.66), secondary, Enum.Material.Neon)
+	end
+end
+
+local function addToyboxSheriffAccessories(model: Model, style)
+	local head = model:FindFirstChild("Head", true)
+	local body = model:FindFirstChild("Thorax", true) or model:FindFirstChild("Pronotum", true) or model:FindFirstChild("Shell", true) or model:FindFirstChild("Abdomen", true)
+	if not head or not head:IsA("BasePart") then
+		return
+	end
+
+	local leather = style.body or Color3.fromRGB(154, 108, 62)
+	local teal = style.dark or Color3.fromRGB(38, 72, 78)
+	local scarf = style.accent or Color3.fromRGB(179, 62, 45)
+	local brass = style.secondary or Color3.fromRGB(230, 184, 70)
+
+	-- Oversized toy-western hat. The broad brim is the silhouette change that
+	-- makes this read as a premium character skin from normal gameplay distance.
+	createAccessory(
+		model,
+		head,
+		"SheriffHatBrim",
+		Enum.PartType.Cylinder,
+		Vector3.new(0.10, 1.95, 1.55),
+		CFrame.new(0, 0.70, 0.10) * CFrame.Angles(0, 0, math.rad(90)),
+		leather,
+		Enum.Material.Fabric
+	)
+	createAccessory(model, head, "SheriffHatCrown", Enum.PartType.Ball, Vector3.new(1.34, 0.76, 1.02), CFrame.new(0, 1.00, 0.12), leather, Enum.Material.Fabric)
+	createAccessory(model, head, "SheriffHatBand", Enum.PartType.Ball, Vector3.new(1.20, 0.16, 0.94), CFrame.new(0, 0.84, 0.10), teal, Enum.Material.SmoothPlastic)
+
+	if body and body:IsA("BasePart") then
+		-- A chunky scarf and badge give the front of the bug an immediate character
+		-- read without copying any specific film costume or branded insignia.
+		createAccessory(model, body, "ScarfLeft", Enum.PartType.Ball, Vector3.new(0.56, 0.24, 0.40), CFrame.new(-0.27, 0.47, -0.55) * CFrame.Angles(0, 0, math.rad(24)), scarf, Enum.Material.Fabric)
+		createAccessory(model, body, "ScarfRight", Enum.PartType.Ball, Vector3.new(0.56, 0.24, 0.40), CFrame.new(0.27, 0.47, -0.55) * CFrame.Angles(0, 0, math.rad(-24)), scarf, Enum.Material.Fabric)
+		createAccessory(model, body, "ScarfKnot", Enum.PartType.Ball, Vector3.new(0.26, 0.26, 0.24), CFrame.new(0, 0.48, -0.70), scarf, Enum.Material.Fabric)
+		createAccessory(model, body, "SheriffBadge", Enum.PartType.Ball, Vector3.new(0.34, 0.34, 0.10), CFrame.new(0.42, 0.50, -0.70), brass, Enum.Material.Metal)
+
+		-- Wind-up key makes the skin read as a toy even when the hat is partly hidden
+		-- by camera angle. It is intentionally generic toy imagery, not a pull-string
+		-- or a recreation of a specific existing character prop.
+		createAccessory(model, body, "WindupStem", Enum.PartType.Cylinder, Vector3.new(0.42, 0.10, 0.10), CFrame.new(0.78, 0.06, 0.52), brass, Enum.Material.Metal)
+		createAccessory(model, body, "WindupKeyTop", Enum.PartType.Ball, Vector3.new(0.18, 0.48, 0.18), CFrame.new(1.01, 0.06, 0.52), brass, Enum.Material.Metal)
+		createAccessory(model, body, "WindupKeyBottom", Enum.PartType.Ball, Vector3.new(0.18, 0.48, 0.18), CFrame.new(1.20, 0.06, 0.52), brass, Enum.Material.Metal)
 	end
 end
 
@@ -192,16 +203,22 @@ local function applySkinToModel(player: Player, model: Model)
 	for _, descendant in ipairs(model:GetDescendants()) do
 		if descendant:IsA("BasePart") then
 			local name = descendant.Name
-			if name == "Eye" or name == "EyePupil" or name == "LadybugSpot" or string.find(name, "Pattern") then
+			if name == "Eye" or name == "EyePupil" or name == "LadybugSpot" or string.find(name, "Pattern") or string.find(name, "EyeDetail") then
 				-- Preserve separately-selected eyes and markings.
 			elseif string.find(name, "Wing") then
 				descendant.Color = style.secondary or style.accent or style.body
-				descendant.Material = Enum.Material.Neon
+				descendant.Material = style.wingMaterial or (style.noGlow and Enum.Material.Glass or Enum.Material.Neon)
 				descendant.Transparency = math.max(descendant.Transparency, 0.18)
 			elseif DARK_NAMES[name] then
 				descendant.Color = style.dark or style.body
+				if style.darkMaterial then
+					descendant.Material = style.darkMaterial
+				end
 			elseif BODY_NAMES[name] then
 				descendant.Color = style.body or descendant.Color
+				if style.bodyMaterial then
+					descendant.Material = style.bodyMaterial
+				end
 			else
 				descendant.Color = style.accent or style.body or descendant.Color
 			end
@@ -210,25 +227,29 @@ local function applySkinToModel(player: Player, model: Model)
 
 	if style.accessory == "synthIdol" then
 		addSynthIdolAccessories(model, style)
+	elseif style.accessory == "toyboxSheriff" then
+		addToyboxSheriffAccessories(model, style)
 	end
 
-	local highlight = Instance.new("Highlight")
-	highlight.Name = "PremiumSkinHighlight"
-	highlight.FillColor = style.glowColor or style.accent or style.body
-	highlight.OutlineColor = style.glowColor or style.accent or style.body
-	highlight.FillTransparency = style.kind == "character" and 0.93 or 0.88
-	highlight.OutlineTransparency = style.kind == "character" and 0.34 or 0.22
-	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
-	highlight.Parent = model
+	if not style.noGlow then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "PremiumSkinHighlight"
+		highlight.FillColor = style.glowColor or style.accent or style.body
+		highlight.OutlineColor = style.glowColor or style.accent or style.body
+		highlight.FillTransparency = style.kind == "character" and 0.93 or 0.88
+		highlight.OutlineTransparency = style.kind == "character" and 0.34 or 0.22
+		highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+		highlight.Parent = model
 
-	local anchor = model:FindFirstChild("Thorax") or model:FindFirstChild("Pronotum") or model:FindFirstChildWhichIsA("BasePart")
-	if anchor and anchor:IsA("BasePart") then
-		local light = Instance.new("PointLight")
-		light.Name = "PremiumSkinGlow"
-		light.Color = style.glowColor or style.accent or style.body
-		light.Brightness = style.kind == "character" and 0.55 or 0.8
-		light.Range = 6
-		light.Parent = anchor
+		local anchor = model:FindFirstChild("Thorax") or model:FindFirstChild("Pronotum") or model:FindFirstChildWhichIsA("BasePart")
+		if anchor and anchor:IsA("BasePart") then
+			local light = Instance.new("PointLight")
+			light.Name = "PremiumSkinGlow"
+			light.Color = style.glowColor or style.accent or style.body
+			light.Brightness = style.kind == "character" and 0.55 or 0.8
+			light.Range = 6
+			light.Parent = anchor
+		end
 	end
 end
 
@@ -262,9 +283,13 @@ local function setupPlayer(player: Player)
 		task.defer(refresh, player)
 	end)
 	player:GetAttributeChangedSignal("PatternStyle"):Connect(function()
-		-- PatternVisualService can recreate markings after the skin was first applied.
-		-- Reapply the premium palette shortly after so any new body parts remain clean.
 		task.delay(0.42, refresh, player)
+	end)
+	player:GetAttributeChangedSignal("EyeStyle"):Connect(function()
+		-- EyeDetailService can create the Cat Eye slit after the skin palette has been
+		-- applied. Re-run shortly after to preserve skin colors without recoloring the
+		-- separately-owned eye detail pieces.
+		task.delay(0.44, refresh, player)
 	end)
 	player.CharacterAdded:Connect(function(character)
 		watchCharacter(player, character)
