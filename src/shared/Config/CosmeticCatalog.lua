@@ -35,7 +35,7 @@ CosmeticCatalog.Slots = {
 	},
 	Skin = {
 		displayName = "Skins",
-		order = { "None", "NeonCircuit", "CandyPop", "Ember", "SynthIdol" },
+		order = { "None", "NeonCircuit", "CandyPop", "Ember", "SynthIdol", "ToyboxSheriff" },
 	},
 }
 
@@ -55,22 +55,10 @@ CosmeticCatalog.Items = {
 		Lime = { id = "Lime", displayName = "Lime Pop", dnaCost = 1800, rarity = "Epic", availability = "always", robuxEligible = false, robuxProductId = 0 },
 		Stone = { id = "Stone", displayName = "Stone", dnaCost = 2300, rarity = "Epic", availability = "always", robuxEligible = false, robuxProductId = 0 },
 		Obsidian = { id = "Obsidian", displayName = "Obsidian", dnaCost = 2750, rarity = "Legendary", availability = "always", robuxEligible = false, robuxProductId = 0 },
-		Honey = {
-			id = "Honey", displayName = "Honey", dnaCost = 0, rarity = "Achievement", availability = "achievement",
-			unlockType = "achievement", achievementId = "SnackStack", robuxEligible = false, robuxProductId = 0,
-		},
-		Electric = {
-			id = "Electric", displayName = "Electric", dnaCost = 0, rarity = "Achievement", availability = "achievement",
-			unlockType = "achievement", achievementId = "DnaCollector", robuxEligible = false, robuxProductId = 0,
-		},
-		Mint = {
-			id = "Mint", displayName = "Mint", dnaCost = 0, rarity = "Achievement", availability = "achievement",
-			unlockType = "achievement", achievementId = "CrumbChampion", robuxEligible = false, robuxProductId = 0,
-		},
-		Royal = {
-			id = "Royal", displayName = "Royal Purple", dnaCost = 0, rarity = "Achievement", availability = "achievement",
-			unlockType = "achievement", achievementId = "DnaLegend", robuxEligible = false, robuxProductId = 0,
-		},
+		Honey = { id = "Honey", displayName = "Honey", dnaCost = 0, rarity = "Achievement", availability = "achievement", unlockType = "achievement", achievementId = "SnackStack", robuxEligible = false, robuxProductId = 0 },
+		Electric = { id = "Electric", displayName = "Electric", dnaCost = 0, rarity = "Achievement", availability = "achievement", unlockType = "achievement", achievementId = "DnaCollector", robuxEligible = false, robuxProductId = 0 },
+		Mint = { id = "Mint", displayName = "Mint", dnaCost = 0, rarity = "Achievement", availability = "achievement", unlockType = "achievement", achievementId = "CrumbChampion", robuxEligible = false, robuxProductId = 0 },
+		Royal = { id = "Royal", displayName = "Royal Purple", dnaCost = 0, rarity = "Achievement", availability = "achievement", unlockType = "achievement", achievementId = "DnaLegend", robuxEligible = false, robuxProductId = 0 },
 	},
 
 	Eyes = {
@@ -87,22 +75,10 @@ CosmeticCatalog.Items = {
 		Void = { id = "Void", displayName = "Void", dnaCost = 1800, rarity = "Epic", availability = "always", robuxEligible = false, robuxProductId = 0 },
 		Solar = { id = "Solar", displayName = "Solar", dnaCost = 2500, rarity = "Legendary", availability = "always", robuxEligible = false, robuxProductId = 0 },
 		Prism = { id = "Prism", displayName = "Prism", dnaCost = 3200, rarity = "Legendary", availability = "always", robuxEligible = false, robuxProductId = 0 },
-		VictoryGold = {
-			id = "VictoryGold", displayName = "Victory Gold", dnaCost = 0, rarity = "Achievement", availability = "achievement",
-			unlockType = "achievement", achievementId = "BackyardSurvivor", robuxEligible = false, robuxProductId = 0,
-		},
-		Bubblegum = {
-			id = "Bubblegum", displayName = "Bubblegum", dnaCost = 0, rarity = "Achievement", availability = "achievement",
-			unlockType = "achievement", achievementId = "YardRegular", robuxEligible = false, robuxProductId = 0,
-		},
-		Starshine = {
-			id = "Starshine", displayName = "Starshine", dnaCost = 0, rarity = "Achievement", availability = "achievement",
-			unlockType = "achievement", achievementId = "SeasonedSurvivor", robuxEligible = false, robuxProductId = 0,
-		},
-		Frost = {
-			id = "Frost", displayName = "Frost", dnaCost = 0, rarity = "Achievement", availability = "achievement",
-			unlockType = "achievement", achievementId = "YardVeteran", robuxEligible = false, robuxProductId = 0,
-		},
+		VictoryGold = { id = "VictoryGold", displayName = "Victory Gold", dnaCost = 0, rarity = "Achievement", availability = "achievement", unlockType = "achievement", achievementId = "BackyardSurvivor", robuxEligible = false, robuxProductId = 0 },
+		Bubblegum = { id = "Bubblegum", displayName = "Bubblegum", dnaCost = 0, rarity = "Achievement", availability = "achievement", unlockType = "achievement", achievementId = "YardRegular", robuxEligible = false, robuxProductId = 0 },
+		Starshine = { id = "Starshine", displayName = "Starshine", dnaCost = 0, rarity = "Achievement", availability = "achievement", unlockType = "achievement", achievementId = "SeasonedSurvivor", robuxEligible = false, robuxProductId = 0 },
+		Frost = { id = "Frost", displayName = "Frost", dnaCost = 0, rarity = "Achievement", availability = "achievement", unlockType = "achievement", achievementId = "YardVeteran", robuxEligible = false, robuxProductId = 0 },
 	},
 
 	Pattern = {
@@ -121,26 +97,12 @@ CosmeticCatalog.Items = {
 	},
 
 	Skin = {
-		None = {
-			id = "None", displayName = "No Skin", dnaCost = 0, rarity = "Starter", availability = "always",
-			robuxOnly = false, robuxPassId = 0,
-		},
-		NeonCircuit = {
-			id = "NeonCircuit", displayName = "Neon Circuit", dnaCost = 0, rarity = "Premium", availability = "robux",
-			robuxOnly = true, robuxPassId = 0,
-		},
-		CandyPop = {
-			id = "CandyPop", displayName = "Candy Pop", dnaCost = 0, rarity = "Premium", availability = "robux",
-			robuxOnly = true, robuxPassId = 0,
-		},
-		Ember = {
-			id = "Ember", displayName = "Ember", dnaCost = 0, rarity = "Premium", availability = "robux",
-			robuxOnly = true, robuxPassId = 0,
-		},
-		SynthIdol = {
-			id = "SynthIdol", displayName = "Synth Idol", dnaCost = 0, rarity = "Premium Character", availability = "robux",
-			robuxOnly = true, robuxPassId = 0,
-		},
+		None = { id = "None", displayName = "No Skin", dnaCost = 0, rarity = "Starter", availability = "always", robuxOnly = false, robuxPassId = 0 },
+		NeonCircuit = { id = "NeonCircuit", displayName = "Neon Circuit", dnaCost = 0, rarity = "Premium", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		CandyPop = { id = "CandyPop", displayName = "Candy Pop", dnaCost = 0, rarity = "Premium", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		Ember = { id = "Ember", displayName = "Ember", dnaCost = 0, rarity = "Premium", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		SynthIdol = { id = "SynthIdol", displayName = "Synth Idol", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		ToyboxSheriff = { id = "ToyboxSheriff", displayName = "Toybox Sheriff", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
 	},
 }
 
@@ -161,7 +123,6 @@ function CosmeticCatalog.GetItemByRobuxProductId(productId: number)
 	if productId <= 0 then
 		return nil
 	end
-
 	for slot, slotItems in pairs(CosmeticCatalog.Items) do
 		for itemId, item in pairs(slotItems) do
 			if item.robuxProductId == productId then
