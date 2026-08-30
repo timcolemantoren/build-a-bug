@@ -3,6 +3,7 @@
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
 
 local AudioController = {}
 local player = Players.LocalPlayer
@@ -14,6 +15,8 @@ local criticalHealthLatched = false
 local openingPlayed = false
 local sfxGroup = nil
 local signatureGroup = nil
+local musicGroup = nil
+local musicSound = nil
 
 -- Keep launch audio independent from any third-party license. If we later upload
 -- a cleared/original opening sting, drop its rbxassetid here and the fallback
@@ -21,7 +24,12 @@ local signatureGroup = nil
 local OPENING_AUDIO_ID = ""
 local OPENING_AUDIO_VOLUME = 0.42
 
--- Roblox-bundled assets keep the beta audio path safe and deterministic. The
+-- Temporary beta background track from Roblox Creator Store. Keep this isolated
+-- so the final original Build a Bug theme can replace it without touching logic.
+local BACKGROUND_MUSIC_ID = "rbxassetid://1837383248"
+local BACKGROUND_MUSIC_VOLUME = 0.17
+
+-- Roblox-bundled assets keep the beta SFX path safe and deterministic. The
 -- pitch/rhythm language below is the game's temporary sonic identity, and all
 -- cues remain centralized here so custom authored assets can replace them later.
 local SOUND = {
@@ -30,6 +38,8 @@ local SOUND = {
 	Water = "rbxasset://sounds/impact_water.mp3",
 	Squish = "rbxasset://sounds/uuhhh.mp3",
 }
+
+local GRASS_REACTIONS = { "WHEE!", "WOOHOO!", "WHOAA!" }
 
 local function getOrCreateSoundGroup(name: string, volume: number)
 	local existing = SoundService:FindFirstChild(name)
@@ -50,6 +60,9 @@ local function ensureGroups()
 	end
 	if not signatureGroup then
 		signatureGroup = getOrCreateSoundGroup("BuildABugSignatureGroup", 0.82)
+	end
+	if not musicGroup then
+		musicGroup = getOrCreateSoundGroup("BuildABugMusicGroup", 0)
 	end
 end
 
@@ -95,8 +108,6 @@ local function playPingCluster(speeds, volume: number?, delaySeconds: number?)
 end
 
 local function playFallbackOpeningSignature()
-	-- Short, bright, insect-like sonic logo. It is intentionally not a full song,
-	-- so the game still has room for a future licensed/original 5-10 second intro.
 	playOneShot(SOUND.Bass, 0.20, 1.36, 2, signatureGroup)
 	playPingSequence({ 0.92, 1.14, 1.42 }, 0.17, 0.24, 0.05)
 	playPingSequence({ 1.05, 1.30, 1.62 }, 0.14, 0.28, 0.78)
@@ -123,6 +134,50 @@ local function playOpeningSignature()
 	else
 		playFallbackOpeningSignature()
 	end
+end
+
+local function ensureMusic()
+	ensureGroups()
+	if musicSound and musicSound.Parent then
+		return musicSound
+	end
+
+	musicSound = Instance.new("Sound")
+	musicSound.Name = "BuildABugBackgroundMusic"
+	musicSound.SoundId = BACKGROUND_MUSIC_ID
+	musicSound.Volume = 1
+	musicSound.Looped = true
+	musicSound.SoundGroup = musicGroup
+	musicSound.Parent = SoundService
+	return musicSound
+end
+
+local function musicEnabled(): boolean
+	return player:GetAttribute("MusicEnabled") ~= false
+end
+
+local function applyMusicPreference(instant: boolean?)
+	local sound = ensureMusic()
+	local enabled = musicEnabled()
+	if enabled and not sound.IsPlaying then
+		sound:Play()
+	end
+
+	local targetVolume = enabled and BACKGROUND_MUSIC_VOLUME or 0
+	if instant then
+		musicGroup.Volume = targetVolume
+	else
+		TweenService:Create(
+			musicGroup,
+			TweenInfo.new(enabled and 0.8 or 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Volume = targetVolume }
+		):Play()
+	end
+end
+
+local function startBackgroundMusic()
+	ensureMusic()
+	applyMusicPreference(false)
 end
 
 local function playDamageCue(damageAmount: number)
@@ -153,6 +208,70 @@ local function playPillbugRollCue()
 	end
 	playOneShot(SOUND.Bass, 0.44, 1.60, 2)
 	playPingSequence({ 0.78, 0.85, 0.93, 1.02 }, 0.12, 0.22)
+end
+
+local function showBugReaction(text: string)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return
+	end
+
+	local old = root:FindFirstChild("BuildABugReaction")
+	if old then
+		old:Destroy()
+	end
+
+	local bubble = Instance.new("BillboardGui")
+	bubble.Name = "BuildABugReaction"
+	bubble.Size = UDim2.fromOffset(150, 52)
+	bubble.StudsOffsetWorldSpace = Vector3.new(0, 2.4, 0)
+	bubble.AlwaysOnTop = true
+	bubble.LightInfluence = 0
+	bubble.Adornee = root
+	bubble.Parent = root
+
+	local label = Instance.new("TextLabel")
+	label.Name = "ReactionText"
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundColor3 = Color3.fromRGB(250, 246, 232)
+	label.BackgroundTransparency = 0.08
+	label.TextColor3 = Color3.fromRGB(30, 48, 51)
+	label.TextStrokeTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextSize = 23
+	label.Text = text
+	label.Parent = bubble
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = label
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(117, 188, 151)
+	stroke.Thickness = 2
+	stroke.Transparency = 0.18
+	stroke.Parent = label
+
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.72
+	scale.Parent = label
+	TweenService:Create(scale, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+	task.delay(0.58, function()
+		if label.Parent then
+			TweenService:Create(label, TweenInfo.new(0.22), { TextTransparency = 1, BackgroundTransparency = 1 }):Play()
+			TweenService:Create(stroke, TweenInfo.new(0.22), { Transparency = 1 }):Play()
+		end
+	end)
+	Debris:AddItem(bubble, 0.9)
+end
+
+local function playGrassFlickReaction()
+	local reaction = GRASS_REACTIONS[math.random(1, #GRASS_REACTIONS)]
+	showBugReaction(reaction)
+	playOneShot(SOUND.Squish, 0.18, 1.78, 2)
+	playPingSequence({ 1.60, 1.92 }, 0.09, 0.20, 0.02)
 end
 
 local function disconnectHealth()
@@ -207,7 +326,9 @@ end
 
 local function playPhaseCue(state: string, payload)
 	payload = payload or {}
-	if state == "Started" then
+	if state == "GrassFlick" then
+		playGrassFlickReaction()
+	elseif state == "Started" then
 		inRound = true
 		criticalHealthLatched = false
 		if currentHumanoid then
@@ -311,6 +432,12 @@ end
 
 function AudioController.Init(remotes)
 	ensureGroups()
+	if player:GetAttribute("MusicEnabled") == nil then
+		player:SetAttribute("MusicEnabled", true)
+	end
+	player:GetAttributeChangedSignal("MusicEnabled"):Connect(function()
+		applyMusicPreference(false)
+	end)
 
 	player.CharacterAdded:Connect(function(character)
 		task.wait(0.15)
@@ -329,6 +456,7 @@ function AudioController.Init(remotes)
 			playOpeningSignature()
 		end
 	end)
+	task.delay(2.35, startBackgroundMusic)
 end
 
 return AudioController
