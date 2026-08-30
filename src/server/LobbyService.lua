@@ -22,7 +22,9 @@ local ROUND_SPAWNS = {
 
 local lobbyFolder = nil
 local queueCircle = nil
-local boardLabel = nil
+local boardMapLabel = nil
+local boardStateLabel = nil
+local boardInstructionLabel = nil
 
 local function getArena()
 	return Workspace:FindFirstChild("BuildABugArena") or Workspace:WaitForChild("BuildABugArena", 10)
@@ -79,6 +81,36 @@ local function makeNestPad(parent: Instance)
 	pad.Parent = parent
 end
 
+local function makeBoardLabel(parent: Instance, name: string, position: UDim2, size: UDim2, font, textSize: number, color: Color3)
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.Position = position
+	label.Size = size
+	label.BackgroundTransparency = 1
+	label.TextColor3 = color
+	label.TextStrokeColor3 = Color3.fromRGB(12, 20, 22)
+	label.TextStrokeTransparency = 0.82
+	label.Font = font
+	label.TextSize = textSize
+	label.TextWrapped = true
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.Parent = parent
+	return label
+end
+
+local function setBoardText(mapText: string, stateText: string, instructionText: string)
+	if boardMapLabel then
+		boardMapLabel.Text = mapText
+	end
+	if boardStateLabel then
+		boardStateLabel.Text = stateText
+	end
+	if boardInstructionLabel then
+		boardInstructionLabel.Text = instructionText
+	end
+end
+
 local function makeBoard(parent: Instance)
 	local anchor = Instance.new("Part")
 	anchor.Name = "QueueBoardAnchor"
@@ -93,24 +125,59 @@ local function makeBoard(parent: Instance)
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "QueueBoard"
-	billboard.Size = UDim2.fromOffset(430, 150)
+	billboard.Size = UDim2.fromOffset(430, 145)
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = 115
+	billboard.LightInfluence = 0
 	billboard.Parent = anchor
 
-	local label = Instance.new("TextLabel")
-	label.Name = "Status"
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 0.18
-	label.BackgroundColor3 = Color3.fromRGB(35, 42, 35)
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.TextStrokeTransparency = 0.35
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 24
-	label.TextWrapped = true
-	label.Text = "NEXT MATCH\nStep inside the circle to join"
-	label.Parent = billboard
-	return label
+	local panel = Instance.new("Frame")
+	panel.Name = "BoardPanel"
+	panel.Size = UDim2.fromScale(1, 1)
+	panel.BackgroundTransparency = 0.10
+	panel.BackgroundColor3 = Color3.fromRGB(25, 43, 48)
+	panel.BorderSizePixel = 0
+	panel.Parent = billboard
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = panel
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(117, 188, 151)
+	stroke.Thickness = 2
+	stroke.Transparency = 0.28
+	stroke.Parent = panel
+
+	boardMapLabel = makeBoardLabel(
+		panel,
+		"MapName",
+		UDim2.fromOffset(18, 10),
+		UDim2.new(1, -36, 0, 30),
+		Enum.Font.FredokaOne,
+		20,
+		Color3.fromRGB(250, 246, 232)
+	)
+	boardStateLabel = makeBoardLabel(
+		panel,
+		"MatchState",
+		UDim2.fromOffset(18, 37),
+		UDim2.new(1, -36, 0, 40),
+		Enum.Font.FredokaOne,
+		27,
+		Color3.fromRGB(250, 246, 232)
+	)
+	boardInstructionLabel = makeBoardLabel(
+		panel,
+		"Instruction",
+		UDim2.fromOffset(22, 82),
+		UDim2.new(1, -44, 0, 45),
+		Enum.Font.GothamMedium,
+		17,
+		Color3.fromRGB(225, 235, 229)
+	)
+
+	setBoardText("Backyard", "NEXT MATCH", "Step inside the circle to join")
 end
 
 function LobbyService.Build()
@@ -133,7 +200,7 @@ function LobbyService.Build()
 
 	makeNestPad(lobbyFolder)
 	queueCircle = makeQueueCircle(lobbyFolder)
-	boardLabel = makeBoard(lobbyFolder)
+	makeBoard(lobbyFolder)
 end
 
 function LobbyService.IsPlayerInsideQueue(player: Player): boolean
@@ -194,7 +261,7 @@ function LobbyService.TeleportToRound(player: Player, index: number)
 end
 
 function LobbyService.SetBoard(state: string, seconds: number?, queuedCount: number?, mapName: string?)
-	if not boardLabel then
+	if not boardStateLabel then
 		return
 	end
 
@@ -202,27 +269,27 @@ function LobbyService.SetBoard(state: string, seconds: number?, queuedCount: num
 	local mapText = mapName or "Backyard"
 
 	if state == "Countdown" then
-		boardLabel.Text = string.format("%s\nMATCH STARTS IN %ss\n%s queued", mapText, tostring(seconds or 0), tostring(count))
+		setBoardText(mapText, string.format("MATCH STARTS IN %ss", tostring(seconds or 0)), string.format("%s queued", tostring(count)))
 		if queueCircle then
 			queueCircle.Color = Color3.fromRGB(255, 205, 70)
 		end
 	elseif state == "Locked" then
-		boardLabel.Text = string.format("%s\nROSTER LOCKED • %ss\n%s playing", mapText, tostring(seconds or 0), tostring(count))
+		setBoardText(mapText, string.format("ROSTER LOCKED  •  %ss", tostring(seconds or 0)), string.format("%s playing", tostring(count)))
 		if queueCircle then
 			queueCircle.Color = Color3.fromRGB(255, 125, 70)
 		end
 	elseif state == "Active" then
-		boardLabel.Text = string.format("%s\nMATCH IN PROGRESS\nStand in the circle for the next match", mapText)
+		setBoardText(mapText, "MATCH IN PROGRESS", "Stand in the circle for the next match")
 		if queueCircle then
 			queueCircle.Color = Color3.fromRGB(85, 165, 255)
 		end
 	elseif state == "Results" then
-		boardLabel.Text = string.format("%s\nROUND COMPLETE\nNext match forming...", mapText)
+		setBoardText(mapText, "ROUND COMPLETE", "Next match forming...")
 		if queueCircle then
 			queueCircle.Color = Color3.fromRGB(180, 135, 255)
 		end
 	else
-		boardLabel.Text = string.format("%s\nSTEP INSIDE TO JOIN\n%s queued", mapText, tostring(count))
+		setBoardText(mapText, "STEP INSIDE TO JOIN", string.format("%s queued", tostring(count)))
 		if queueCircle then
 			queueCircle.Color = Color3.fromRGB(70, 220, 110)
 		end
