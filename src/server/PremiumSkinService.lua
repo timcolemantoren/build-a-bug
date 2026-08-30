@@ -18,6 +18,10 @@ local function getBugSkinMap(data)
 	return data.savedBuilds.BugSkins
 end
 
+local function clearPreview(player: Player)
+	player:SetAttribute("PreviewSkinStyle", nil)
+end
+
 local function ownsLiveSkin(player: Player, styleId: string): boolean
 	if styleId == "None" then
 		return true
@@ -47,6 +51,16 @@ local function canUseSkin(player: Player, styleId: string): boolean
 		return true
 	end
 	return ownsLiveSkin(player, styleId)
+end
+
+local function canPreviewSkin(player: Player, styleId: string?): boolean
+	if player:GetAttribute("InRound") == true then
+		return false
+	end
+	if styleId == nil or styleId == "None" then
+		return true
+	end
+	return CosmeticStyles.IsValidSkinStyle(styleId)
 end
 
 local function applyForCurrentBug(player: Player)
@@ -86,11 +100,25 @@ local function equip(player: Player, styleId: string): boolean
 	bugSkins[bugId] = styleId
 	data.cosmetics = data.cosmetics or {}
 	data.cosmetics.skin = styleId
+	clearPreview(player)
 	player:SetAttribute("SkinStyle", styleId)
 	return true
 end
 
+local function preview(player: Player, styleId: string?)
+	if not canPreviewSkin(player, styleId) then
+		clearPreview(player)
+		return
+	end
+	if styleId == nil or styleId == "None" then
+		clearPreview(player)
+		return
+	end
+	player:SetAttribute("PreviewSkinStyle", styleId)
+end
+
 local function setupPlayer(player: Player)
+	clearPreview(player)
 	task.delay(0.45, function()
 		if player.Parent == Players then
 			applyForCurrentBug(player)
@@ -98,6 +126,11 @@ local function setupPlayer(player: Player)
 	end)
 	player:GetAttributeChangedSignal("SelectedBug"):Connect(function()
 		task.defer(applyForCurrentBug, player)
+	end)
+	player:GetAttributeChangedSignal("InRound"):Connect(function()
+		if player:GetAttribute("InRound") == true then
+			clearPreview(player)
+		end
 	end)
 end
 
@@ -111,6 +144,12 @@ function PremiumSkinService.Init(playerDataService, remotes)
 
 	remotes.SetPremiumSkin.OnServerEvent:Connect(function(player: Player, styleId: string)
 		equip(player, styleId)
+	end)
+	remotes.PreviewPremiumSkin.OnServerEvent:Connect(function(player: Player, styleId)
+		if styleId ~= nil and type(styleId) ~= "string" then
+			return
+		end
+		preview(player, styleId)
 	end)
 end
 
