@@ -71,7 +71,7 @@ local function addCorner(object: Instance, radius: number)
 end
 
 local function addStroke(object: Instance, panelStyle: boolean)
-	if not object:IsA("GuiObject") or object:FindFirstChild("BuildABugThemeStroke") then
+	if not object:IsA("GuiObject") or object:FindFirstChild("BuildABugThemeStroke") or object:FindFirstChildWhichIsA("UIStroke") then
 		return
 	end
 	local stroke = Instance.new("UIStroke")
