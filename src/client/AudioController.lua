@@ -26,8 +26,10 @@ local OPENING_AUDIO_VOLUME = 0.42
 
 -- Temporary beta background track from Roblox Creator Store. Keep this isolated
 -- so the final original Build a Bug theme can replace it without touching logic.
+-- The music intentionally sits well below gameplay SFX and should feel more like
+-- backyard atmosphere than the main thing the player is listening to.
 local BACKGROUND_MUSIC_ID = "rbxassetid://1837383248"
-local BACKGROUND_MUSIC_VOLUME = 0.11
+local BACKGROUND_MUSIC_VOLUME = 0.075
 
 -- Roblox-bundled assets keep the beta SFX path safe and deterministic. The
 -- pitch/rhythm language below is the game's temporary sonic identity, and all
