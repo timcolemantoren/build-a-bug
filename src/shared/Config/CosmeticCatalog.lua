@@ -35,7 +35,9 @@ CosmeticCatalog.Slots = {
 	},
 	Skin = {
 		displayName = "Skins",
-		order = { "None", "NeonCircuit", "CandyPop", "Ember", "SynthIdol", "ToyboxSheriff" },
+		order = {
+			"None", "ToyboxSheriff", "SynthIdol", "NeonCircuit", "CandyPop", "Ember", "ShadowNinja", "BloomSprite", "MechaPilot",
+		},
 	},
 }
 
@@ -98,11 +100,14 @@ CosmeticCatalog.Items = {
 
 	Skin = {
 		None = { id = "None", displayName = "No Skin", dnaCost = 0, rarity = "Starter", availability = "always", robuxOnly = false, robuxPassId = 0 },
-		NeonCircuit = { id = "NeonCircuit", displayName = "Neon Circuit", dnaCost = 0, rarity = "Premium", availability = "robux", robuxOnly = true, robuxPassId = 0 },
-		CandyPop = { id = "CandyPop", displayName = "Candy Pop", dnaCost = 0, rarity = "Premium", availability = "robux", robuxOnly = true, robuxPassId = 0 },
-		Ember = { id = "Ember", displayName = "Ember", dnaCost = 0, rarity = "Premium", availability = "robux", robuxOnly = true, robuxPassId = 0 },
-		SynthIdol = { id = "SynthIdol", displayName = "Synth Idol", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
 		ToyboxSheriff = { id = "ToyboxSheriff", displayName = "Toybox Sheriff", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		SynthIdol = { id = "SynthIdol", displayName = "Synth Idol", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		NeonCircuit = { id = "NeonCircuit", displayName = "Neon Circuit", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		CandyPop = { id = "CandyPop", displayName = "Candy Pop", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		Ember = { id = "Ember", displayName = "Ember", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		ShadowNinja = { id = "ShadowNinja", displayName = "Shadow Ninja", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		BloomSprite = { id = "BloomSprite", displayName = "Bloom Sprite", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
+		MechaPilot = { id = "MechaPilot", displayName = "Mecha Pilot", dnaCost = 0, rarity = "Premium Character", availability = "robux", robuxOnly = true, robuxPassId = 0 },
 	},
 }
 
