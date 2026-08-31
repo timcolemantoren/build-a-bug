@@ -37,75 +37,59 @@ local function rebuildMushroom(model: Model, index: number)
 	local capColor = oldCap.Color
 	model:ClearAllChildren()
 
-	-- Rebuild from a stable backyard-mushroom recipe rather than repeatedly scaling
-	-- the previous version. The broad brim + low dome is what makes the silhouette
-	-- read as mushroom instead of matchstick or sci-fi orb at bug height.
+	-- Build a simple, recognizable backyard mushroom silhouette. A single flattened
+	-- ellipsoid reads more naturally than the previous pancake + dome construction.
 	local sizeStep = (index - 1) % 5
-	local stemHeight = 3.35 + sizeStep * 0.34
-	local stemDiameter = 1.85 + ((index * 3) % 4) * 0.18
-	local capWidth = 8.1 + sizeStep * 0.62
-	local capDepth = capWidth * (0.84 + ((index + 1) % 3) * 0.045)
-	local brimThickness = 0.72 + (index % 2) * 0.10
-	local domeHeight = 1.45 + (index % 3) * 0.16
+	local stemHeight = 3.0 + sizeStep * 0.31
+	local stemDiameter = 1.85 + ((index * 3) % 4) * 0.16
+	local capWidth = 7.3 + sizeStep * 0.55
+	local capDepth = capWidth * (0.88 + ((index + 1) % 3) * 0.035)
+	local capHeight = 2.05 + (index % 3) * 0.18
 	local baseY = 0.55
 
-	local leanX = (((index * 7) % 5) - 2) * 0.10
-	local leanZ = (((index * 11) % 5) - 2) * 0.08
-	local stemCFrame = CFrame.new(x, baseY + stemHeight / 2, z)
-		* CFrame.Angles(math.rad(leanX), 0, math.rad(90 + leanZ))
-
+	local leanDegrees = ((index % 5) - 2) * 1.3
 	local stem = makePart(
 		model,
 		"MushroomStem" .. index,
 		Vector3.new(stemHeight, stemDiameter, stemDiameter),
-		stemCFrame,
+		CFrame.new(x, baseY + stemHeight / 2, z) * CFrame.Angles(0, 0, math.rad(90 + leanDegrees)),
 		Color3.fromRGB(196 + (index % 3) * 5, 184 + (index % 2) * 4, 154),
 		Enum.Material.Sand
 	)
 	stem.Shape = Enum.PartType.Cylinder
 
-	local capOffsetX = (((index * 13) % 5) - 2) * 0.12
-	local capOffsetZ = (((index * 17) % 5) - 2) * 0.10
+	local capOffsetX = (((index * 13) % 5) - 2) * 0.10
+	local capOffsetZ = (((index * 17) % 5) - 2) * 0.09
 	local capX = x + capOffsetX
 	local capZ = z + capOffsetZ
-	local brimY = baseY + stemHeight + 0.10
+	local capY = baseY + stemHeight + capHeight * 0.16
+	local tiltX = math.rad((((index * 3) % 5) - 2) * 1.6)
+	local tiltZ = math.rad((((index * 5) % 5) - 2) * 1.4)
 	local capYaw = math.rad((index * 29) % 180)
+	local capCFrame = CFrame.new(capX, capY, capZ) * CFrame.Angles(tiltX, capYaw, tiltZ)
 
-	-- Cylinders use their X axis, so a 90-degree Z rotation makes this a horizontal
-	-- pancake. It is collidable and gives players a predictable surface to jump on.
-	local brim = makePart(
+	local cap = makePart(
 		model,
 		"MushroomCap" .. index,
-		Vector3.new(brimThickness, capWidth, capDepth),
-		CFrame.new(capX, brimY, capZ) * CFrame.Angles(0, capYaw, math.rad(90)),
+		Vector3.new(capWidth, capHeight, capDepth),
+		capCFrame,
 		capColor,
 		Enum.Material.Fabric
 	)
-	brim.Shape = Enum.PartType.Cylinder
-	brim.Reflectance = 0
+	cap.Shape = Enum.PartType.Ball
+	cap.Reflectance = 0
 
-	local dome = makePart(
-		model,
-		"MushroomDome" .. index,
-		Vector3.new(capWidth * 0.76, domeHeight, capDepth * 0.76),
-		CFrame.new(capX, brimY + brimThickness * 0.42 + domeHeight * 0.30, capZ) * CFrame.Angles(0, capYaw, 0),
-		capColor:Lerp(Color3.fromRGB(105, 75, 55), 0.07),
-		Enum.Material.Fabric
-	)
-	dome.Shape = Enum.PartType.Ball
-	dome.CanCollide = false
-	dome.CanTouch = false
-	dome.CanQuery = false
-
+	-- A small pale underside gives the cap depth from bug height without creating a
+	-- hard saucer edge. It is visual-only so the main cap remains the jump surface.
 	local underside = makePart(
 		model,
 		"MushroomUnderside" .. index,
-		Vector3.new(0.20, capWidth * 0.78, capDepth * 0.78),
-		CFrame.new(capX, brimY - brimThickness * 0.44, capZ) * CFrame.Angles(0, capYaw, math.rad(90)),
+		Vector3.new(capWidth * 0.67, 0.42, capDepth * 0.67),
+		CFrame.new(capX, capY - capHeight * 0.34, capZ) * CFrame.Angles(tiltX, capYaw, tiltZ),
 		Color3.fromRGB(211, 196, 164),
 		Enum.Material.Sand
 	)
-	underside.Shape = Enum.PartType.Cylinder
+	underside.Shape = Enum.PartType.Ball
 	underside.CanCollide = false
 	underside.CanTouch = false
 	underside.CanQuery = false
@@ -123,6 +107,162 @@ local function rebuildMushrooms(arena: Instance)
 			rebuildMushroom(model, index)
 		end
 	end
+end
+
+local function isMushroomBlockingPart(part: BasePart, model: Model, arena: Instance): boolean
+	if part:IsDescendantOf(model) then
+		return false
+	end
+	if part.Name == "DirtFloor" or part.Name == "OutOfBoundsRescue" then
+		return false
+	end
+	if part:GetAttribute("IsEnvironmentZone") then
+		return false
+	end
+
+	local name = part.Name
+	if string.find(name, "Grass")
+		or string.find(name, "FallenLeaf")
+		or string.find(name, "Twig")
+		or string.find(name, "Clover")
+		or string.find(name, "DirtPatch")
+		or string.find(name, "DirtClod") then
+		return false
+	end
+
+	if string.find(name, "Mushroom") then
+		return true
+	end
+	if string.find(name, "Pebble") or string.find(name, "RockPile") or string.find(name, "GardenRock") then
+		return true
+	end
+
+	local cover = arena:FindFirstChild("Cover")
+	if cover and part:IsDescendantOf(cover) then
+		return true
+	end
+
+	return false
+end
+
+local function mushroomIsBlocked(model: Model, arena: Instance): boolean
+	local boxCFrame, boxSize = model:GetBoundingBox()
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { model }
+
+	for _, hit in ipairs(Workspace:GetPartBoundsInBox(boxCFrame, boxSize * 0.88, params)) do
+		if hit:IsA("BasePart") and isMushroomBlockingPart(hit, model, arena) then
+			return true
+		end
+	end
+	return false
+end
+
+local function separateMushrooms(arena: Instance)
+	local clutter = arena:FindFirstChild("Clutter")
+	if not clutter then
+		return
+	end
+
+	local offsets = {
+		Vector3.new(7, 0, 0), Vector3.new(-7, 0, 0), Vector3.new(0, 0, 7), Vector3.new(0, 0, -7),
+		Vector3.new(7, 0, 7), Vector3.new(-7, 0, 7), Vector3.new(7, 0, -7), Vector3.new(-7, 0, -7),
+		Vector3.new(12, 0, 0), Vector3.new(-12, 0, 0), Vector3.new(0, 0, 12), Vector3.new(0, 0, -12),
+		Vector3.new(12, 0, 8), Vector3.new(-12, 0, 8), Vector3.new(12, 0, -8), Vector3.new(-12, 0, -8),
+	}
+
+	for index = 1, 24 do
+		local model = clutter:FindFirstChild("Mushroom" .. index)
+		if model and model:IsA("Model") and mushroomIsBlocked(model, arena) then
+			local originalPivot = model:GetPivot()
+			local originalPosition = originalPivot.Position
+			local rotation = originalPivot.Rotation
+			local foundClear = false
+
+			for _, offset in ipairs(offsets) do
+				local candidate = originalPosition + offset
+				if math.abs(candidate.X) < 194 and math.abs(candidate.Z) < 194 then
+					model:PivotTo(CFrame.new(candidate) * rotation)
+					if not mushroomIsBlocked(model, arena) then
+						foundClear = true
+						break
+					end
+				end
+			end
+
+			if not foundClear then
+				model:PivotTo(originalPivot)
+			end
+		end
+	end
+end
+
+local function rebuildAcorn(cover: Instance, partName: string, index: number)
+	local old = cover:FindFirstChild(partName)
+	if not old or not old:IsA("BasePart") then
+		return
+	end
+
+	local center = old.Position
+	local originalSize = old.Size
+	old:Destroy()
+
+	local model = Instance.new("Model")
+	model.Name = partName
+	model.Parent = cover
+
+	local footprint = math.min(originalSize.X, originalSize.Z)
+	local bodyWidth = footprint * 0.76
+	local bodyDepth = footprint * 0.70
+	local bodyHeight = math.max(5.2, originalSize.Y * 0.92)
+	local yaw = math.rad(index == 1 and -24 or 19)
+	local roll = math.rad(index == 1 and 13 or -11)
+	local bodyY = 0.55 + bodyHeight / 2
+	local nutColor = index == 1 and Color3.fromRGB(128, 76, 40) or Color3.fromRGB(113, 68, 37)
+
+	local body = makePart(
+		model,
+		"AcornBody",
+		Vector3.new(bodyWidth, bodyHeight, bodyDepth),
+		CFrame.new(center.X, bodyY, center.Z) * CFrame.Angles(roll, yaw, math.rad(8)),
+		nutColor,
+		Enum.Material.SmoothPlastic
+	)
+	body.Shape = Enum.PartType.Ball
+
+	local capHeight = math.max(1.8, bodyHeight * 0.30)
+	local cap = makePart(
+		model,
+		"AcornCap",
+		Vector3.new(bodyWidth * 0.93, capHeight, bodyDepth * 0.93),
+		CFrame.new(center.X, bodyY + bodyHeight * 0.34, center.Z) * CFrame.Angles(roll, yaw, math.rad(8)),
+		Color3.fromRGB(78, 52, 34),
+		Enum.Material.Fabric
+	)
+	cap.Shape = Enum.PartType.Ball
+
+	local stem = makePart(
+		model,
+		"AcornStem",
+		Vector3.new(2.2, 0.8, 0.8),
+		CFrame.new(center.X, bodyY + bodyHeight * 0.61, center.Z) * CFrame.Angles(0, yaw, math.rad(72)),
+		Color3.fromRGB(71, 47, 30),
+		Enum.Material.Wood
+	)
+	stem.Shape = Enum.PartType.Cylinder
+	stem.CanCollide = false
+	stem.CanTouch = false
+	stem.CanQuery = false
+end
+
+local function rebuildAcorns(arena: Instance)
+	local cover = arena:FindFirstChild("Cover")
+	if not cover then
+		return
+	end
+	rebuildAcorn(cover, "AcornCapA", 1)
+	rebuildAcorn(cover, "AcornCapB", 2)
 end
 
 local function addLogEnd(parent: Instance, name: string, position: Vector3, diameter: number, color: Color3)
@@ -192,9 +332,6 @@ local function rebuildBarkTunnel(arena: Instance)
 		return log
 	end
 
-	-- Three rounded logs form a clear arch. There are no broad rectangular wall or
-	-- roof pieces, so this landmark cannot turn back into a solid brown slab from a
-	-- different camera angle.
 	makeLog("BarkSideLeft", Vector3.new(center.X, groundY + sideDiameter / 2, center.Z - zSpread), sideDiameter, barkA, 1.0, -1.2)
 	makeLog("BarkSideRight", Vector3.new(center.X + 0.7, groundY + sideDiameter / 2 + 0.25, center.Z + zSpread), sideDiameter * 0.96, barkB, -1.1, 1.4)
 	makeLog("BarkTop", Vector3.new(center.X - 0.4, groundY + sideDiameter + topDiameter / 2 + 1.1, center.Z), topDiameter, barkA, 0.7, -0.8)
@@ -206,7 +343,6 @@ local function rebuildBarkTunnel(arena: Instance)
 	addLogEnd(model, "LeftLogEndTop", Vector3.new(leftX - 0.4, groundY + sideDiameter + topDiameter / 2 + 1.1, center.Z), topDiameter, endColor)
 	addLogEnd(model, "RightLogEndTop", Vector3.new(rightX - 0.4, groundY + sideDiameter + topDiameter / 2 + 1.1, center.Z), topDiameter, endColor)
 
-	-- Small dark knots break up the long cylinders without affecting collision.
 	for knotIndex, data in ipairs({
 		{ -12, groundY + sideDiameter + 4.0, -2.5, 2.1 },
 		{ 10, groundY + sideDiameter + 3.5, 2.3, 1.7 },
@@ -311,7 +447,9 @@ function EnvironmentFinishService.Init()
 	end
 
 	rebuildMushrooms(arena)
+	rebuildAcorns(arena)
 	rebuildBarkTunnel(arena)
+	separateMushrooms(arena)
 	createRescuePlane(arena)
 
 	Players.PlayerRemoving:Connect(function(player)
